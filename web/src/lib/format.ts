@@ -1,8 +1,8 @@
 // Number and age formatting shared by the screens.
 
-export const cr = (n: number) => Math.round(n).toLocaleString('pt-BR');
+export const cr = (n: number) => Math.round(n).toLocaleString('en-US');
 
-/** 12 345 678 → "12,3M"; keeps tables narrow. */
+/** 12 345 678 → "12.3M"; keeps tables narrow. */
 export function short(n: number): string {
   const a = Math.abs(n);
   if (a >= 1e9) return `${(n / 1e9).toFixed(1)}B`;

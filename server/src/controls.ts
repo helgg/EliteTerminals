@@ -61,10 +61,10 @@ export class Controls extends EventEmitter {
   }
 
   private async execute(action: string) {
-    if (!ACTION_NAME.test(action)) throw new Error('comando inválido');
+    if (!ACTION_NAME.test(action)) throw new Error('invalid command');
     const chord = this.chords.get(action);
-    if (!chord) throw new Error(`"${action}" não tem tecla de teclado nos seus binds`);
-    if (!this.sender) throw new Error('envio de teclas só funciona no Windows');
+    if (!chord) throw new Error(`"${action}" has no keyboard key in your binds`);
+    if (!this.sender) throw new Error('sending keys only works on Windows');
     const focusError = await this.sender.focusGame();
     if (focusError) throw new Error(focusError);
     await this.sender.tap(chord);

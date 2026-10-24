@@ -15,7 +15,7 @@ export interface TargetView {
   pending: boolean;
 }
 
-const ls = (d: number) => `${Math.round(d).toLocaleString('pt-BR')}ls`;
+const ls = (d: number) => `${Math.round(d).toLocaleString('en-US')}ls`;
 
 export function resolveTarget(s: EdState): TargetView {
   const here = s.location.address;
@@ -32,7 +32,7 @@ export function resolveTarget(s: EdState): TargetView {
       holo: cls ? { kind: 'star', cls } : { kind: 'unknown' },
       label: 'SYSTEM',
       name,
-      subtitle: detail?.primaryStar || (cls ? `classe ${cls}` : 'estrela desconhecida'),
+      subtitle: detail?.primaryStar || (cls ? `class ${cls}` : 'unknown star'),
       facts: systemFacts(detail),
       scoopable: isScoopable(cls),
       pending: !detail,
@@ -48,13 +48,13 @@ export function resolveTarget(s: EdState): TargetView {
     const body = detail?.bodies.find((b) => norm(b.name) === key);
     if (body) return bodyView(body);
     return {
-      holo: { kind: 'unknown' }, label: 'DESTINATION', name: dest.name, subtitle: 'sem dados',
+      holo: { kind: 'unknown' }, label: 'DESTINATION', name: dest.name, subtitle: 'no data',
       facts: [], scoopable: false, pending: !detail,
     };
   }
 
   return {
-    holo: { kind: 'none' }, label: 'NO TARGET', name: 'Nenhum destino', subtitle: 'selecione um alvo no jogo',
+    holo: { kind: 'none' }, label: 'NO TARGET', name: 'No destination', subtitle: 'select a target in the game',
     facts: [], scoopable: false, pending: false,
   };
 }
@@ -65,7 +65,7 @@ function systemFacts(d: SystemDetail | null): [string, string][] {
   if (d.controllingPower) facts.push(['POWER', `${d.controllingPower}${d.powerState ? ` · ${d.powerState}` : ''}`]);
   if (d.factionState && d.factionState !== 'None') facts.push(['STATE', d.factionState]);
   facts.push(['BODIES', String(d.bodies.length)], ['STATIONS', String(d.stations.filter((x) => !/carrier/i.test(x.type)).length)]);
-  if (d.needsPermit) facts.push(['PERMIT', 'necessário']);
+  if (d.needsPermit) facts.push(['PERMIT', 'required']);
   return facts;
 }
 

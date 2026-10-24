@@ -29,7 +29,7 @@
   function readFilters(): Filters {
     try {
       const saved = JSON.parse(localStorage.getItem('et.trade.filters') ?? '{}');
-      if (saved.fromHere) saved.exportHere = true; // "só daqui" became "exportar"
+      if (saved.fromHere) saved.exportHere = true; // the old "from here only" became EXPORT
       delete saved.fromHere;
       return { ...DEFAULTS, ...saved };
     } catch {
@@ -38,7 +38,7 @@
   }
 
   const RADII = [10, 15, 25, 40];
-  const AGES: [number, string][] = [[1, '1h'], [3, '3h'], [12, '12h'], [24, '1d'], [72, '3d'], [168, '7d'], [720, '30d'], [0, 'todas']];
+  const AGES: [number, string][] = [[1, '1h'], [3, '3h'], [12, '12h'], [24, '1d'], [72, '3d'], [168, '7d'], [720, '30d'], [0, 'any']];
   const LS: [number, string][] = [[1000, '1k'], [5000, '5k'], [20000, '20k'], [0, '∞']];
   const VOLUMES: [number, string][] = [[0, '—'], [100, '100'], [500, '500'], [1000, '1k'], [5000, '5k'], [10000, '10k']];
   const STOPS: [number, string][] = [[2, '3'], [3, '4'], [4, '5']]; // legs → stops (max 5)
@@ -111,11 +111,11 @@
 
 <div class="trade">
   <div class="left">
-    <Panel title="Scan" scroll={false} aside={result ? `${result.stations} mercados` : ''}>
+    <Panel title="Scan" scroll={false} aside={result ? `${result.stations} markets` : ''}>
       <div class="filters">
-        <span class="k">RAIO</span>
+        <span class="k">RADIUS</span>
         {@render chips(RADII.map((r) => [r, `${r}ly`] as [number, string]), f.radius, (v) => (f.radius = v))}
-        <span class="k">PREÇO ATUALIZADO HÁ NO MÁXIMO</span>
+        <span class="k">MAX PRICE AGE</span>
         {@render chips(AGES, f.maxAgeH, (v) => (f.maxAgeH = v))}
         <div class="pair">
           <div>
@@ -123,68 +123,68 @@
             {@render chips([['S', 'S'], ['M', 'M'], ['L', 'L']] as ['S' | 'M' | 'L', string][], f.pad, (v) => (f.pad = v))}
           </div>
           <div>
-            <span class="k">DIST. ESTRELA (ls)</span>
+            <span class="k">DIST. FROM STAR (ls)</span>
             {@render chips(LS, f.maxLs, (v) => (f.maxLs = v))}
           </div>
         </div>
-        <span class="k">OFERTA MÍN. (t)</span>
+        <span class="k">MIN SUPPLY (t)</span>
         {@render chips(VOLUMES, f.minSupply, (v) => (f.minSupply = v))}
-        <span class="k">DEMANDA MÍN. (t)</span>
+        <span class="k">MIN DEMAND (t)</span>
         {@render chips(VOLUMES, f.minDemand, (v) => (f.minDemand = v))}
-        <span class="k">ESTADO DA FACÇÃO (A ou B)</span>
+        <span class="k">FACTION STATE (A or B)</span>
         <div class="chips">
           {#each states as x (x)}
             <button class="state" class:on={f.states.includes(x)} onclick={() => toggleState(x)}>{x.toUpperCase()}</button>
           {/each}
         </div>
         <div class="toggles">
-          <button class:on={f.exportHere} title="Rotas que saem daqui (estação atual, ou sistema atual em voo)"
-            onclick={() => (f.exportHere = !f.exportHere)}>EXPORTAR</button>
-          <button class:on={f.importHere} title="Rotas que chegam aqui (estação atual, ou sistema atual em voo)"
-            onclick={() => (f.importHere = !f.importHere)}>IMPORTAR</button>
-          <button class:on={f.planetary} onclick={() => (f.planetary = !f.planetary)}>PLANETÁRIAS</button>
+          <button class:on={f.exportHere} title="Routes starting here (current station, or current system when in flight)"
+            onclick={() => (f.exportHere = !f.exportHere)}>EXPORT</button>
+          <button class:on={f.importHere} title="Routes ending here (current station, or current system when in flight)"
+            onclick={() => (f.importHere = !f.importHere)}>IMPORT</button>
+          <button class:on={f.planetary} onclick={() => (f.planetary = !f.planetary)}>PLANETARY</button>
           <button class:on={f.carriers} onclick={() => (f.carriers = !f.carriers)}>CARRIERS</button>
         </div>
         <button class="scan" disabled={busy || !s.location.system} onclick={() => scan(false)}>
           {#if busy}
-            ESCANEANDO {progress ? `${progress.loaded}/${progress.total}` : '…'}
+            SCANNING {progress ? `${progress.loaded}/${progress.total}` : '…'}
           {:else}
-            SCAN · {s.location.system || '—'}
+            SCAN · {s.location.system.toUpperCase() || '—'}
           {/if}
         </button>
         {#if busy && progress?.total}
           <div class="bar"><div style:width="{(progress.loaded / progress.total) * 100}%"></div></div>
         {/if}
         <div class="hint dim">
-          cargo {cr(query.cargo)}t · alcance carregado ≈{query.jumpRange.toFixed(1)}ly
-          {#if result}<br />dados {new Date(result.fetchedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-            · <button class="link" disabled={busy} onclick={() => scan(true)}>recarregar</button>{/if}
+          cargo {cr(query.cargo)}t · laden jump range ≈{query.jumpRange.toFixed(1)}ly
+          {#if result}<br />data {new Date(result.fetchedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+            · <button class="link" disabled={busy} onclick={() => scan(true)}>reload</button>{/if}
         </div>
         {#if error}<div class="bad">{error}</div>{/if}
       </div>
     </Panel>
 
-    <Panel title="Session" scroll={false} aside={s.session.startedAt ? `${hours.toFixed(1)}h` : 'sem sessão'}>
+    <Panel title="Session" scroll={false} aside={s.session.startedAt ? `${hours.toFixed(1)}h` : 'no session'}>
       <div class="kpis">
-        <div><span class="dim">LUCRO</span><b class="num ok">{short(s.session.tradeProfit)}Cr</b></div>
+        <div><span class="dim">PROFIT</span><b class="num ok">{short(s.session.tradeProfit)}Cr</b></div>
         <div><span class="dim">CR/H</span><b class="num tele">{short(crPerHour)}</b></div>
-        <div><span class="dim">VENDIDO</span><b class="num">{cr(s.session.tonsSold)}t</b></div>
+        <div><span class="dim">SOLD</span><b class="num">{cr(s.session.tonsSold)}t</b></div>
         <div><span class="dim">CARGO</span><b class="num">{cr(s.cargo.count)}/{cr(s.ship.cargoCapacity)}t</b></div>
       </div>
     </Panel>
   </div>
 
-  <Panel class="center" title={ts.tab === 'local' ? `Market · ${s.market.station || '—'}` : TITLES[ts.tab]}
-    aside={ts.tab === 'loop' && result ? `${result.routes.length} rotas` : ts.tab === 'linear' && result ? `${result.chains?.length ?? 0} rotas` : ''}>
+  <Panel class="center" title={TITLES[ts.tab]}
+    aside={ts.tab === 'loop' && result ? `${result.routes.length} routes` : ts.tab === 'linear' && result ? `${result.chains?.length ?? 0} routes` : ''}>
     <div class="center-body">
       <nav class="tabs">
-        <button class:on={ts.tab === 'loop'} onclick={() => (ts.tab = 'loop')}>ROTAS LOOP</button>
-        <button class:on={ts.tab === 'linear'} onclick={() => (ts.tab = 'linear')}>ROTAS LINEARES</button>
+        <button class:on={ts.tab === 'loop'} onclick={() => (ts.tab = 'loop')}>LOOP ROUTES</button>
+        <button class:on={ts.tab === 'linear'} onclick={() => (ts.tab = 'linear')}>LINEAR ROUTES</button>
         <button class:on={ts.tab === 'finder'} onclick={() => (ts.tab = 'finder')}>COMMODITY</button>
-        <button class:on={ts.tab === 'local'} onclick={() => (ts.tab = 'local')}>MERCADO LOCAL</button>
+        <button class:on={ts.tab === 'local'} onclick={() => (ts.tab = 'local')}>MARKET</button>
         {#if ts.tab === 'linear'}
           <span class="stops">
-            <span class="k">PARADAS</span>
+            <span class="k">STOPS</span>
             {@render chips(STOPS, f.hops, setStops)}
           </span>
         {/if}
@@ -196,16 +196,16 @@
           {:else if ts.tab === 'linear' && result?.chains?.length}
             <ChainTable chains={result.chains} bind:selected={ts.selectedChain} />
           {:else if result}
-            <p class="dim">Nenhuma rota com esses filtros. Aumente o raio ou a idade máxima do preço, ou toque em SCAN
-              para aplicar os filtros atuais.</p>
+            <p class="dim">No route with these filters. Widen the radius or the max price age, or tap SCAN to apply
+              the current filters.</p>
           {:else}
-            <p class="dim">Ajuste os filtros e toque em SCAN. A primeira busca baixa os mercados próximos do Spansh
-              (pode levar ~30s); depois fica em cache por 30min.</p>
+            <p class="dim">Set the filters and tap SCAN. The first scan downloads the nearby markets from Spansh
+              (may take ~30s); then they are cached for 30min.</p>
           {/if}
         {:else if ts.tab === 'finder'}
           <CommodityFinder names={result?.commodities ?? []} {query} />
         {:else}
-          <LocalMarket {s} />
+          <LocalMarket {s} {now} />
         {/if}
       </div>
     </div>
@@ -213,9 +213,9 @@
 
   <Panel class="right" title={ts.tab === 'linear' ? 'Linear route' : 'Loop route'}>
     {#if ts.tab === 'linear'}
-      <ChainDetail {chain} />
+      <ChainDetail {chain} jumpRange={query.jumpRange} />
     {:else}
-      <RouteDetail {route} />
+      <RouteDetail {route} jumpRange={query.jumpRange} />
     {/if}
   </Panel>
 </div>

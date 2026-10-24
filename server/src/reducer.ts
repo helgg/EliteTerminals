@@ -223,6 +223,7 @@ export function applyMarket(state: EdState, e: JournalEvent) {
   state.market = {
     marketId: e.MarketID ?? 0,
     station: str(e.StationName),
+    stationType: str(e.StationType),
     system: str(e.StarSystem),
     updatedAt: str(e.timestamp),
     items: e.Items.map((i: any) => ({
@@ -234,6 +235,8 @@ export function applyMarket(state: EdState, e: JournalEvent) {
       meanPrice: i.MeanPrice ?? 0,
       stock: i.Stock ?? 0,
       demand: i.Demand ?? 0,
+      stockBracket: typeof i.StockBracket === 'number' ? i.StockBracket : 0,
+      demandBracket: typeof i.DemandBracket === 'number' ? i.DemandBracket : 0,
     })),
   };
 }

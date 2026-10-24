@@ -1,6 +1,6 @@
 <script lang="ts">
   // Fuel-star marker: a scoop funnel over a fuel drop. Drawn here, not taken from game assets.
-  let { size = 12, title = 'Estrela abastecível (fuel scoop)' }: { size?: number; title?: string } = $props();
+  let { size = 12, title = 'Scoopable star (fuel scoop)' }: { size?: number; title?: string } = $props();
 </script>
 
 <svg class="scoop" width={size} height={size} viewBox="0 0 12 12" role="img" aria-label={title}>

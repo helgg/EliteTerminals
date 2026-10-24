@@ -119,7 +119,7 @@ export class MarketScanner extends EventEmitter {
         body: JSON.stringify(searchBody(p, page)),
         signal: AbortSignal.timeout(90000),
       });
-      if (!res.ok) throw new Error(`Spansh respondeu ${res.status}`);
+      if (!res.ok) throw new Error(`Spansh answered ${res.status}`);
       const body = (await res.json()) as any;
       total = Math.min(body.count ?? 0, PAGE_SIZE * MAX_PAGES);
       const results = body.results ?? [];

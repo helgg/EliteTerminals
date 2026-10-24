@@ -13,10 +13,10 @@
 </script>
 
 <button class="toggle chamfer" class:on class:hot disabled={!key} onclick={() => sendCommand(command)}
-  title={key ? `${command} · ${key}` : `${command}: sem tecla de teclado nos seus binds`}>
+  title={key ? `${command} · ${key}` : `${command}: no keyboard key in your binds`}>
   <span class="led"></span>
   <span class="text">{label}</span>
-  <span class="key">{key ?? 'sem bind'}</span>
+  <span class="key">{key ?? 'no bind'}</span>
 </button>
 
 <style>

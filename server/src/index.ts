@@ -13,6 +13,8 @@ import { createWin32Sender } from './input.ts';
 import { Galaxy, summary } from './galaxy.ts';
 import { MarketScanner } from './trade/markets.ts';
 import { TradeService } from './trade/service.ts';
+import { MarketHistory } from './marketHistory.ts';
+import { clipText, setClipboard } from './clipboard.ts';
 
 const PORT = Number(process.env.PORT ?? 8420);
 const HOST = process.env.HOST ?? '0.0.0.0';
@@ -30,7 +32,9 @@ const galaxy = new Galaxy(CACHE_DIR);
 await galaxy.load();
 const scanner = new MarketScanner(CACHE_DIR);
 await scanner.load();
-const trade = new TradeService(scanner, () => reader.state);
+const history = new MarketHistory(CACHE_DIR);
+await history.load();
+const trade = new TradeService(scanner, () => reader.state, () => history.markets);
 const app = Fastify({ logger: { level: 'info' } });
 await app.register(fastifyWebsocket);
 
@@ -62,9 +66,16 @@ function refreshGalaxy() {
   s.galaxy = { systems, current: galaxy.get(current), target: target ? galaxy.get(target) : null };
 }
 
+let lastMarketAt = '';
 reader.on('change', () => {
   refreshGalaxy();
   scheduleBroadcast();
+  const m = reader.state.market;
+  if (m.updatedAt && m.updatedAt !== lastMarketAt) {
+    lastMarketAt = m.updatedAt;
+    void history.record(structuredClone(m)).catch((err: Error) =>
+      app.log.warn({ error: err.message }, 'market history not saved'));
+  }
 });
 galaxy.on('change', () => {
   refreshGalaxy();
@@ -115,6 +126,19 @@ app.post('/api/trade/routes', async (req, reply) => {
   } catch (err) {
     app.log.warn({ error: (err as Error).message }, 'trade scan failed');
     return reply.code(502).send({ error: (err as Error).message });
+  }
+});
+
+app.get('/api/market/history', async () => history.markets);
+
+app.post('/api/clipboard', async (req, reply) => {
+  const text = clipText((req.body as { text?: unknown } | null)?.text);
+  if (!text) return reply.code(400).send({ error: 'empty text' });
+  try {
+    await setClipboard(text);
+    return { ok: true };
+  } catch (err) {
+    return reply.code(500).send({ error: (err as Error).message });
   }
 });
 

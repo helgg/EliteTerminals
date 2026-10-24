@@ -27,7 +27,7 @@
     {#each DETENTS as d (d.cmd)}
       {@const key = keyFor(d.cmd)}
       <button class="detent" class:rev={d.pct < 0} class:zero={d.pct === 0} class:set={set === d.pct}
-        disabled={!key} title={key ?? 'sem bind'} onclick={() => sendCommand(d.cmd)}>
+        disabled={!key} title={key ?? 'no bind'} onclick={() => sendCommand(d.cmd)}>
         <span class="tick"></span>
         <span class="pct num">{d.pct > 0 ? d.pct : d.pct === 0 ? 'ZERO' : d.pct}</span>
         <span class="key">{key ?? '—'}</span>
@@ -36,10 +36,10 @@
   </div>
 
   <button class="boost" disabled={!keyFor('UseBoostJuice')} onclick={() => sendCommand('UseBoostJuice')}
-    title={keyFor('UseBoostJuice') ?? 'sem bind'}>
+    title={keyFor('UseBoostJuice') ?? 'no bind'}>
     <span class="chev" aria-hidden="true">›››</span>
     <span class="word">BOOST</span>
-    <span class="key">{keyFor('UseBoostJuice') ?? 'sem bind'}</span>
+    <span class="key">{keyFor('UseBoostJuice') ?? 'no bind'}</span>
   </button>
 </div>
 

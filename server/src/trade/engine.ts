@@ -105,6 +105,8 @@ export function bestLeg(a: TradeMarket, b: TradeMarket, q: TradeQuery): TradeLeg
     options.push({
       commodity: i.name, buy: i.buy, sell: o.sell, profit: o.sell - i.buy,
       amount: Math.min(i.supply, o.demand), supply: i.supply, demand: o.demand,
+      supplyLevel: i.supplyBracket ?? 0, demandLevel: o.demandBracket ?? 0,
+      supplyExact: !!i.supplyBracket, demandExact: !!o.demandBracket,
     });
   }
   if (!options.length) return null;
@@ -247,14 +249,23 @@ export function computeTrade(
     }
   }
   const out = new Map([...outgoing].map(([id, best]) => [id, best.list()]));
+  const routes = loops.list();
+  const chains = linearChains(starts.list(), out, q, here, inState);
+  const level = levelEstimator(usable);
+  for (const leg of [...routes.flatMap((r) => [r.leg, r.back]), ...chains.flatMap((c) => c.legs.map((l) => l.leg))]) {
+    for (const i of leg?.items ?? []) {
+      if (!i.supplyExact) i.supplyLevel = level('supply', i.commodity, i.supply);
+      if (!i.demandExact) i.demandLevel = level('demand', i.commodity, i.demand);
+    }
+  }
 
   return {
     query: q,
     reference,
     stations: usable.length,
     fetchedAt: new Date(now).toISOString(),
-    routes: loops.list(),
-    chains: linearChains(starts.list(), out, q, here, inState),
+    routes,
+    chains,
     states: [...new Set(usable.map((m) => m.state).filter(Boolean))].sort(),
     commodities: commodityNames(usable),
   };
@@ -298,6 +309,40 @@ function linearChains(
     .filter((legs) => stops(legs).some(inState))
     .slice(0, MAX_CHAINS)
     .map((legs) => ({ id: stops(legs).map((e) => e.marketId).join('-'), legs, ...rate(legs) }));
+}
+
+/**
+ * Low / medium / high (1…3) for a stock or demand, when the game's bracket is unknown (Spansh has only
+ * the numbers): compared with the median of that commodity among the nearby markets trading it.
+ */
+export function levelEstimator(markets: TradeMarket[]) {
+  const seen = { supply: new Map<string, number[]>(), demand: new Map<string, number[]>() };
+  for (const m of markets) {
+    for (const i of m.items) {
+      const key = commodityKey(i.name);
+      if (i.buy > 0 && i.supply > 0) push(seen.supply, key, i.supply);
+      if (i.sell > 0 && i.demand > 0) push(seen.demand, key, i.demand);
+    }
+  }
+  const medians = {
+    supply: new Map([...seen.supply].map(([k, v]) => [k, median(v)])),
+    demand: new Map([...seen.demand].map(([k, v]) => [k, median(v)])),
+  };
+  return (side: 'supply' | 'demand', commodity: string, volume: number) => {
+    const med = medians[side].get(commodityKey(commodity));
+    if (!med || volume <= 0) return volume > 0 ? 2 : 0;
+    return volume >= med * 2 ? 3 : volume >= med / 2 ? 2 : 1;
+  };
+}
+const push = (map: Map<string, number[]>, key: string, v: number) => {
+  const list = map.get(key);
+  if (list) list.push(v);
+  else map.set(key, [v]);
+};
+function median(v: number[]): number {
+  const s = [...v].sort((a, b) => a - b);
+  const mid = s.length >> 1;
+  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
 }
 
 /** The `size` highest-scoring items seen; trimmed in batches so adding stays cheap. */

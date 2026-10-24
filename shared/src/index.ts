@@ -39,6 +39,19 @@ export interface MarketItem {
   meanPrice: number;
   stock: number;
   demand: number;
+  /** The game's supply/demand level: 0 none, 1 low, 2 medium, 3 high. */
+  stockBracket: number;
+  demandBracket: number;
+}
+
+/** One station's market as the player last saw it docked there (Market.json). */
+export interface MarketSnapshot {
+  marketId: number;
+  station: string;
+  stationType: string;
+  system: string;
+  updatedAt: string;
+  items: MarketItem[];
 }
 
 export interface RouteHop {
@@ -171,7 +184,7 @@ export interface EdState {
     subsystemHealth: number | null;
   };
   cargo: { items: CargoItem[]; count: number };
-  market: { marketId: number; station: string; system: string; updatedAt: string; items: MarketItem[] };
+  market: MarketSnapshot;
   /** Player's active control presets and the keyboard key behind each bindable action. */
   controls: { presets: string[]; keys: Record<string, string> };
   session: {
@@ -214,7 +227,7 @@ export function initialState(): EdState {
       shield: null, hull: null, subsystem: '', subsystemHealth: null,
     },
     cargo: { items: [], count: 0 },
-    market: { marketId: 0, station: '', system: '', updatedAt: '', items: [] },
+    market: { marketId: 0, station: '', stationType: '', system: '', updatedAt: '', items: [] },
     controls: { presets: [], keys: {} },
     session: { startedAt: '', tradeProfit: 0, tonsSold: 0, tonsBought: 0, sales: 0 },
   };
@@ -238,7 +251,11 @@ export interface TradeMarket {
   updatedAt: string;
   /** "spansh" or "local" (the player's own Market.json, which is fresher). */
   source: 'spansh' | 'local';
-  items: { name: string; buy: number; sell: number; supply: number; demand: number }[];
+  items: {
+    name: string; buy: number; sell: number; supply: number; demand: number;
+    /** Game brackets (1 low … 3 high), only known for markets the player docked at. */
+    supplyBracket?: number; demandBracket?: number;
+  }[];
 }
 
 export interface TradeQuery {
@@ -290,6 +307,12 @@ export interface LegItem {
   amount: number;
   supply: number;
   demand: number;
+  /** 1 low, 2 medium, 3 high: the game's bracket when known, otherwise estimated against nearby markets. */
+  supplyLevel: number;
+  demandLevel: number;
+  /** True when the level is the game's own bracket (from the player's Market.json). */
+  supplyExact: boolean;
+  demandExact: boolean;
 }
 
 /** A full cargo load from A to B: the hold filled with the most profitable mix of commodities. */

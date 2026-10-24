@@ -84,11 +84,11 @@ test('commands: sent in order, refused when unbound or game not focused', async 
   await Promise.all([controls.run('LandingGearToggle'), controls.run('Supercruise')]);
   assert.deepEqual(sent, ['L', 'Numpad Enter']);
 
-  await assert.rejects(controls.run('CycleNextHostileTarget'), /não tem tecla/);
-  await assert.rejects(controls.run('../../evil'), /inválido/);
+  await assert.rejects(controls.run('CycleNextHostileTarget'), /has no keyboard key/);
+  await assert.rejects(controls.run('../../evil'), /invalid command/);
 
-  focusError = 'Elite Dangerous não está aberto';
-  await assert.rejects(controls.run('LandingGearToggle'), /não está aberto/);
+  focusError = 'Elite Dangerous is not running';
+  await assert.rejects(controls.run('LandingGearToggle'), /is not running/);
   assert.equal(sent.length, 2);
 });
 

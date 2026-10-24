@@ -1,11 +1,13 @@
 <script lang="ts">
   import type { TradeEnd, TradeRoute } from '@et/shared';
   import Hologram from '../Hologram.svelte';
+  import Name from '../Name.svelte';
   import LoadList from './LoadList.svelte';
+  import StartDistance from './StartDistance.svelte';
   import { ageLabel, ageTone, cr, duration, short } from '../format.ts';
 
   // The selected loop, cockpit style: buy at A, sell at B, buy the way-back load at B, sell it at A.
-  let { route }: { route: TradeRoute | null } = $props();
+  let { route, jumpRange }: { route: TradeRoute | null; jumpRange: number } = $props();
 </script>
 
 {#snippet station(e: TradeEnd, step: string)}
@@ -13,8 +15,8 @@
     <div class="holo"><Hologram target={{ kind: 'station', stationType: e.type }} /></div>
     <div class="info">
       <div class="role">{step}</div>
-      <div class="name" title={e.station}>{e.station}</div>
-      <div class="sys" title={e.system}>{e.system}</div>
+      <div class="name"><Name value={e.station} stationType={e.type} icon /></div>
+      <div class="sys"><Name value={e.system} system icon /></div>
       <div class="meta">
         <span>{cr(e.ls)}ls</span>
         <span>PAD {e.pad}</span>
@@ -26,23 +28,24 @@
 {/snippet}
 
 {#if route}
+  {@const total = route.leg.total + (route.back?.total ?? 0)}
   <div class="detail">
-    {@render station(route.src, 'A · COMPRAR')}
-    <LoadList leg={route.leg} title="IDA A→B" />
-    <div class="hop dim">▼ {route.hopLy.toFixed(1)}ly · {route.jumps} {route.jumps === 1 ? 'salto' : 'saltos'} · ≈{duration(route.legSeconds)}</div>
-    {@render station(route.dst, 'B · VENDER TUDO E COMPRAR')}
-    <LoadList leg={route.back} title="VOLTA B→A" />
-    <div class="hop dim">▲ volta para A e vende tudo</div>
+    <StartDistance start={route.src} {jumpRange} />
+    {@render station(route.src, 'A · BUY')}
+    <LoadList leg={route.leg} title="OUT A→B" />
+    <div class="hop dim">▼ {route.hopLy.toFixed(1)}ly · {route.jumps} {route.jumps === 1 ? 'jump' : 'jumps'} · ≈{duration(route.legSeconds)}</div>
+    {@render station(route.dst, 'B · SELL ALL, BUY')}
+    <LoadList leg={route.back} title="BACK B→A" />
+    <div class="hop dim">▲ back to A, sell all</div>
 
     <dl class="facts">
-      <dt>LOOP/H</dt><dd class="tele">{short(route.loopPerHour)}Cr</dd>
-      <dt>LOOP</dt><dd>+{short(route.leg.total + (route.back?.total ?? 0))}Cr por volta</dd>
-      <dt>SÓ IDA</dt><dd>{short(route.perHour)}Cr/h · {route.pct.toFixed(0)}%</dd>
-      <dt>⌖ORIGEM</dt><dd>{route.src.fromMe.toFixed(1)}ly até A</dd>
+      <dt>LOOP</dt><dd class="gain">+{short(total)}Cr per loop</dd>
+      <dt>CR/H</dt><dd class="tele">{short(route.loopPerHour)}Cr</dd>
+      <dt>OUT ONLY</dt><dd>+{short(route.leg.total)}Cr · {short(route.perHour)}Cr/h · {route.pct.toFixed(0)}%</dd>
     </dl>
   </div>
 {:else}
-  <p class="dim">Selecione uma rota na tabela.</p>
+  <p class="dim">Select a route in the table.</p>
 {/if}
 
 <style>
@@ -51,8 +54,8 @@
   .holo :global(.holo) { max-width: 56px; }
   .info { min-width: 0; }
   .role { color: var(--hud-hi); font-size: 10px; font-weight: 700; letter-spacing: 0.12em; }
-  .name { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .sys { color: var(--telemetry); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .name { font-weight: 700; white-space: nowrap; overflow: hidden; }
+  .sys { color: var(--telemetry); font-size: 11px; white-space: nowrap; overflow: hidden; }
   .meta { display: flex; gap: 8px; font-size: 10px; color: var(--muted); }
   .fresh { color: var(--ok); }
   .ok { color: var(--hud-hi); }
@@ -62,4 +65,5 @@
   .facts { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 2px 0 0; font-size: 12px; }
   dt { color: var(--dim); font-size: 10px; letter-spacing: 0.1em; align-self: center; }
   dd { margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .gain { color: var(--ok); }
 </style>

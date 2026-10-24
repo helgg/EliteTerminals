@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { CommodityQuote, TradeQuery } from '@et/shared';
+  import Name from '../Name.svelte';
   import { ageLabel, ageTone, cr, short } from '../format.ts';
 
   // Where to buy a commodity cheapest and where to sell it dearest, within the scanned area.
@@ -12,7 +13,7 @@
   async function look() {
     const match = names.find((n) => n.toLowerCase() === name.trim().toLowerCase());
     if (!match) {
-      error = 'commodity não encontrada na área escaneada';
+      error = 'commodity not found in the scanned area';
       result = null;
       return;
     }
@@ -30,13 +31,13 @@
   <div class="side">
     <div class="label">{title}</div>
     <table>
-      <thead><tr><th class="c-st">Estação</th><th class="r">Preço</th><th class="r">{vol}</th><th class="r">ly</th><th class="r">Idade</th></tr></thead>
+      <thead><tr><th class="c-st">Station</th><th class="r">Price</th><th class="r">{vol}</th><th class="r">Ly</th><th class="r">Age</th></tr></thead>
       <tbody>
         {#each rows as q (q.end.marketId)}
           <tr class={ageTone(q.end.ageH)}>
             <td class="c-st">
-              <div class="st" title={q.end.station}>{q.end.station}</div>
-              <div class="dim sub">{q.end.system} · {q.end.pad} · {short(q.end.ls)}ls</div>
+              <div class="st"><Name value={q.end.station} stationType={q.end.type} icon /></div>
+              <div class="dim sub"><Name value={q.end.system} system /> · {q.end.pad} · {short(q.end.ls)}ls</div>
             </td>
             <td class="r num price">{cr(q.price)}</td>
             <td class="r num muted">{short(q.volume)}</td>
@@ -44,7 +45,7 @@
             <td class="r num age">{ageLabel(q.end.ageH)}</td>
           </tr>
         {:else}
-          <tr><td colspan="5" class="dim">nenhuma</td></tr>
+          <tr><td colspan="5" class="dim">none</td></tr>
         {/each}
       </tbody>
     </table>
@@ -53,20 +54,20 @@
 
 <div class="finder">
   <form class="search" onsubmit={(e) => { e.preventDefault(); look(); }}>
-    <input list="et-commodities" placeholder="commodity (ex.: Gold, Tritium, Basic Medicines)" bind:value={name} />
+    <input list="et-commodities" placeholder="commodity (e.g. Gold, Tritium, Basic Medicines)" bind:value={name} />
     <datalist id="et-commodities">
       {#each names as n (n)}<option value={n}></option>{/each}
     </datalist>
-    <button type="submit">BUSCAR</button>
+    <button type="submit">SEARCH</button>
   </form>
   {#if error}<p class="bad">{error}</p>{/if}
   {#if result}
     <div class="cols">
-      {@render list('COMPRAR MAIS BARATO', result.buy, 'Estoque')}
-      {@render list('VENDER MAIS CARO', result.sell, 'Demanda')}
+      {@render list('CHEAPEST TO BUY', result.buy, 'Supply')}
+      {@render list('BEST TO SELL', result.sell, 'Demand')}
     </div>
   {:else if !names.length}
-    <p class="dim">Escaneie a área (botão SCAN) para buscar commodities.</p>
+    <p class="dim">Scan the area (SCAN button) to search commodities.</p>
   {/if}
 </div>
 

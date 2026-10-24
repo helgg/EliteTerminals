@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { initialState, type TradeMarket, type TradeQuery } from '@et/shared';
 import {
-  acceptsMarket, bestLeg, commodityKey, commodityQuotes, computeTrade, legSeconds, supercruiseSeconds,
+  acceptsMarket, bestLeg, commodityKey, commodityQuotes, computeTrade, legSeconds, levelEstimator, supercruiseSeconds,
 } from '../src/trade/engine.ts';
 import { fromSpanshStation, searchBody } from '../src/trade/markets.ts';
 import { withLocalMarket } from '../src/trade/service.ts';
@@ -138,13 +138,17 @@ test('local Market.json replaces an older Spansh copy of the same station', () =
   const remote = market(7, [0, 0, 0], [item('Basic Medicines', 200, 180)], { updatedAt: hoursAgo(48) });
   const s = initialState();
   s.market = {
-    marketId: 7, station: 'S7', system: 'Sys7', updatedAt: hoursAgo(0.1),
-    items: [{ name: '$basicmedicines_name;', label: 'Remédios básicos', category: '', buy: 210, sell: 190, meanPrice: 0, stock: 5, demand: 1 }],
+    marketId: 7, station: 'S7', stationType: 'Coriolis', system: 'Sys7', updatedAt: hoursAgo(0.1),
+    items: [{
+      name: '$basicmedicines_name;', label: 'Remédios básicos', category: '', buy: 210, sell: 190, meanPrice: 0,
+      stock: 5, demand: 1, stockBracket: 1, demandBracket: 3,
+    }],
   };
   const [merged] = withLocalMarket([remote], s);
   assert.equal(merged.source, 'local');
   assert.equal(merged.items[0].name, 'Basic Medicines');
   assert.equal(merged.items[0].buy, 210);
+  assert.equal(merged.items[0].supplyBracket, 1); // the game's own bracket survives the merge
   assert.equal(merged.ls, 1000); // station metadata kept from Spansh
 });
 
@@ -177,4 +181,25 @@ test('linear routes chain legs without revisiting a station', () => {
   }
   const two = computeTrade([a, b, c, d], { ...Q, hops: 2, exportHere: true }, me, 'Sys1', NOW);
   assert.ok(two.chains.every((ch) => ch.legs.length === 2 && ch.legs[0].src.marketId === 1));
+});
+
+test('supply/demand levels: game brackets when known, otherwise against the median of nearby markets', () => {
+  const level = levelEstimator([
+    market(1, [0, 0, 0], [item('Tea', 1000, 0, 1000)]),
+    market(2, [1, 0, 0], [item('Tea', 1000, 0, 4000)]),
+    market(3, [2, 0, 0], [item('Tea', 1000, 0, 10000)]),
+  ]);
+  assert.equal(level('supply', 'Tea', 9000), 3); // ≥ 2× the 4 000 median
+  assert.equal(level('supply', 'Tea', 4000), 2);
+  assert.equal(level('supply', 'Tea', 1000), 1); // < half the median
+  assert.equal(level('demand', 'Tea', 500), 2); // nobody else wants tea: no reference, call it medium
+
+  const a = market(1, [0, 0, 0], [{ ...item('Tea', 1000, 0, 50), supplyBracket: 3 }]);
+  const b = market(2, [10, 0, 0], [item('Tea', 0, 1600)]);
+  const me = { pos: [0, 0, 0] as [number, number, number], systemId64: 0, marketId: 0 };
+  const [r] = computeTrade([a, b], Q, me, 'Sys1', NOW).routes;
+  assert.equal(r.leg.items[0].supplyLevel, 3);
+  assert.equal(r.leg.items[0].supplyExact, true);
+  assert.equal(r.leg.items[0].demandExact, false);
+  assert.ok(r.leg.items[0].demandLevel >= 1);
 });

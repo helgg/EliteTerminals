@@ -15,7 +15,7 @@
   <div class="row">
     <span class="dim">{label}</span>
     <span class="num" class:bad={warn}>
-      {value.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}<span class="dim">/{max.toLocaleString('pt-BR')}{unit}</span>
+      {value.toLocaleString('en-US', { maximumFractionDigits: 1 })}<span class="dim">/{max.toLocaleString('en-US')}{unit}</span>
     </span>
   </div>
   <div class="track"><div class="fill" class:warn style:width="{ratio * 100}%"></div></div>

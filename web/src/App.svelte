@@ -7,6 +7,8 @@
   import SystemPanel from './lib/SystemPanel.svelte';
   import Flight from './screens/Flight.svelte';
   import Trade from './screens/Trade.svelte';
+  import Name from './lib/Name.svelte';
+  import { copied } from './lib/copy.svelte.ts';
 
   const TABS = ['FLIGHT', 'COMBAT', 'EXPLORE', 'MINING', 'TRADE', 'SRV', 'CARRIER'] as const;
   type Tab = (typeof TABS)[number];
@@ -35,9 +37,9 @@
   const s = $derived(link.state);
   const f = $derived(s.flags);
   const live = $derived(link.connected && s.meta.online);
-  const cr = (n: number) => n.toLocaleString('pt-BR');
+  const cr = (n: number) => n.toLocaleString('en-US');
   const where = $derived(
-    s.location.station ? `${s.location.station}` : s.location.body || (f.supercruise ? 'supercruise' : 'espaço normal'),
+    s.location.station ? `${s.location.station}` : s.location.body || (f.supercruise ? 'supercruise' : 'normal space'),
   );
 
   const alerts = $derived([
@@ -56,7 +58,7 @@
       <span class="sub dim">TERMINALS</span>
     </div>
     <div class="where">
-      <div class="sys">{s.location.system || '—'} <span class="dim">/</span> <span class="muted">{where}</span></div>
+      <div class="sys"><Name value={s.location.system} system /> <span class="dim">/</span> <span class="muted">{where}</span></div>
       <div class="line tele">
         {s.ship.label || '—'} {s.ship.ident ? `· ${s.ship.ident}` : ''} {s.ship.name ? `· ${s.ship.name}` : ''}
         <span class="dim">· CMDR</span> {s.commander.name || '—'}
@@ -79,7 +81,7 @@
         <Bar label="CARGO" value={s.cargo.count} max={s.ship.cargoCapacity} unit="t" />
         <Bar label="HULL" value={Math.round(s.ship.hullHealth * 100)} max={100} unit="%" warnBelow={0.5} />
         <div class="facts">
-          <span class="dim">JUMP MAX</span><span class="num" title="Alcance do jogo: cargo vazio e só o combustível de 1 salto">{s.ship.maxJumpRange.toFixed(2)}ly</span>
+          <span class="dim">JUMP MAX</span><span class="num" title="Game figure: empty hold, fuel for one jump only">{s.ship.maxJumpRange.toFixed(2)}ly</span>
           <span class="dim">FIRE GRP</span><span class="num">{String.fromCharCode(65 + s.status.fireGroup)}</span>
           <span class="dim">LEGAL</span><span>{s.status.legalState || '—'}</span>
         </div>
@@ -103,8 +105,8 @@
     {:else if tab === 'TRADE'}
       <Trade {s} {now} />
     {:else}
-      <Panel title={tab} aside="em construção">
-        <p class="dim">Tela {tab} chega nos próximos marcos (ver docs/PLAN.md).</p>
+      <Panel title={tab} aside="under construction">
+        <p class="dim">The {tab} screen arrives in a later milestone (see docs/PLAN.md).</p>
       </Panel>
     {/if}
   </main>
@@ -112,9 +114,13 @@
   <footer class="status">
     <span class="label">STATUS</span>
     <span class:ok={live} class:bad={!live}>
-      {!link.connected ? 'SEM CONEXÃO COM O SERVIDOR' : s.meta.online ? 'JOGO ONLINE' : 'JOGO OFFLINE · último estado conhecido'}
+      {!link.connected ? 'NO CONNECTION TO THE SERVER' : s.meta.online ? 'GAME ONLINE' : 'GAME OFFLINE · last known state'}
     </span>
-    {#if link.last && now - link.last.at < 6000}
+    {#if copied.at && now - copied.at < 4000}
+      <span class:ok={copied.ok} class:bad={!copied.ok}>
+        {copied.ok ? 'COPIED' : 'COPY FAILED ON PC'} · {copied.text}
+      </span>
+    {:else if link.last && now - link.last.at < 6000}
       <span class:ok={link.last.ok} class:bad={!link.last.ok}>
         {link.last.command} {link.last.ok ? '✓' : `✗ ${link.last.error}`}
       </span>
@@ -122,7 +128,7 @@
       <span class="dim">{s.meta.journal}</span>
     {/if}
     <span class="dim right">
-      binds {s.controls.presets[1] ?? '—'} · {Object.keys(s.controls.keys).length} ações ·
+      binds {s.controls.presets[1] ?? '—'} · {Object.keys(s.controls.keys).length} actions ·
       {s.meta.gameVersion}{s.meta.odyssey ? ' · Odyssey' : ''}
     </span>
   </footer>

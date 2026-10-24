@@ -6,6 +6,7 @@
   import FsdGauge from '../lib/FsdGauge.svelte';
   import Hologram from '../lib/Hologram.svelte';
   import ScoopIcon from '../lib/ScoopIcon.svelte';
+  import Name from '../lib/Name.svelte';
   import { keyFor, sendCommand } from '../lib/link.svelte.ts';
   import { resolveTarget } from '../lib/target.ts';
   import { currentJumpRange } from '../lib/jump.ts';
@@ -48,10 +49,10 @@
       <div class="gauge-col">
         <FsdGauge flags={f} />
         <dl class="readouts">
-          <dt>NEXT</dt><dd>{next?.system ?? '—'}</dd>
+          <dt>NEXT</dt><dd><Name value={next?.system ?? ''} system /></dd>
           <dt>JUMPS</dt><dd class="num">{s.route.remainingJumps}</dd>
           <dt>RANGE</dt>
-          <dd class="num" title="Estimativa com a carga e o combustível atuais (máx. vazio: {s.ship.maxJumpRange.toFixed(2)}ly)">
+          <dd class="num" title="Estimate with the current cargo and fuel (max empty: {s.ship.maxJumpRange.toFixed(2)}ly)">
             ≈{currentJumpRange(s).toFixed(1)}ly
           </dd>
           <dt>LAST</dt>
@@ -66,8 +67,9 @@
           {#if target.scoopable}<span class="fuel"><ScoopIcon size={13} /> FUEL STAR</span>{/if}
         </div>
         <Hologram target={target.holo} />
-        <div class="t-name" title={target.name}>{target.name}</div>
-        <div class="t-sub">{target.subtitle}{target.pending ? ' · buscando…' : ''}</div>
+        <div class="t-name">{#if target.label === 'SYSTEM' || target.label === 'STATION'}<Name value={target.name}
+          system={target.label === 'SYSTEM'} stationType={target.subtitle} icon={target.label === 'STATION'} />{:else}{target.name}{/if}</div>
+        <div class="t-sub">{target.subtitle}{target.pending ? ' · fetching…' : ''}</div>
         <dl class="t-facts">
           {#each target.facts as [k, v] (k)}
             <dt>{k}</dt><dd title={v}>{v}</dd>
@@ -79,7 +81,7 @@
     <div class="jumps">
       {#each jumpButtons as b (b.cmd)}
         <button class="jump chamfer {b.tone}" disabled={!keyFor(b.cmd)} onclick={() => sendCommand(b.cmd)}>
-          <span>{b.label}</span><span class="key">{keyFor(b.cmd) ?? 'sem bind'}</span>
+          <span>{b.label}</span><span class="key">{keyFor(b.cmd) ?? 'no bind'}</span>
         </button>
       {/each}
     </div>
@@ -107,21 +109,21 @@
   </Panel>
 
   <Panel class="route" title="Route"
-    aside={hops.length ? `${hops.length - 1} saltos · ${totalLy.toFixed(0)}ly · ${fuelStars} fuel` : ''}>
+    aside={hops.length ? `${hops.length - 1} jumps · ${totalLy.toFixed(0)}ly · ${fuelStars} fuel` : ''}>
     {#if hops.length}
       <ol class="hops">
         {#each hops as h, i (h.address || i)}
           <li class:here={i === hereIdx} class:done={hereIdx >= 0 && i < hereIdx}>
             <div class="l1">
               <span class="idx num">{String(i).padStart(2, '0')}</span>
-              <span class="cls {h.kind}" style:color={starColor(h.cls)} title="Classe {h.cls}">{h.cls || '?'}</span>
+              <span class="cls {h.kind}" style:color={starColor(h.cls)} title="Class {h.cls}">{h.cls || '?'}</span>
               {#if isScoopable(h.cls)}<ScoopIcon size={11} />{:else}<span class="noscoop"></span>{/if}
-              <span class="name" title={h.system}>{h.system}</span>
+              <span class="name"><Name value={h.system} system /></span>
               {#if h.jump}<span class="jump-ly num">{h.jump.toFixed(1)}</span>{/if}
             </div>
             <div class="l2">
               {#if h.kind === 'neutron' || h.kind === 'whiteDwarf'}
-                <span class="warn" title="Cone de jato: pode supercarregar o FSD, cuidado ao sair">⚠ JET</span>
+                <span class="warn" title="Jet cone: can supercharge the FSD, careful when leaving">⚠ JET</span>
               {/if}
               {#if h.info}
                 <span class="sec" style:color={securityTone(h.info.security)}>■ {h.info.security || 'n/a'}</span>
@@ -134,8 +136,8 @@
                   <span class="state">{h.info.factionState}</span>
                 {/if}
                 {#if h.info.allegiance}<span class="dim">{ALLEGIANCE[h.info.allegiance] ?? h.info.allegiance}</span>{/if}
-                {#if h.info.needsPermit}<span class="bad" title="Exige permit">🔒</span>{/if}
-                {#if !h.info.population}<span class="faint">desabitado</span>{/if}
+                {#if h.info.needsPermit}<span class="bad" title="Permit required">🔒</span>{/if}
+                {#if !h.info.population}<span class="faint">unpopulated</span>{/if}
               {:else}
                 <span class="faint">…</span>
               {/if}
@@ -144,7 +146,7 @@
         {/each}
       </ol>
     {:else}
-      <p class="dim">Sem rota plotada.</p>
+      <p class="dim">No route plotted.</p>
     {/if}
   </Panel>
 </div>

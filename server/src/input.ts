@@ -71,7 +71,7 @@ export function createWin32Sender(): KeySender {
 
     async focusGame() {
       const hwnd = FindWindowW(null, GAME_WINDOW_TITLE);
-      if (!hwnd) return 'Elite Dangerous não está aberto';
+      if (!hwnd) return 'Elite Dangerous is not running';
       if (sameWindow(GetForegroundWindow(), hwnd)) return null;
       if (IsIconic(hwnd)) ShowWindow(hwnd, 9 /* SW_RESTORE */);
 
@@ -107,7 +107,7 @@ export function createWin32Sender(): KeySender {
         }
       }
       // Still refused: never type into whatever app is in front instead.
-      return 'o Windows não deixou focar o jogo (clique na janela do Elite)';
+      return 'Windows would not focus the game (click the Elite window)';
     },
   };
 }

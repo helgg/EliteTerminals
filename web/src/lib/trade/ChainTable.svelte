@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { TradeChain } from '@et/shared';
+  import Name from '../Name.svelte';
   import { ageLabel, ageTone, duration, short } from '../format.ts';
 
   // Sortable list of linear routes (A→B→C…, no return); the selected row drives the detail panel.
@@ -8,14 +9,14 @@
   type Key = 'perHour' | 'total' | 'seconds' | 'ly' | 'fromMe' | 'age';
   const ASC: Key[] = ['seconds', 'ly', 'fromMe', 'age'];
   const TITLES: Record<Key, string> = {
-    perHour: 'Lucro por hora da rota inteira',
-    total: 'Lucro somado de todas as pernas',
-    seconds: 'Tempo estimado da rota inteira',
-    ly: 'Distância total percorrida, em ly',
-    fromMe: 'Distância da sua posição até a primeira parada, em ly',
-    age: 'Preço mais antigo entre as paradas',
+    perHour: 'Profit per hour over the whole route',
+    total: 'Profit of all legs added up',
+    seconds: 'Estimated time for the whole route',
+    ly: 'Total distance flown, in ly',
+    fromMe: 'Distance from you to the first stop, in ly',
+    age: 'Oldest price among the stops',
   };
-  const COLS: [Key, string][] = [['perHour', 'Cr/h'], ['total', 'Total'], ['seconds', 'Tempo'], ['ly', 'Ly'], ['fromMe', '⌖Ly'], ['age', 'Idade']];
+  const COLS: [Key, string][] = [['perHour', 'Cr/h'], ['total', 'Total'], ['seconds', 'Time'], ['ly', 'Ly'], ['fromMe', '⌖Ly'], ['age', 'Age']];
 
   let sortKey = $state<Key>('perHour');
   let sortDesc = $state(true);
@@ -48,7 +49,7 @@
   <table>
     <thead>
       <tr>
-        <th>Paradas</th>
+        <th>Stops</th>
         {#each COLS as [k, label] (k)}
           <th class="r">
             <button class="sort" class:on={sortKey === k} title={TITLES[k]} onclick={() => sortBy(k)}>
@@ -64,7 +65,7 @@
         <tr class:sel={selected === c.id} class={ageTone(age)} onclick={() => (selected = c.id)}>
           <td class="route">
             <div title={stops(c).map((e) => `${e.station} (${e.system})`).join(' → ')}>
-              {#each stops(c) as e, k (k)}{#if k}<span class="arrow">&nbsp;→&nbsp;</span>{/if}<span class="st">{e.station}</span>{/each}
+              {#each stops(c) as e, k (k)}{#if k}<span class="arrow">&nbsp;→&nbsp;</span>{/if}<span class="st"><Name value={e.station} stationType={e.type} icon /></span>{/each}
             </div>
             <div class="dim" title={c.legs.map((l) => l.leg.commodity).join(' → ')}>
               {#each c.legs as l, k (k)}{#if k}<span class="sep">&nbsp;·&nbsp;</span>{/if}{l.leg.commodity}{#if (l.leg.items?.length ?? 1) > 1}<span class="plus">+{l.leg.items.length - 1}</span>{/if}{/each}

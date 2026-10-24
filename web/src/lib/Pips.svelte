@@ -14,7 +14,7 @@
 <div class="pips">
   {#each channels as ch (ch.key)}
     <button class="channel" disabled={!keyFor(ch.cmd)} onclick={() => sendCommand(ch.cmd)}
-      title={keyFor(ch.cmd) ? `+ ${ch.key} · ${keyFor(ch.cmd)}` : 'sem bind'}>
+      title={keyFor(ch.cmd) ? `+ ${ch.key} · ${keyFor(ch.cmd)}` : 'no bind'}>
       <svg viewBox="0 0 24 88" aria-hidden="true">
         {#each Array(8) as _, i}
           <!-- bottom-up; a full pip is two halves -->
