@@ -2,76 +2,71 @@
   import type { EdState } from '@et/shared';
   import Panel from '../lib/Panel.svelte';
   import Toggle from '../lib/Toggle.svelte';
+  import Throttle from '../lib/Throttle.svelte';
+  import FsdGauge from '../lib/FsdGauge.svelte';
   import { keyFor, sendCommand } from '../lib/link.svelte.ts';
 
   let { s }: { s: EdState } = $props();
 
   const f = $derived(s.flags);
-  const fsd = $derived(
-    f.fsdJump ? ['JUMPING', 'tele']
-    : f.fsdCharging ? ['CHARGING', 'tele']
-    : f.fsdCooldown ? ['COOLDOWN', 'dim']
-    : f.fsdMassLocked ? ['MASS LOCKED', 'bad']
-    : f.supercruise ? ['SUPERCRUISE', 'tele']
-    : ['READY', 'ok'],
-  );
+  const next = $derived(s.route.hops.find((h, i) => i > 0 && s.route.hops[i - 1].system === s.location.system));
 
-  const throttle = [
-    ['100', 'SetSpeed100'], ['75', 'SetSpeed75'], ['50', 'SetSpeed50'], ['25', 'SetSpeed25'],
-    ['0', 'SetSpeedZero'], ['-25', 'SetSpeedMinus25'], ['-50', 'SetSpeedMinus50'], ['-100', 'SetSpeedMinus100'],
+  const jumpButtons = [
+    { label: 'SUPERCRUISE', cmd: 'Supercruise', tone: '' },
+    { label: 'HYPERSPACE', cmd: 'Hyperspace', tone: 'tele' },
+    { label: 'FSD AUTO', cmd: 'HyperSuperCombination', tone: '' },
   ];
 </script>
 
 <div class="flight">
-  <Panel title="Frame shift drive" aside={s.route.fsdTarget ? `alvo ${s.route.fsdTarget}` : ''}>
-    <div class="fsd">
-      <div class="state {fsd[1]}">{fsd[0]}</div>
-      <div class="jumps num">
-        <span class="dim">saltos</span> {s.route.remainingJumps}
-        <span class="dim">· alcance</span> {s.ship.maxJumpRange.toFixed(1)} ly
-      </div>
-      <div class="actions">
-        <button class="act chamfer" disabled={!keyFor('Supercruise')} title={keyFor('Supercruise') ?? 'sem bind'} onclick={() => sendCommand('Supercruise')}>SUPERCRUISE</button>
-        <button class="act chamfer tele" disabled={!keyFor('Hyperspace')} title={keyFor('Hyperspace') ?? 'sem bind'} onclick={() => sendCommand('Hyperspace')}>HYPERSPACE</button>
-        <button class="act chamfer" disabled={!keyFor('HyperSuperCombination')} title={keyFor('HyperSuperCombination') ?? 'sem bind'} onclick={() => sendCommand('HyperSuperCombination')}>FSD (auto)</button>
-      </div>
+  <Panel class="fsd" title="Frame shift drive" aside={f.supercruise ? 'supercruise' : 'normal space'}>
+    <div class="fsd-body">
+      <FsdGauge flags={f} />
+      <dl class="readouts">
+        <dt>TARGET</dt><dd class="tele">{s.route.fsdTarget || '—'}</dd>
+        <dt>NEXT</dt><dd>{next?.system ?? '—'} {#if next}<span class="dim">{next.starClass}</span>{/if}</dd>
+        <dt>JUMPS</dt><dd class="num">{s.route.remainingJumps}</dd>
+        <dt>RANGE</dt><dd class="num">{s.ship.maxJumpRange.toFixed(2)} ly</dd>
+        <dt>FUEL</dt><dd class="num" class:bad={f.lowFuel}>{s.status.fuelMain.toFixed(1)} t</dd>
+      </dl>
     </div>
-  </Panel>
-
-  <Panel title="Throttle">
-    <div class="throttle">
-      {#each throttle as [label, cmd] (cmd)}
-        <button class="thr chamfer" class:rev={label.startsWith('-')} class:zero={label === '0'}
-          disabled={!keyFor(cmd)} title={keyFor(cmd) ?? 'sem bind'} onclick={() => sendCommand(cmd)}>{label}%</button>
+    <div class="jumps">
+      {#each jumpButtons as b (b.cmd)}
+        <button class="jump chamfer {b.tone}" disabled={!keyFor(b.cmd)} onclick={() => sendCommand(b.cmd)}>
+          <span>{b.label}</span><span class="key">{keyFor(b.cmd) ?? 'sem bind'}</span>
+        </button>
       {/each}
-      <button class="thr chamfer boost" disabled={!keyFor('UseBoostJuice')} title={keyFor('UseBoostJuice') ?? 'sem bind'} onclick={() => sendCommand('UseBoostJuice')}>BOOST</button>
     </div>
   </Panel>
 
-  <Panel title="Ship systems">
-    <div class="toggles">
+  <Panel class="systems" title="Ship systems">
+    <div class="switches">
       <Toggle label="Landing gear" command="LandingGearToggle" on={f.landingGearDown} hot />
       <Toggle label="Cargo scoop" command="ToggleCargoScoop" on={f.cargoScoopDeployed} hot />
       <Toggle label="Hardpoints" command="DeployHardpointToggle" on={f.hardpointsDeployed} hot />
+      <Toggle label="Flight assist off" command="ToggleFlightAssist" on={f.flightAssistOff} hot />
       <Toggle label="Lights" command="ShipSpotLightToggle" on={f.lightsOn} />
       <Toggle label="Night vision" command="NightVisionToggle" on={f.nightVision} />
       <Toggle label="Silent running" command="ToggleButtonUpInput" on={f.silentRunning} hot />
-      <Toggle label="Flight assist off" command="ToggleFlightAssist" on={f.flightAssistOff} hot />
-      <Toggle label="Heatsink" command="DeployHeatSink" />
       <Toggle label="Analysis mode" command="PlayerHUDModeToggle" on={f.hudAnalysisMode} />
+      <Toggle label="Heatsink" command="DeployHeatSink" />
       <Toggle label="Galaxy map" command="GalaxyMapOpen" />
       <Toggle label="System map" command="SystemMapOpen" />
       <Toggle label="Docking request" command="RequestDocking" />
     </div>
   </Panel>
 
-  <Panel title="Route" aside="{s.route.hops.length} sistemas">
+  <Panel class="throttle" title="Throttle">
+    <Throttle />
+  </Panel>
+
+  <Panel class="route" title="Route" aside="{s.route.hops.length} sistemas">
     {#if s.route.hops.length}
-      <ol class="route">
+      <ol class="hops">
         {#each s.route.hops as hop, i (hop.address || i)}
           <li class:here={hop.system === s.location.system}>
             <span class="num dim">{String(i).padStart(2, '0')}</span>
-            <span>{hop.system}</span>
+            <span class="name">{hop.system}</span>
             <span class="star" class:scoop={'KGBFOAM'.includes(hop.starClass)}>{hop.starClass}</span>
           </li>
         {/each}
@@ -85,58 +80,72 @@
 <style>
   .flight {
     display: grid;
-    grid-template-columns: 1.2fr 1fr;
-    grid-template-rows: auto auto 1fr;
+    grid-template-columns: minmax(0, 1fr) 236px 240px;
+    grid-template-rows: auto 1fr;
     gap: 8px;
     height: 100%;
     min-height: 0;
   }
-  .flight > :global(:nth-child(3)) { grid-column: 1; }
-  .flight > :global(:nth-child(4)) { grid-column: 2; grid-row: 1 / span 3; }
+  .flight > :global(.fsd) { grid-column: 1; grid-row: 1; }
+  .flight > :global(.systems) { grid-column: 1; grid-row: 2; }
+  .flight > :global(.throttle) { grid-column: 2; grid-row: 1 / span 2; }
+  .flight > :global(.throttle .body) { flex: 1; display: flex; flex-direction: column; }
+  .flight > :global(.systems .body) { flex: 1; display: flex; flex-direction: column; }
+  .flight > :global(.route) { grid-column: 3; grid-row: 1 / span 2; }
 
-  .fsd { display: grid; gap: 8px; }
-  .state { font-size: 22px; font-weight: 700; letter-spacing: 0.12em; }
-  .state.ok { color: var(--ok); }
-  .state.tele { color: var(--telemetry); text-shadow: 0 0 8px rgb(55 198 212 / 0.5); }
-  .state.bad { color: var(--danger); }
-  .state.dim { color: var(--dim); }
-  .jumps { color: var(--text); }
-  .actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-  .act {
+  .fsd-body {
+    display: grid;
+    grid-template-columns: minmax(150px, 230px) 1fr;
+    gap: 14px;
+    align-items: center;
+  }
+  .readouts {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 5px 12px;
+    margin: 0;
+    font-size: 13px;
+  }
+  dt { color: var(--dim); font-size: 11px; letter-spacing: 0.1em; align-self: center; }
+  dd { margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .jumps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 10px; }
+  .jump {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
     padding: 10px 4px;
     background: var(--steel);
     border: 0;
     color: var(--hud);
     font-weight: 700;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.08em;
   }
-  .act.tele { color: var(--telemetry); }
-  .act:active, .thr:active { background: var(--rule); }
-  .act:disabled, .thr:disabled { opacity: 0.35; cursor: not-allowed; }
+  .jump.tele { color: var(--telemetry); }
+  .jump .key { color: var(--dim); font-size: 10px; font-weight: 400; letter-spacing: 0; }
+  .jump:active:not(:disabled) { background: var(--rule); }
+  .jump:disabled { opacity: 0.35; cursor: not-allowed; }
 
-  .throttle { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; }
-  .thr {
-    padding: 10px 0;
-    background: var(--steel);
-    border: 0;
-    color: var(--text);
-    font-weight: 700;
+  /* switches grow to fill the panel: big touch targets, no dead space */
+  .switches {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    grid-auto-rows: minmax(52px, 1fr);
+    gap: 6px;
   }
-  .thr.zero { color: var(--hud-hi); }
-  .thr.rev { color: var(--danger); }
-  .thr.boost { background: var(--hud); color: var(--void); grid-column: span 2; }
 
-  .toggles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
-
-  .route { list-style: none; margin: 0; padding: 0; }
-  .route li {
+  .hops { list-style: none; margin: 0; padding: 0; }
+  .hops li {
     display: grid;
     grid-template-columns: 2.2em 1fr auto;
     gap: 6px;
-    padding: 3px 0;
+    padding: 4px 0;
     border-bottom: 1px solid var(--rule);
   }
-  .route li.here { color: var(--hud); }
+  .hops li.here { color: var(--hud); }
+  .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .star { color: var(--faint); }
   .star.scoop { color: var(--hud-hi); }
 </style>

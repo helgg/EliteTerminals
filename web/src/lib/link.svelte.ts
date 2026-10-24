@@ -6,6 +6,8 @@ export const link = $state({
   state: initialState() as EdState,
   /** Last command outcome, shown in the status strip. */
   last: null as { command: string; ok: boolean; error?: string; at: number } | null,
+  /** Last throttle detent the game accepted; the journal never reports throttle position. */
+  throttleCmd: '' as string,
 });
 
 let socket: WebSocket | null = null;
@@ -27,6 +29,7 @@ export function connect() {
       const command = inFlight.get(msg.id) ?? '?';
       inFlight.delete(msg.id);
       link.last = { command, ok: msg.ok, error: msg.error, at: Date.now() };
+      if (msg.ok && command.startsWith('SetSpeed')) link.throttleCmd = command;
     }
   };
 }
