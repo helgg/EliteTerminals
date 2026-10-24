@@ -14,14 +14,15 @@ const NOW = Date.parse('2026-10-24T12:00:00Z');
 const hoursAgo = (h: number) => new Date(NOW - h * 3.6e6).toISOString();
 
 const Q: TradeQuery = {
-  radius: 30, maxAgeH: 0, pad: 'L', planetary: false, carriers: false, fromHere: false, maxLs: 0, minSupply: 0, minDemand: 0,
+  radius: 30, maxAgeH: 0, pad: 'L', planetary: false, carriers: false, exportHere: false, importHere: false, states: [], hops: 3,
+  maxLs: 0, minSupply: 0, minDemand: 0,
   cargo: 100, capital: 1e9, jumpRange: 20,
 };
 
 function market(id: number, pos: [number, number, number], items: TradeMarket['items'], extra: Partial<TradeMarket> = {}): TradeMarket {
   return {
     marketId: id, station: `S${id}`, system: `Sys${id}`, systemId64: id * 10, pos, ls: 1000, type: 'Coriolis Starport',
-    planetary: false, pads: { s: 4, m: 4, l: 4 }, updatedAt: hoursAgo(1), source: 'spansh', items, ...extra,
+    planetary: false, pads: { s: 4, m: 4, l: 4 }, updatedAt: hoursAgo(1), source: 'spansh', state: '', items, ...extra,
   };
 }
 const item = (name: string, buy: number, sell: number, supply = 10000, demand = 10000) => ({ name, buy, sell, supply, demand });
@@ -96,11 +97,16 @@ test('routes, loop back-haul and from-here restriction', () => {
   assert.equal(ab.back?.commodity, 'Gold');
   assert.equal(ab.pct, 60);
   assert.ok(ab.loopPerHour > ab.perHour);
-  assert.ok(r.routes[0].perHour >= r.routes[r.routes.length - 1].perHour);
   assert.deepEqual(r.commodities, ['Gold', 'Tea']);
 
-  const here = computeTrade([a, b, c], { ...Q, fromHere: true }, me, 'Sys1', NOW);
-  assert.ok(here.routes.every((x) => x.src.marketId === 1));
+  const exp = computeTrade([a, b, c], { ...Q, exportHere: true }, me, 'Sys1', NOW);
+  assert.ok(exp.routes.length && exp.routes.every((x) => x.src.marketId === 1));
+  const imp = computeTrade([a, b, c], { ...Q, importHere: true }, me, 'Sys1', NOW);
+  assert.ok(imp.routes.length && imp.routes.every((x) => x.dst.marketId === 1));
+  // each loop listed once (A→B→A = B→A→B), from the end nearer the player
+  assert.equal(r.routes.filter((x) => x.id === '2-1').length, 0);
+  // loops are ranked by the round trip
+  assert.ok(r.routes[0].loopPerHour >= r.routes[r.routes.length - 1].loopPerHour);
 });
 
 test('commodity finder: cheapest buy, dearest sell', () => {
@@ -140,4 +146,35 @@ test('local Market.json replaces an older Spansh copy of the same station', () =
   assert.equal(merged.items[0].name, 'Basic Medicines');
   assert.equal(merged.items[0].buy, 210);
   assert.equal(merged.ls, 1000); // station metadata kept from Spansh
+});
+
+test('faction-state filter keeps routes touching a market in that state', () => {
+  const a = market(1, [0, 0, 0], [item('Tea', 1000, 0)], { state: 'Boom' });
+  const b = market(2, [10, 0, 0], [item('Tea', 0, 1600)]);
+  const c = market(3, [5, 0, 0], [item('Tea', 900, 0)]);
+  const me = { pos: [0, 0, 0] as [number, number, number], systemId64: 0, marketId: 0 };
+  const r = computeTrade([a, b, c], { ...Q, states: ['Boom'] }, me, 'Sys1', NOW);
+  assert.deepEqual(r.routes.map((x) => x.id), ['1-2']);
+  assert.deepEqual(r.states, ['Boom']);
+});
+
+test('linear routes chain legs without revisiting a station', () => {
+  // A sells tea to B, B sells gold to C, C sells ore to D: the best 3-leg chain is A→B→C→D.
+  const a = market(1, [0, 0, 0], [item('Tea', 1000, 0)]);
+  const b = market(2, [10, 0, 0], [item('Tea', 0, 1600), item('Gold', 9000, 0)]);
+  const c = market(3, [20, 0, 0], [item('Gold', 0, 9800), item('Ore', 100, 0)]);
+  const d = market(4, [30, 0, 0], [item('Ore', 0, 600)]);
+  const me = { pos: [0, 0, 0] as [number, number, number], systemId64: 10, marketId: 1 };
+  const r = computeTrade([a, b, c, d], Q, me, 'Sys1', NOW);
+  const best = r.chains[0];
+  assert.equal(best.id, '1-2-3-4');
+  assert.equal(best.legs.length, 3);
+  assert.equal(best.total, 60000 + 80000 + 50000);
+  for (const ch of r.chains) {
+    const stops = ch.id.split('-');
+    assert.equal(new Set(stops).size, stops.length);
+    ch.legs.slice(1).forEach((l, k) => assert.equal(l.src.marketId, ch.legs[k].dst.marketId));
+  }
+  const two = computeTrade([a, b, c, d], { ...Q, hops: 2, exportHere: true }, me, 'Sys1', NOW);
+  assert.ok(two.chains.every((ch) => ch.legs.length === 2 && ch.legs[0].src.marketId === 1));
 });

@@ -233,6 +233,8 @@ export interface TradeMarket {
   type: string;
   planetary: boolean;
   pads: { s: number; m: number; l: number };
+  /** State of the station's controlling faction ("Boom", "Expansion"…); "" when unknown. */
+  state: string;
   updatedAt: string;
   /** "spansh" or "local" (the player's own Market.json, which is fresher). */
   source: 'spansh' | 'local';
@@ -246,8 +248,14 @@ export interface TradeQuery {
   pad: 'S' | 'M' | 'L';
   planetary: boolean;
   carriers: boolean;
-  /** Only routes that start at the current station / system. */
-  fromHere: boolean;
+  /** Only routes that start at the current station / system (export from here). */
+  exportHere: boolean;
+  /** Only routes that end at the current station / system (import to here). Both on = either. */
+  importHere: boolean;
+  /** Faction states wanted at either end ("Boom"…); empty = any. */
+  states: string[];
+  /** Legs of a linear route (stops = hops + 1, at most 5 stops). */
+  hops: number;
   maxLs: number;
   /** Minimum stock at the buying station, in t; 0 = any. */
   minSupply: number;
@@ -266,6 +274,7 @@ export interface TradeEnd {
   type: string;
   pad: string;
   planetary: boolean;
+  state: string;
   /** Distance from the player, in ly. */
   fromMe: number;
   ageH: number;
@@ -317,6 +326,16 @@ export interface TradeRoute {
   loopPerHour: number;
 }
 
+/** A one-way chain A→B→C…: at each stop sell everything and buy the best load for the next one. */
+export interface TradeChain {
+  id: string;
+  /** Consecutive legs; legs[i].dst is legs[i+1].src. `back` and `loopPerHour` are unused. */
+  legs: TradeRoute[];
+  total: number;
+  seconds: number;
+  perHour: number;
+}
+
 export interface CommodityQuote {
   commodity: string;
   price: number;
@@ -330,7 +349,12 @@ export interface TradeResult {
   reference: string;
   stations: number;
   fetchedAt: string;
+  /** Loop routes: A→B with the best load back B→A. */
   routes: TradeRoute[];
+  /** Linear routes: chains of `query.hops` legs. */
+  chains: TradeChain[];
+  /** Faction states seen in the scanned markets, for the filter. */
+  states: string[];
   /** Every commodity traded in the scanned markets, for the commodity finder. */
   commodities: string[];
 }

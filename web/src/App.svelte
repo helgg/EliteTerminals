@@ -49,7 +49,7 @@
   ]);
 </script>
 
-<div class="shell">
+<div class="shell" class:wide={tab === 'TRADE'}>
   <header class="top">
     <div class="brand">
       <span class="logo">ED·ET</span>
@@ -70,6 +70,8 @@
     </nav>
   </header>
 
+  <!-- TRADE needs the width for its tables; it shows its own scan/session column instead. -->
+  {#if tab !== 'TRADE'}
   <aside class="side">
     <Panel title="Ship">
       <div class="stack">
@@ -88,13 +90,12 @@
         </div>
       </div>
     </Panel>
-    {#if tab !== 'TRADE'}
-      <Panel title="Power" aside="SYS · ENG · WEP">
-        <Pips sys={s.pips.sys} eng={s.pips.eng} wep={s.pips.wep} />
-      </Panel>
-    {/if}
+    <Panel title="Power" aside="SYS · ENG · WEP">
+      <Pips sys={s.pips.sys} eng={s.pips.eng} wep={s.pips.wep} />
+    </Panel>
     <SystemPanel {s} />
   </aside>
+  {/if}
 
   <main class="main">
     {#if tab === 'FLIGHT'}
@@ -182,6 +183,7 @@
   @keyframes pulse { to { opacity: 0.6; } }
 
   .main { min-height: 0; min-width: 0; }
+  .wide .main { grid-column: 1 / -1; }
 
   .status {
     grid-column: 1 / -1;

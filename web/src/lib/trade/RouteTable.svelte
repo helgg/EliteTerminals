@@ -1,20 +1,23 @@
 <script lang="ts">
   import type { TradeRoute } from '@et/shared';
-  import { ageLabel, ageTone, short } from '../format.ts';
+  import type { TradeLeg } from '@et/shared';
+  import { ageLabel, ageTone, cr, short } from '../format.ts';
 
-  // Sortable list of A→B trades; the selected row drives the detail panel.
+  // Sortable list of loop trades (A→B, then back B→A); the selected row drives the detail panel.
   // Metrics are stacked in pairs (two lines per row, like the route) so the table fits without side-scrolling.
   let { routes, selected = $bindable() }: { routes: TradeRoute[]; selected: string } = $props();
 
   type Key = 'profit' | 'pct' | 'total' | 'perHour' | 'loopPerHour' | 'hopLy' | 'fromMe' | 'supply' | 'demand' | 'age';
   const ASC: Key[] = ['hopLy', 'fromMe', 'age'];
-  const more = (r: TradeRoute) => (r.leg.items?.length ?? 1) - 1;
+  // "98t Silver + 2t Gold": exactly what to buy, so a mixed load reads as one at a glance.
+  const load = (leg: TradeLeg) => (leg.items ?? [leg]).map((i) => `${cr(i.amount)}t ${i.commodity}`).join(' + ');
+  const tag = (state: string) => (state && state !== 'None' ? state.toUpperCase() : '');
   const TITLES: Record<Key, string> = {
     profit: 'Lucro por tonelada',
     pct: 'Margem sobre o preço de compra',
     total: 'Lucro da viagem: cargo cheio com a melhor mistura de commodities, limitada por oferta, demanda e saldo',
-    perHour: 'Lucro por hora estimado, só ida',
-    loopPerHour: 'Ida e volta com a melhor carga de retorno',
+    perHour: 'Lucro por hora estimado, só a ida',
+    loopPerHour: 'Lucro por hora do loop: ida A→B e volta B→A com a melhor carga',
     hopLy: 'Distância A→B, em ly',
     fromMe: 'Distância da sua posição até a origem (A), em ly',
     supply: 'Oferta da commodity principal na origem, em t',
@@ -24,7 +27,7 @@
   const GROUPS: { top: [Key, string]; bottom?: [Key, string] }[] = [
     { top: ['profit', 'Cr/t'], bottom: ['pct', '%'] },
     { top: ['total', 'Total'] },
-    { top: ['perHour', 'Cr/h'], bottom: ['loopPerHour', 'Loop/h'] },
+    { top: ['loopPerHour', 'Loop/h'], bottom: ['perHour', 'Ida/h'] },
     { top: ['hopLy', 'Ly'], bottom: ['fromMe', '⌖Ly'] },
     { top: ['supply', 'Oferta'], bottom: ['demand', 'Demanda'] },
     { top: ['age', 'Idade'] },
@@ -38,7 +41,7 @@
       const k = localStorage.getItem('et.trade.sort') as Key | null;
       if (k && k in TITLES) return k;
     } catch {}
-    return 'perHour';
+    return 'loopPerHour';
   }
 
   const value = (r: TradeRoute, k: Key) =>
@@ -91,12 +94,12 @@
         {@const age = Math.max(r.src.ageH, r.dst.ageH)}
         <tr class:sel={selected === r.id} class={ageTone(age)} onclick={() => (selected = r.id)}>
           <td class="route">
-            <div><span class="st">{r.src.station}</span> <span class="dim">{r.src.system}</span></div>
-            <div><span class="arrow">→</span> <span class="st">{r.dst.station}</span> <span class="dim">{r.dst.system}</span></div>
+            <div><span class="arrow">A</span> <span class="st">{r.src.station}</span> <span class="dim">{r.src.system}</span>{#if tag(r.src.state)} <span class="state">{tag(r.src.state)}</span>{/if}</div>
+            <div><span class="arrow">B</span> <span class="st">{r.dst.station}</span> <span class="dim">{r.dst.system}</span>{#if tag(r.dst.state)} <span class="state">{tag(r.dst.state)}</span>{/if}</div>
           </td>
           <td class="cargo">
-            <div>{r.leg.commodity}{#if more(r)}<span class="plus" title={r.leg.items.map((i) => `${i.amount}t ${i.commodity}`).join(' + ')}> +{more(r)}</span>{/if}</div>
-            <div class="dim">{r.back ? `← ${r.back.commodity}` : 'volta vazia'}</div>
+            <div title={load(r.leg)}><span class="arrow">▸</span> {load(r.leg)}</div>
+            <div class="back" title={r.back ? load(r.back) : ''}><span class="arrow">◂</span> {r.back ? load(r.back) : 'volta vazia'}</div>
           </td>
           {#each GROUPS as g (g.top[0])}
             <td class="r num {g.top[0]}">
@@ -118,8 +121,8 @@
     font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; text-align: left;
     border-bottom: 1px solid var(--hud); white-space: nowrap; vertical-align: bottom;
   }
-  th:nth-child(1) { width: 31%; }
-  th:nth-child(2) { width: 17%; }
+  th:nth-child(1) { width: 30%; }
+  th:nth-child(2) { width: 24%; }
   .sort {
     background: none; border: 0; padding: 0; color: inherit; font: inherit; letter-spacing: inherit;
     text-transform: inherit; cursor: pointer;
@@ -136,7 +139,8 @@
   .arrow { color: var(--hud); }
   .cargo div:first-child { color: var(--hud-hi); }
   .sub { color: var(--muted); }
-  .plus { color: var(--telemetry); font-size: 10px; }
+  .state { margin-left: 4px; color: var(--telemetry); font-size: 9px; font-weight: 700; letter-spacing: 0.06em; }
+  .back { color: var(--muted); }
   .hl { color: var(--telemetry); }
   /* price freshness: stale rows fade */
   tr.fresh .age div { color: var(--ok); }

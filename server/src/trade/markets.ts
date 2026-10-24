@@ -41,6 +41,7 @@ export function fromSpanshStation(x: any): TradeMarket {
     type: str(x.type),
     planetary: x.is_planetary === true,
     pads: { s: num(x.small_pads), m: num(x.medium_pads), l: num(x.large_pads) },
+    state: str(x.controlling_minor_faction_state),
     updatedAt: str(x.market_updated_at),
     source: 'spansh',
     // Spansh lists every commodity (~350); keep only what can be bought or sold here.
@@ -94,7 +95,7 @@ export class MarketScanner extends EventEmitter {
 
   /** Same reference and a radius/age at least as wide as asked → reuse; otherwise fetch again. */
   async scan(p: ScanParams, force = false): Promise<TradeMarket[]> {
-    const key = `${p.reference}|${p.radius}|${p.maxAgeH}|${p.carriers}`;
+    const key = `v2|${p.reference}|${p.radius}|${p.maxAgeH}|${p.carriers}`;
     if (!force && this.last && this.last.key === key && Date.now() - this.last.at < REUSE_MS) return this.last.markets;
     if (this.inFlight) return this.inFlight;
     this.inFlight = this.fetchAll(p)

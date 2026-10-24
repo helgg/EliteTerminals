@@ -3,6 +3,8 @@
   import Panel from '../lib/Panel.svelte';
   import RouteTable from '../lib/trade/RouteTable.svelte';
   import RouteDetail from '../lib/trade/RouteDetail.svelte';
+  import ChainTable from '../lib/trade/ChainTable.svelte';
+  import ChainDetail from '../lib/trade/ChainDetail.svelte';
   import CommodityFinder from '../lib/trade/CommodityFinder.svelte';
   import LocalMarket from '../lib/trade/LocalMarket.svelte';
   import { link } from '../lib/link.svelte.ts';
@@ -13,20 +15,39 @@
   let { s, now }: { s: EdState; now: number } = $props();
 
   // --- filters, remembered per device ---
-  type Filters = Pick<TradeQuery, 'radius' | 'maxAgeH' | 'pad' | 'planetary' | 'carriers' | 'fromHere' | 'maxLs' | 'minSupply' | 'minDemand'>;
-  const DEFAULTS: Filters = { radius: 25, maxAgeH: 24, pad: 'L', planetary: false, carriers: false, fromHere: false, maxLs: 5000, minSupply: 0, minDemand: 0 };
+  type Filters = Pick<TradeQuery,
+    'radius' | 'maxAgeH' | 'pad' | 'planetary' | 'carriers' | 'exportHere' | 'importHere' | 'maxLs' |
+    'minSupply' | 'minDemand' | 'states' | 'hops'>;
+  const DEFAULTS: Filters = {
+    radius: 25, maxAgeH: 24, pad: 'L', planetary: false, carriers: false, exportHere: false, importHere: false,
+    maxLs: 5000, minSupply: 0, minDemand: 0, states: [], hops: 3,
+  };
   let f = $state<Filters>(readFilters());
   $effect(() => {
     try { localStorage.setItem('et.trade.filters', JSON.stringify(f)); } catch {}
   });
   function readFilters(): Filters {
-    try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem('et.trade.filters') ?? '{}') }; } catch { return { ...DEFAULTS }; }
+    try {
+      const saved = JSON.parse(localStorage.getItem('et.trade.filters') ?? '{}');
+      if (saved.fromHere) saved.exportHere = true; // "só daqui" became "exportar"
+      delete saved.fromHere;
+      return { ...DEFAULTS, ...saved };
+    } catch {
+      return { ...DEFAULTS };
+    }
   }
 
   const RADII = [10, 15, 25, 40];
   const AGES: [number, string][] = [[1, '1h'], [3, '3h'], [12, '12h'], [24, '1d'], [72, '3d'], [168, '7d'], [720, '30d'], [0, 'todas']];
   const LS: [number, string][] = [[1000, '1k'], [5000, '5k'], [20000, '20k'], [0, '∞']];
   const VOLUMES: [number, string][] = [[0, '—'], [100, '100'], [500, '500'], [1000, '1k'], [5000, '5k'], [10000, '10k']];
+  const STOPS: [number, string][] = [[2, '3'], [3, '4'], [4, '5']]; // legs → stops (max 5)
+  const COMMON_STATES = ['Boom', 'Expansion', 'Investment', 'Public Holiday', 'Civil Liberty'];
+  const states = $derived([...new Set([...COMMON_STATES, ...(ts.result?.states ?? [])])].filter((x) => x !== 'None'));
+
+  function toggleState(x: string) {
+    f.states = f.states.includes(x) ? f.states.filter((y) => y !== x) : [...f.states, x];
+  }
 
   const query = $derived<TradeQuery>({
     ...f,
@@ -54,6 +75,7 @@
       if (!res.ok) throw new Error(body.error ?? res.statusText);
       ts.result = body as TradeResult;
       ts.selected = ts.result.routes[0]?.id ?? '';
+      ts.selectedChain = ts.result.chains?.[0]?.id ?? '';
     } catch (e) {
       error = (e as Error).message;
     } finally {
@@ -61,9 +83,17 @@
     }
   }
 
+  function setStops(h: number) {
+    f.hops = h;
+    if (ts.result && !busy) void scan(false); // markets are cached: only the maths runs again
+  }
+
+  if (!['loop', 'linear', 'finder', 'local'].includes(ts.tab)) ts.tab = 'loop';
   const result = $derived(ts.result);
   const route = $derived(result?.routes.find((r) => r.id === ts.selected) ?? null);
+  const chain = $derived(result?.chains?.find((c) => c.id === ts.selectedChain) ?? null);
   const progress = $derived(link.tradeProgress);
+  const TITLES = { loop: 'Loop routes', linear: 'Linear routes', finder: 'Commodity finder', local: 'Market' };
 
   // --- session ---
   const sessionEnd = $derived(s.meta.online ? now : Date.parse(s.meta.lastEventAt) || now);
@@ -87,16 +117,31 @@
         {@render chips(RADII.map((r) => [r, `${r}ly`] as [number, string]), f.radius, (v) => (f.radius = v))}
         <span class="k">PREÇO ATUALIZADO HÁ NO MÁXIMO</span>
         {@render chips(AGES, f.maxAgeH, (v) => (f.maxAgeH = v))}
-        <span class="k">PAD</span>
-        {@render chips([['S', 'S'], ['M', 'M'], ['L', 'L']] as ['S' | 'M' | 'L', string][], f.pad, (v) => (f.pad = v))}
-        <span class="k">DIST. DA ESTRELA</span>
-        {@render chips(LS, f.maxLs, (v) => (f.maxLs = v))}
+        <div class="pair">
+          <div>
+            <span class="k">PAD</span>
+            {@render chips([['S', 'S'], ['M', 'M'], ['L', 'L']] as ['S' | 'M' | 'L', string][], f.pad, (v) => (f.pad = v))}
+          </div>
+          <div>
+            <span class="k">DIST. ESTRELA (ls)</span>
+            {@render chips(LS, f.maxLs, (v) => (f.maxLs = v))}
+          </div>
+        </div>
         <span class="k">OFERTA MÍN. (t)</span>
         {@render chips(VOLUMES, f.minSupply, (v) => (f.minSupply = v))}
         <span class="k">DEMANDA MÍN. (t)</span>
         {@render chips(VOLUMES, f.minDemand, (v) => (f.minDemand = v))}
+        <span class="k">ESTADO DA FACÇÃO (A ou B)</span>
+        <div class="chips">
+          {#each states as x (x)}
+            <button class="state" class:on={f.states.includes(x)} onclick={() => toggleState(x)}>{x.toUpperCase()}</button>
+          {/each}
+        </div>
         <div class="toggles">
-          <button class:on={f.fromHere} onclick={() => (f.fromHere = !f.fromHere)}>SÓ DAQUI</button>
+          <button class:on={f.exportHere} title="Rotas que saem daqui (estação atual, ou sistema atual em voo)"
+            onclick={() => (f.exportHere = !f.exportHere)}>EXPORTAR</button>
+          <button class:on={f.importHere} title="Rotas que chegam aqui (estação atual, ou sistema atual em voo)"
+            onclick={() => (f.importHere = !f.importHere)}>IMPORTAR</button>
           <button class:on={f.planetary} onclick={() => (f.planetary = !f.planetary)}>PLANETÁRIAS</button>
           <button class:on={f.carriers} onclick={() => (f.carriers = !f.carriers)}>CARRIERS</button>
         </div>
@@ -121,31 +166,41 @@
 
     <Panel title="Session" scroll={false} aside={s.session.startedAt ? `${hours.toFixed(1)}h` : 'sem sessão'}>
       <div class="kpis">
-        <div><span class="dim">LUCRO</span><b class="num ok">{short(s.session.tradeProfit)}</b></div>
+        <div><span class="dim">LUCRO</span><b class="num ok">{short(s.session.tradeProfit)}Cr</b></div>
         <div><span class="dim">CR/H</span><b class="num tele">{short(crPerHour)}</b></div>
         <div><span class="dim">VENDIDO</span><b class="num">{cr(s.session.tonsSold)}t</b></div>
-        <div><span class="dim">CARGO</span><b class="num">{cr(s.cargo.count)}/{cr(s.ship.cargoCapacity)}</b></div>
+        <div><span class="dim">CARGO</span><b class="num">{cr(s.cargo.count)}/{cr(s.ship.cargoCapacity)}t</b></div>
       </div>
     </Panel>
   </div>
 
-  <Panel class="center" title={ts.tab === 'routes' ? 'Trade routes' : ts.tab === 'finder' ? 'Commodity finder' : `Market · ${s.market.station || '—'}`}
-    aside={ts.tab === 'routes' && result ? `${result.routes.length} rotas` : ''}>
+  <Panel class="center" title={ts.tab === 'local' ? `Market · ${s.market.station || '—'}` : TITLES[ts.tab]}
+    aside={ts.tab === 'loop' && result ? `${result.routes.length} rotas` : ts.tab === 'linear' && result ? `${result.chains?.length ?? 0} rotas` : ''}>
     <div class="center-body">
       <nav class="tabs">
-        <button class:on={ts.tab === 'routes'} onclick={() => (ts.tab = 'routes')}>ROTAS</button>
+        <button class:on={ts.tab === 'loop'} onclick={() => (ts.tab = 'loop')}>ROTAS LOOP</button>
+        <button class:on={ts.tab === 'linear'} onclick={() => (ts.tab = 'linear')}>ROTAS LINEARES</button>
         <button class:on={ts.tab === 'finder'} onclick={() => (ts.tab = 'finder')}>COMMODITY</button>
         <button class:on={ts.tab === 'local'} onclick={() => (ts.tab = 'local')}>MERCADO LOCAL</button>
+        {#if ts.tab === 'linear'}
+          <span class="stops">
+            <span class="k">PARADAS</span>
+            {@render chips(STOPS, f.hops, setStops)}
+          </span>
+        {/if}
       </nav>
       <div class="pane">
-        {#if ts.tab === 'routes'}
-          {#if result?.routes.length}
+        {#if ts.tab === 'loop' || ts.tab === 'linear'}
+          {#if ts.tab === 'loop' && result?.routes.length}
             <RouteTable routes={result.routes} bind:selected={ts.selected} />
+          {:else if ts.tab === 'linear' && result?.chains?.length}
+            <ChainTable chains={result.chains} bind:selected={ts.selectedChain} />
           {:else if result}
-            <p class="dim">Nenhuma rota com esses filtros. Aumente o raio ou a idade máxima do preço.</p>
+            <p class="dim">Nenhuma rota com esses filtros. Aumente o raio ou a idade máxima do preço, ou toque em SCAN
+              para aplicar os filtros atuais.</p>
           {:else}
             <p class="dim">Ajuste os filtros e toque em SCAN. A primeira busca baixa os mercados próximos do Spansh
-              (pode levar ~30 s); depois fica em cache por 30 min.</p>
+              (pode levar ~30s); depois fica em cache por 30min.</p>
           {/if}
         {:else if ts.tab === 'finder'}
           <CommodityFinder names={result?.commodities ?? []} {query} />
@@ -156,15 +211,19 @@
     </div>
   </Panel>
 
-  <Panel class="right" title="Route" scroll={false}>
-    <RouteDetail {route} />
+  <Panel class="right" title={ts.tab === 'linear' ? 'Linear route' : 'Loop route'}>
+    {#if ts.tab === 'linear'}
+      <ChainDetail {chain} />
+    {:else}
+      <RouteDetail {route} />
+    {/if}
   </Panel>
 </div>
 
 <style>
   .trade {
     display: grid;
-    grid-template-columns: 250px minmax(0, 1fr) 260px;
+    grid-template-columns: 250px minmax(0, 1fr) 290px;
     gap: 8px;
     height: 100%;
     min-height: 0;
@@ -172,15 +231,19 @@
   .left { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
   .trade :global(.center .body) { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 
-  .filters { display: flex; flex-direction: column; gap: 4px; }
-  .k { color: var(--dim); font-size: 10px; letter-spacing: 0.1em; margin-top: 4px; }
+  .filters { display: flex; flex-direction: column; gap: 3px; }
+  .k { color: var(--dim); font-size: 10px; letter-spacing: 0.1em; margin-top: 3px; }
+  .pair { display: grid; grid-template-columns: 3fr 4fr; gap: 6px; }
+  .pair > div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
   .chips { display: flex; flex-wrap: wrap; gap: 3px; }
   .chips button, .toggles button {
     flex: 1; padding: 5px 4px; background: var(--steel); border: 1px solid var(--rule);
     color: var(--muted); font-size: 11px; font-weight: 700;
   }
   .chips button.on { background: var(--hud); border-color: var(--hud); color: var(--void); }
-  .toggles { display: flex; gap: 3px; margin-top: 6px; }
+  .chips button.state { flex: 1 1 auto; font-size: 10px; }
+  .chips button.state.on { background: var(--telemetry); border-color: var(--telemetry); }
+  .toggles { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; margin-top: 6px; }
   .toggles button.on { border-color: var(--telemetry); color: var(--telemetry); box-shadow: inset 0 2px var(--telemetry); }
   .scan {
     margin-top: 8px; padding: 12px; background: var(--hud); color: var(--void); border: 0;
@@ -200,11 +263,14 @@
   .kpis b { font-size: 16px; }
 
   .center-body { flex: 1; display: flex; flex-direction: column; min-height: 0; }
-  .tabs { display: flex; gap: 4px; margin-bottom: 6px; }
-  .tabs button {
+  .tabs { display: flex; gap: 4px; margin-bottom: 6px; align-items: center; }
+  .tabs > button {
     padding: 6px 14px; background: var(--steel); border: 1px solid var(--rule); color: var(--hud-hi);
     font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
   }
-  .tabs button.on { background: var(--hud); border-color: var(--hud); color: var(--void); }
+  .tabs > button.on { background: var(--hud); border-color: var(--hud); color: var(--void); }
+  .stops { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+  .stops .k { margin: 0; }
+  .stops .chips button { padding: 5px 10px; }
   .pane { flex: 1; min-height: 0; }
 </style>

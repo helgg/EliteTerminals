@@ -1,7 +1,7 @@
 // Trade engine: from a set of markets near the player, every profitable A→B pair and per-commodity quotes.
 // Pure: no I/O, so the maths can be tested on small hand-made markets.
 import type {
-  CommodityQuote, LegItem, TradeEnd, TradeLeg, TradeMarket, TradeQuery, TradeResult, TradeRoute,
+  CommodityQuote, LegItem, TradeChain, TradeEnd, TradeLeg, TradeMarket, TradeQuery, TradeResult, TradeRoute,
 } from '@et/shared';
 
 /** Seconds per hyperspace jump, including charge, jump tunnel and re-aligning. */
@@ -10,7 +10,12 @@ export const JUMP_SECONDS = 50;
 export const DOCK_SECONDS = 120;
 const MAX_ROUTES = 400;
 const QUOTES_PER_SIDE = 20;
-const LOOP_CANDIDATES = 150;
+const MAX_CHAINS = 60;
+/** At most 5 stops (4 legs) on a linear route. */
+const MAX_LEGS = 4;
+/** Partial chains kept per step, and legs tried out of each stop. */
+const CHAIN_BEAM = 60;
+const CHAIN_BRANCH = 6;
 
 /**
  * Rough supercruise time to a station `ls` light-seconds from the arrival star.
@@ -55,7 +60,7 @@ const ageHours = (m: TradeMarket, now: number) => Math.max(0, (now - Date.parse(
 function end(m: TradeMarket, me: [number, number, number], now: number): TradeEnd {
   return {
     marketId: m.marketId, station: m.station, system: m.system, ls: m.ls, type: m.type, pad: padOf(m),
-    planetary: m.planetary, fromMe: dist(me, m.pos), ageH: ageHours(m, now),
+    planetary: m.planetary, state: m.state ?? '', fromMe: dist(me, m.pos), ageH: ageHours(m, now),
   };
 }
 
@@ -189,51 +194,133 @@ export function computeTrade(
   now = Date.now(),
 ): TradeResult {
   const usable = markets.filter((m) => acceptsMarket(m, q, now));
-  const sources = q.fromHere
-    ? usable.filter((m) => (me.marketId ? m.marketId === me.marketId : m.systemId64 === me.systemId64))
-    : usable;
+  const systemOf = new Map(usable.map((m) => [m.marketId, m.systemId64]));
+  const here = (e: TradeEnd) => (me.marketId ? e.marketId === me.marketId : systemOf.get(e.marketId) === me.systemId64);
+    const states = new Set(q.states ?? []);
+  const inState = (e: TradeEnd) => !states.size || states.has(e.state);
 
-  const routes: TradeRoute[] = [];
-  for (const a of sources) {
-    for (const b of usable) {
-      if (a.marketId === b.marketId) continue;
-      const leg = bestLeg(a, b, q);
-      if (!leg) continue;
-      const hopLy = dist(a.pos, b.pos);
-      const { jumps, seconds } = legSeconds(hopLy, q.jumpRange, b.ls);
-      routes.push({
-        id: `${a.marketId}-${b.marketId}`,
-        src: end(a, me.pos, now),
-        dst: end(b, me.pos, now),
-        hopLy, jumps, leg, back: null,
-        pct: (leg.total / leg.cost) * 100,
-        legSeconds: seconds,
-        perHour: (leg.total / seconds) * 3600,
-        loopPerHour: 0,
-      });
+  // Each pair is priced both ways at once, so a loop's way back is known without keeping every pair.
+  // Only bounded "best of" lists survive the loop: the machine running this may be short on memory.
+  const ends = new Map(usable.map((m) => [m.marketId, end(m, me.pos, now)]));
+  const wanted = (r: TradeRoute) =>
+    (!(q.exportHere || q.importHere) || (q.exportHere && here(r.src)) || (q.importHere && here(r.dst))) &&
+    (inState(r.src) || inState(r.dst));
+  const chainStart = (r: TradeRoute) => !q.exportHere || q.importHere || here(r.src);
+  const loops = new Best<TradeRoute>(MAX_ROUTES, (r) => r.loopPerHour);
+  const starts = new Best<TradeRoute>(CHAIN_BEAM, (r) => r.perHour);
+  const outgoing = new Map(usable.map((m) => [m.marketId, new Best<TradeRoute>(CHAIN_BRANCH, (r: TradeRoute) => r.perHour)]));
+
+  const price = (a: TradeMarket, b: TradeMarket): TradeRoute | null => {
+    const leg = bestLeg(a, b, q);
+    if (!leg) return null;
+    const hopLy = dist(a.pos, b.pos);
+    const { jumps, seconds } = legSeconds(hopLy, q.jumpRange, b.ls);
+    return {
+      id: `${a.marketId}-${b.marketId}`,
+      src: ends.get(a.marketId)!,
+      dst: ends.get(b.marketId)!,
+      hopLy, jumps, leg, back: null,
+      pct: (leg.total / leg.cost) * 100,
+      legSeconds: seconds,
+      perHour: (leg.total / seconds) * 3600,
+      loopPerHour: 0,
+    };
+  };
+  const keep = (r: TradeRoute | null, back: TradeRoute | null, other: TradeRoute | null) => {
+    if (!r) return;
+    outgoing.get(r.src.marketId)!.add(r);
+    if (chainStart(r)) starts.add(r);
+    // A→B→A and B→A→B are the same loop: list it once, starting from the end nearer the player.
+    const twin = other && wanted(other) && (other.src.fromMe < r.src.fromMe || (other.src.fromMe === r.src.fromMe && other.id < r.id));
+    if (wanted(r) && !twin) {
+      const backSeconds = back?.legSeconds ?? legSeconds(r.hopLy, q.jumpRange, r.src.ls).seconds;
+      const loopPerHour = ((r.leg.total + (back?.leg.total ?? 0)) / (r.legSeconds + backSeconds)) * 3600;
+      loops.add({ ...r, back: back?.leg ?? null, loopPerHour });
+    }
+  };
+  for (let i = 0; i < usable.length; i++) {
+    for (let j = i + 1; j < usable.length; j++) {
+      const ab = price(usable[i], usable[j]);
+      const ba = price(usable[j], usable[i]);
+      keep(ab, ba, ba && ab ? ba : null);
+      keep(ba, ab, ab && ba ? ab : null);
     }
   }
-
-  routes.sort((x, y) => y.perHour - x.perHour);
-  const kept = routes.slice(0, MAX_ROUTES);
-
-  // Loops: for the strongest pairs, what can be carried back.
-  const byId = new Map(usable.map((m) => [m.marketId, m]));
-  for (const r of kept.slice(0, LOOP_CANDIDATES)) {
-    const back = bestLeg(byId.get(r.dst.marketId)!, byId.get(r.src.marketId)!, q);
-    r.back = back;
-    const backSeconds = legSeconds(r.hopLy, q.jumpRange, r.src.ls).seconds;
-    r.loopPerHour = ((r.leg.total + (back?.total ?? 0)) / (r.legSeconds + backSeconds)) * 3600;
-  }
+  const out = new Map([...outgoing].map(([id, best]) => [id, best.list()]));
 
   return {
     query: q,
     reference,
     stations: usable.length,
     fetchedAt: new Date(now).toISOString(),
-    routes: kept,
+    routes: loops.list(),
+    chains: linearChains(starts.list(), out, q, here, inState),
+    states: [...new Set(usable.map((m) => m.state).filter(Boolean))].sort(),
     commodities: commodityNames(usable),
   };
+}
+
+/**
+ * Linear routes of `q.hops` legs, without returning to a station already visited. Beam search: keep the
+ * best partial chains by Cr/h, extend each with the best few legs out of its last stop.
+ */
+function linearChains(
+  starts: TradeRoute[],
+  outgoing: Map<number, TradeRoute[]>,
+  q: TradeQuery,
+  here: (e: TradeEnd) => boolean,
+  inState: (e: TradeEnd) => boolean,
+): TradeChain[] {
+  const hops = Math.max(2, Math.min(q.hops || 3, MAX_LEGS));
+  const rate = (legs: TradeRoute[]) => {
+    const total = legs.reduce((t, l) => t + l.leg.total, 0);
+    const seconds = legs.reduce((t, l) => t + l.legSeconds, 0);
+    return { total, seconds, perHour: (total / seconds) * 3600 };
+  };
+  let beam = starts.map((r) => [r]);
+  for (let depth = 1; depth < hops; depth++) {
+    const next: { legs: TradeRoute[]; perHour: number }[] = [];
+    for (const legs of beam) {
+      const visited = new Set(legs.map((l) => l.src.marketId));
+      for (const r of outgoing.get(legs[legs.length - 1].dst.marketId) ?? []) {
+        if (visited.has(r.dst.marketId)) continue;
+        const grown = [...legs, r];
+        next.push({ legs: grown, perHour: rate(grown).perHour });
+      }
+    }
+    beam = next.sort((x, y) => y.perHour - x.perHour).slice(0, CHAIN_BEAM * 4).map((c) => c.legs);
+  }
+  const stops = (legs: TradeRoute[]) => [legs[0].src, ...legs.map((l) => l.dst)];
+  return beam
+    .filter((legs) => legs.length === hops)
+    .filter((legs) => !q.importHere || q.exportHere || here(legs[legs.length - 1].dst))
+    .filter((legs) => !(q.exportHere && q.importHere) || here(legs[0].src) || here(legs[legs.length - 1].dst))
+    .filter((legs) => stops(legs).some(inState))
+    .slice(0, MAX_CHAINS)
+    .map((legs) => ({ id: stops(legs).map((e) => e.marketId).join('-'), legs, ...rate(legs) }));
+}
+
+/** The `size` highest-scoring items seen; trimmed in batches so adding stays cheap. */
+class Best<T> {
+  private items: T[] = [];
+  private readonly size: number;
+  private readonly score: (x: T) => number;
+  constructor(size: number, score: (x: T) => number) {
+    this.size = size;
+    this.score = score;
+  }
+  add(x: T) {
+    this.items.push(x);
+    if (this.items.length >= this.size * 4) this.trim();
+  }
+  list(): T[] {
+    this.trim();
+    return this.items;
+  }
+  private trim() {
+    this.items.sort((x, y) => this.score(y) - this.score(x));
+    this.items.length = Math.min(this.items.length, this.size);
+  }
 }
 
 /** Display names of every commodity traded in these markets (English names from Spansh win). */

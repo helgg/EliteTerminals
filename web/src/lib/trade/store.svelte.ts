@@ -4,7 +4,8 @@ import type { TradeResult } from '@et/shared';
 export const tradeStore = $state({
   result: null as TradeResult | null,
   selected: '',
-  tab: 'routes' as 'routes' | 'finder' | 'local',
+  selectedChain: '',
+  tab: 'loop' as 'loop' | 'linear' | 'finder' | 'local',
   loaded: false,
 });
 
@@ -17,6 +18,7 @@ export async function restoreLast() {
     if (res.status === 200) {
       tradeStore.result = await res.json();
       tradeStore.selected ||= tradeStore.result?.routes[0]?.id ?? '';
+      tradeStore.selectedChain ||= tradeStore.result?.chains?.[0]?.id ?? '';
     }
   } catch {
     // server unreachable: the SCAN button still works once it is back
