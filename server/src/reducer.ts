@@ -55,6 +55,7 @@ export function applyEvent(state: EdState, e: JournalEvent): void {
       state.ship.cargoCapacity = e.CargoCapacity ?? 0;
       state.ship.fuelCapacity = e.FuelCapacity?.Main ?? state.ship.fuelCapacity;
       state.ship.maxJumpRange = e.MaxJumpRange ?? 0;
+      state.ship.unladenMass = e.UnladenMass ?? 0;
       state.ship.hullHealth = e.HullHealth ?? 1;
       break;
 
@@ -67,6 +68,7 @@ export function applyEvent(state: EdState, e: JournalEvent): void {
       state.location.stationType = e.Docked ? str(e.StationType) : '';
       if (e.event === 'FSDJump') {
         state.status.fuelMain = e.FuelLevel ?? state.status.fuelMain;
+        state.ship.lastJump = { distance: e.JumpDist ?? 0, fuelUsed: e.FuelUsed ?? 0 };
         state.route.remainingJumps = Math.max(0, state.route.remainingJumps - 1);
       }
       break;

@@ -21,7 +21,7 @@
     n >= 1e9 ? `${(n / 1e9).toFixed(1)} bi` : n >= 1e6 ? `${(n / 1e6).toFixed(1)} mi` : n >= 1e3 ? `${(n / 1e3).toFixed(0)} mil` : String(n);
 </script>
 
-<Panel class="system" title="System" aside={g?.updatedAt ? `spansh ${g.updatedAt.slice(0, 10)}` : ''}>
+<Panel class="system" scroll={false} title="System" aside={g?.updatedAt ? `spansh ${g.updatedAt.slice(0, 10)}` : ''}>
   <div class="sys">
     <div class="name">
       {#if cls}<span class="cls" style:color={starColor(cls)}>{cls}</span>{/if}

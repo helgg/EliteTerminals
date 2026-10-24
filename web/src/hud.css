@@ -63,6 +63,13 @@ body::after {
     calc(100% - var(--chamfer)) 100%, 0 100%, 0 var(--chamfer));
 }
 
+/* Where a list must scroll (route, market), keep the bar thin and in HUD colours. */
+* { scrollbar-width: thin; scrollbar-color: var(--rule) transparent; }
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--rule); }
+::-webkit-scrollbar-thumb:hover { background: var(--dim); }
+
 button {
   font: inherit;
   color: inherit;

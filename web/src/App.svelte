@@ -77,7 +77,7 @@
         <Bar label="CARGO" value={s.cargo.count} max={s.ship.cargoCapacity} unit=" t" />
         <Bar label="HULL" value={Math.round(s.ship.hullHealth * 100)} max={100} unit="%" warnBelow={0.5} />
         <div class="facts">
-          <span class="dim">JUMP</span><span class="num">{s.ship.maxJumpRange.toFixed(2)} ly</span>
+          <span class="dim">JUMP MAX</span><span class="num" title="Alcance do jogo: porão vazio e só o combustível de 1 salto">{s.ship.maxJumpRange.toFixed(2)} ly</span>
           <span class="dim">FIRE GRP</span><span class="num">{String.fromCharCode(65 + s.status.fireGroup)}</span>
           <span class="dim">LEGAL</span><span>{s.status.legalState || '—'}</span>
         </div>
@@ -163,8 +163,8 @@
   }
   nav button.active { background: var(--hud); color: var(--void); border-color: var(--hud); box-shadow: var(--glow); }
 
-  .side { display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow: auto; }
-  .side > :global(.system) { flex: 1; }
+  .side { display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow: hidden; }
+  .side > :global(.system) { flex: 1; min-height: 0; }
   .stack { display: flex; flex-direction: column; gap: 8px; }
   .facts { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; font-size: 12px; }
   .alerts { display: flex; flex-wrap: wrap; gap: 4px; }

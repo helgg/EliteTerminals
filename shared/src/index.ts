@@ -107,8 +107,11 @@ export interface EdState {
     ident: string;
     cargoCapacity: number;
     fuelCapacity: number;
+    /** Loadout's MaxJumpRange: empty hold, only the fuel for one jump. */
     maxJumpRange: number;
+    unladenMass: number;
     hullHealth: number;
+    lastJump: { distance: number; fuelUsed: number };
   };
   flags: Flags;
   status: {
@@ -191,7 +194,7 @@ export function initialState(): EdState {
   return {
     meta: { online: false, journal: '', gameVersion: '', odyssey: false, lastEventAt: '', parseErrors: 0 },
     commander: { name: '', fid: '', gameMode: '', credits: 0 },
-    ship: { type: '', label: '', name: '', ident: '', cargoCapacity: 0, fuelCapacity: 0, maxJumpRange: 0, hullHealth: 1 },
+    ship: { type: '', label: '', name: '', ident: '', cargoCapacity: 0, fuelCapacity: 0, maxJumpRange: 0, unladenMass: 0, hullHealth: 1, lastJump: { distance: 0, fuelUsed: 0 } },
     flags: emptyFlags(),
     status: {
       guiFocus: 0, fireGroup: 0, legalState: '', fuelMain: 0, fuelReservoir: 0, cargo: 0,

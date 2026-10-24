@@ -1,11 +1,13 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
 
-  let { title, aside, children, class: cls = '' }: {
+  // `scroll={false}` clips instead of scrolling: for panels whose content is sized to fit.
+  let { title, aside, children, class: cls = '', scroll = true }: {
     title: string;
     aside?: string;
     children: Snippet;
     class?: string;
+    scroll?: boolean;
   } = $props();
 </script>
 
@@ -15,7 +17,7 @@
     <span class="label">{title}</span>
     {#if aside}<span class="aside dim">{aside}</span>{/if}
   </header>
-  <div class="body">{@render children()}</div>
+  <div class="body" class:clip={!scroll}>{@render children()}</div>
 </section>
 
 <style>
@@ -65,4 +67,5 @@
     min-height: 0;
     overflow: auto;
   }
+  .body.clip { overflow: hidden; }
 </style>
