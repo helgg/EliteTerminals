@@ -12,3 +12,10 @@ export function currentJumpRange(s: EdState): number {
   const mass = unladenMass + s.cargo.count + s.status.fuelMain + s.status.fuelReservoir;
   return (maxJumpRange * unladenMass) / mass;
 }
+
+/** Range with a full hold and a full tank: what a trade run actually flies with. */
+export function ladenJumpRange(s: EdState): number {
+  const { maxJumpRange, unladenMass, cargoCapacity, fuelCapacity } = s.ship;
+  if (!maxJumpRange || !unladenMass) return maxJumpRange;
+  return (maxJumpRange * unladenMass) / (unladenMass + cargoCapacity + fuelCapacity);
+}

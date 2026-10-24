@@ -1,184 +1,205 @@
 <script lang="ts">
-  import type { EdState, MarketItem } from '@et/shared';
+  import type { EdState, TradeQuery, TradeResult } from '@et/shared';
   import Panel from '../lib/Panel.svelte';
+  import RouteTable from '../lib/trade/RouteTable.svelte';
+  import RouteDetail from '../lib/trade/RouteDetail.svelte';
+  import CommodityFinder from '../lib/trade/CommodityFinder.svelte';
+  import LocalMarket from '../lib/trade/LocalMarket.svelte';
+  import { link } from '../lib/link.svelte.ts';
+  import { ladenJumpRange } from '../lib/jump.ts';
+  import { cr, short } from '../lib/format.ts';
+  import { restoreLast, tradeStore as ts } from '../lib/trade/store.svelte.ts';
 
   let { s, now }: { s: EdState; now: number } = $props();
 
-  const cr = (n: number) => n.toLocaleString('pt-BR');
-  // With the game closed the session ended at the last journal event, not now.
-  const sessionEnd = $derived(s.meta.online ? now : Date.parse(s.meta.lastEventAt) || now);
-  const hours = $derived(s.session.startedAt ? Math.max((sessionEnd - Date.parse(s.session.startedAt)) / 3.6e6, 1 / 60) : 0);
-  const crPerHour = $derived(hours ? s.session.tradeProfit / hours : 0);
-
-  const docked = $derived(s.flags.docked && s.market.station !== '' && s.market.station === s.location.station);
-  const marketAge = $derived(s.market.updatedAt ? age(now - Date.parse(s.market.updatedAt)) : null);
-
-  function age(ms: number) {
-    const min = Math.round(ms / 60000);
-    if (min < 60) return `${min} min`;
-    if (min < 48 * 60) return `${Math.round(min / 60)} h`;
-    return `${Math.round(min / 1440)} d`;
+  // --- filters, remembered per device ---
+  type Filters = Pick<TradeQuery, 'radius' | 'maxAgeH' | 'pad' | 'planetary' | 'carriers' | 'fromHere' | 'maxLs'>;
+  const DEFAULTS: Filters = { radius: 25, maxAgeH: 24, pad: 'L', planetary: false, carriers: false, fromHere: false, maxLs: 5000 };
+  let f = $state<Filters>(readFilters());
+  $effect(() => {
+    try { localStorage.setItem('et.trade.filters', JSON.stringify(f)); } catch {}
+  });
+  function readFilters(): Filters {
+    try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem('et.trade.filters') ?? '{}') }; } catch { return { ...DEFAULTS }; }
   }
 
-  // Market table: what this station sells and buys, sortable.
-  type Key = 'label' | 'buy' | 'sell' | 'stock' | 'demand' | 'vsMean';
-  let sortKey = $state<Key>('vsMean');
-  let sortDesc = $state(true);
-  let filter = $state('');
-  let mode = $state<'sell' | 'buy'>('sell');
+  const RADII = [10, 15, 25, 40];
+  const AGES: [number, string][] = [[1, '1h'], [3, '3h'], [12, '12h'], [24, '1d'], [72, '3d'], [168, '7d'], [720, '30d'], [0, 'todas']];
+  const LS: [number, string][] = [[1000, '1k'], [5000, '5k'], [20000, '20k'], [0, '∞']];
 
-  type Row = MarketItem & { vsMean: number; held: number };
-  const rows = $derived.by(() => {
-    const held = new Map(s.cargo.items.map((c) => [c.name.toLowerCase(), c.count]));
-    const q = filter.trim().toLowerCase();
-    return s.market.items
-      .filter((i) => (mode === 'sell' ? i.demand > 0 && i.sell > 0 : i.stock > 0 && i.buy > 0))
-      .filter((i) => !q || i.label.toLowerCase().includes(q) || i.category.toLowerCase().includes(q))
-      .map((i): Row => {
-        const price = mode === 'sell' ? i.sell : i.buy;
-        const vsMean = i.meanPrice ? ((price - i.meanPrice) / i.meanPrice) * 100 : 0;
-        return { ...i, vsMean: mode === 'sell' ? vsMean : -vsMean, held: held.get(nameKey(i.name)) ?? 0 };
-      })
-      .sort((a, b) => {
-        const d = sortKey === 'label' ? a.label.localeCompare(b.label) : a[sortKey] - b[sortKey];
-        return sortDesc ? -d : d;
-      });
+  const query = $derived<TradeQuery>({
+    ...f,
+    cargo: s.ship.cargoCapacity || 1,
+    capital: s.commander.credits,
+    jumpRange: ladenJumpRange(s) || 15,
   });
 
-  // Market.json names look like "$gold_name;", cargo uses "gold".
-  function nameKey(name: string) {
-    return name.replace(/^\$/, '').replace(/_name;$/i, '').toLowerCase();
-  }
+  // --- scan ---
+  let busy = $state(false);
+  let error = $state('');
+  void restoreLast();
 
-  function sortBy(key: Key) {
-    if (sortKey === key) sortDesc = !sortDesc;
-    else {
-      sortKey = key;
-      sortDesc = key !== 'label';
+  async function scan(force = false) {
+    busy = true;
+    error = '';
+    link.tradeProgress = null;
+    try {
+      const res = await fetch('/api/trade/routes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, force }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? res.statusText);
+      ts.result = body as TradeResult;
+      ts.selected = ts.result.routes[0]?.id ?? '';
+    } catch (e) {
+      error = (e as Error).message;
+    } finally {
+      busy = false;
     }
   }
 
-  const holdValue = $derived.by(() => {
-    const sell = new Map(s.market.items.map((i) => [nameKey(i.name), i.sell]));
-    return s.cargo.items.reduce((sum, c) => sum + (sell.get(c.name.toLowerCase()) ?? 0) * c.count, 0);
-  });
+  const result = $derived(ts.result);
+  const route = $derived(result?.routes.find((r) => r.id === ts.selected) ?? null);
+  const progress = $derived(link.tradeProgress);
+
+  // --- session ---
+  const sessionEnd = $derived(s.meta.online ? now : Date.parse(s.meta.lastEventAt) || now);
+  const hours = $derived(s.session.startedAt ? Math.max((sessionEnd - Date.parse(s.session.startedAt)) / 3.6e6, 1 / 60) : 0);
+  const crPerHour = $derived(hours ? s.session.tradeProfit / hours : 0);
 </script>
 
+{#snippet chips<T>(options: [T, string][], value: T, set: (v: T) => void)}
+  <div class="chips">
+    {#each options as [v, label] (label)}
+      <button class:on={v === value} onclick={() => set(v)}>{label}</button>
+    {/each}
+  </div>
+{/snippet}
+
 <div class="trade">
-  <Panel title="Session" aside={s.session.startedAt ? `${hours.toFixed(1)} h` : 'sem sessão'}>
-    <div class="kpis">
-      <div><span class="dim">LUCRO</span><b class="num ok">{cr(s.session.tradeProfit)}</b></div>
-      <div><span class="dim">CR/H</span><b class="num tele">{cr(Math.round(crPerHour))}</b></div>
-      <div><span class="dim">VENDIDO</span><b class="num">{cr(s.session.tonsSold)} t</b></div>
-      <div><span class="dim">VENDAS</span><b class="num">{s.session.sales}</b></div>
+  <div class="left">
+    <Panel title="Scan" scroll={false} aside={result ? `${result.stations} mercados` : ''}>
+      <div class="filters">
+        <span class="k">RAIO</span>
+        {@render chips(RADII.map((r) => [r, `${r} ly`] as [number, string]), f.radius, (v) => (f.radius = v))}
+        <span class="k">PREÇO ATUALIZADO HÁ NO MÁXIMO</span>
+        {@render chips(AGES, f.maxAgeH, (v) => (f.maxAgeH = v))}
+        <span class="k">PAD</span>
+        {@render chips([['S', 'S'], ['M', 'M'], ['L', 'L']] as ['S' | 'M' | 'L', string][], f.pad, (v) => (f.pad = v))}
+        <span class="k">DIST. DA ESTRELA</span>
+        {@render chips(LS, f.maxLs, (v) => (f.maxLs = v))}
+        <div class="toggles">
+          <button class:on={f.fromHere} onclick={() => (f.fromHere = !f.fromHere)}>SÓ DAQUI</button>
+          <button class:on={f.planetary} onclick={() => (f.planetary = !f.planetary)}>PLANETÁRIAS</button>
+          <button class:on={f.carriers} onclick={() => (f.carriers = !f.carriers)}>CARRIERS</button>
+        </div>
+        <button class="scan" disabled={busy || !s.location.system} onclick={() => scan(false)}>
+          {#if busy}
+            ESCANEANDO {progress ? `${progress.loaded}/${progress.total}` : '…'}
+          {:else}
+            SCAN · {s.location.system || '—'}
+          {/if}
+        </button>
+        {#if busy && progress?.total}
+          <div class="bar"><div style:width="{(progress.loaded / progress.total) * 100}%"></div></div>
+        {/if}
+        <div class="hint dim">
+          porão {cr(query.cargo)} t · alcance carregado ≈{query.jumpRange.toFixed(1)} ly
+          {#if result}<br />dados {new Date(result.fetchedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+            · <button class="link" disabled={busy} onclick={() => scan(true)}>recarregar</button>{/if}
+        </div>
+        {#if error}<div class="bad">{error}</div>{/if}
+      </div>
+    </Panel>
+
+    <Panel title="Session" scroll={false} aside={s.session.startedAt ? `${hours.toFixed(1)} h` : 'sem sessão'}>
+      <div class="kpis">
+        <div><span class="dim">LUCRO</span><b class="num ok">{short(s.session.tradeProfit)}</b></div>
+        <div><span class="dim">CR/H</span><b class="num tele">{short(crPerHour)}</b></div>
+        <div><span class="dim">VENDIDO</span><b class="num">{cr(s.session.tonsSold)} t</b></div>
+        <div><span class="dim">PORÃO</span><b class="num">{cr(s.cargo.count)}/{cr(s.ship.cargoCapacity)}</b></div>
+      </div>
+    </Panel>
+  </div>
+
+  <Panel class="center" title={ts.tab === 'routes' ? 'Trade routes' : ts.tab === 'finder' ? 'Commodity finder' : `Market · ${s.market.station || '—'}`}
+    aside={ts.tab === 'routes' && result ? `${result.routes.length} rotas` : ''}>
+    <div class="center-body">
+      <nav class="tabs">
+        <button class:on={ts.tab === 'routes'} onclick={() => (ts.tab = 'routes')}>ROTAS</button>
+        <button class:on={ts.tab === 'finder'} onclick={() => (ts.tab = 'finder')}>COMMODITY</button>
+        <button class:on={ts.tab === 'local'} onclick={() => (ts.tab = 'local')}>MERCADO LOCAL</button>
+      </nav>
+      <div class="pane">
+        {#if ts.tab === 'routes'}
+          {#if result?.routes.length}
+            <RouteTable routes={result.routes} bind:selected={ts.selected} />
+          {:else if result}
+            <p class="dim">Nenhuma rota com esses filtros. Aumente o raio ou a idade máxima do preço.</p>
+          {:else}
+            <p class="dim">Ajuste os filtros e toque em SCAN. A primeira busca baixa os mercados próximos do Spansh
+              (pode levar ~30 s); depois fica em cache por 30 min.</p>
+          {/if}
+        {:else if ts.tab === 'finder'}
+          <CommodityFinder names={result?.commodities ?? []} {query} />
+        {:else}
+          <LocalMarket {s} />
+        {/if}
+      </div>
     </div>
   </Panel>
 
-  <Panel title="Hold" aside="{s.cargo.count}/{s.ship.cargoCapacity} t">
-    {#if s.cargo.items.length}
-      <table>
-        <tbody>
-          {#each s.cargo.items as c (c.name)}
-            <tr><td>{c.label}</td><td class="r num">{c.count} t</td>{#if c.stolen}<td class="bad">roubado</td>{/if}</tr>
-          {/each}
-        </tbody>
-      </table>
-      {#if docked}<p class="dim">Valor aqui: <span class="tele num">{cr(holdValue)} Cr</span></p>{/if}
-    {:else}
-      <p class="dim">Porão vazio.</p>
-    {/if}
-  </Panel>
-
-  <Panel class="market" title="Market · {s.market.station || '—'}"
-    aside={marketAge === null ? 'sem dados' : docked ? 'docado · ao vivo' : `${marketAge} atrás`}>
-    <div class="tools">
-      <button class:active={mode === 'sell'} onclick={() => (mode = 'sell')}>VENDER AQUI</button>
-      <button class:active={mode === 'buy'} onclick={() => (mode = 'buy')}>COMPRAR AQUI</button>
-      <input placeholder="filtrar commodity / categoria" bind:value={filter} />
-    </div>
-    <table class="grid">
-      <thead>
-        <tr>
-          <th onclick={() => sortBy('label')}>Commodity</th>
-          <th class="r" onclick={() => sortBy(mode === 'sell' ? 'sell' : 'buy')}>{mode === 'sell' ? 'Venda' : 'Compra'}</th>
-          <th class="r" onclick={() => sortBy('vsMean')}>vs média</th>
-          <th class="r" onclick={() => sortBy(mode === 'sell' ? 'demand' : 'stock')}>{mode === 'sell' ? 'Demanda' : 'Estoque'}</th>
-          <th class="r">No porão</th>
-        </tr>
-      </thead>
-      <tbody>
-        {#each rows as r (r.name)}
-          <tr class:held={r.held > 0}>
-            <td>{r.label} <span class="faint">{r.category}</span></td>
-            <td class="r num">{cr(mode === 'sell' ? r.sell : r.buy)}</td>
-            <td class="r num" class:ok={r.vsMean > 0} class:bad={r.vsMean < 0}>{r.vsMean > 0 ? '+' : ''}{r.vsMean.toFixed(0)}%</td>
-            <td class="r num muted">{cr(mode === 'sell' ? r.demand : r.stock)}</td>
-            <td class="r num">{r.held || ''}</td>
-          </tr>
-        {/each}
-      </tbody>
-    </table>
-  </Panel>
-
-  <Panel class="routes" title="Trade routes" aside="M3">
-    <p class="dim">
-      Rotas a partir de <span class="tele">{s.location.system || '—'}</span>, ordenáveis por distância, lucro/t,
-      lucro total, lucro/h e % de lucro; busca de onde comprar/vender cada commodity.
-      Fonte de preços da galáxia (Spansh / EDDN) entra no marco M3.
-    </p>
+  <Panel class="right" title="Route" scroll={false}>
+    <RouteDetail {route} />
   </Panel>
 </div>
 
 <style>
   .trade {
     display: grid;
-    grid-template-columns: 1fr 1fr 1.6fr;
-    grid-template-rows: auto 1fr;
+    grid-template-columns: 250px minmax(0, 1fr) 260px;
     gap: 8px;
     height: 100%;
     min-height: 0;
   }
-  .trade > :global(.market) { grid-column: 3; grid-row: 1 / span 2; }
-  .trade > :global(.routes) { grid-column: 1 / span 2; }
+  .left { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+  .trade :global(.center .body) { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 
-  .kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
+  .filters { display: flex; flex-direction: column; gap: 4px; }
+  .k { color: var(--dim); font-size: 10px; letter-spacing: 0.1em; margin-top: 4px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 3px; }
+  .chips button, .toggles button {
+    flex: 1; padding: 5px 4px; background: var(--steel); border: 1px solid var(--rule);
+    color: var(--muted); font-size: 11px; font-weight: 700;
+  }
+  .chips button.on { background: var(--hud); border-color: var(--hud); color: var(--void); }
+  .toggles { display: flex; gap: 3px; margin-top: 6px; }
+  .toggles button.on { border-color: var(--telemetry); color: var(--telemetry); box-shadow: inset 0 2px var(--telemetry); }
+  .scan {
+    margin-top: 8px; padding: 12px; background: var(--hud); color: var(--void); border: 0;
+    font-weight: 800; letter-spacing: 0.1em; box-shadow: var(--glow);
+    clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .scan:disabled { opacity: 0.6; cursor: progress; }
+  .bar { height: 4px; background: var(--steel); }
+  .bar div { height: 100%; background: var(--telemetry); transition: width 0.3s; }
+  .hint { font-size: 10px; line-height: 1.5; }
+  .link { background: none; border: 0; padding: 0; color: var(--hud-hi); text-decoration: underline; font-size: 10px; }
+
+  .kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; }
   .kpis div { display: flex; flex-direction: column; }
-  .kpis span { font-size: 11px; letter-spacing: 0.08em; }
-  .kpis b { font-size: 18px; }
+  .kpis span { font-size: 10px; letter-spacing: 0.08em; }
+  .kpis b { font-size: 16px; }
 
-  table { width: 100%; border-collapse: collapse; }
-  td, th { padding: 3px 4px; border-bottom: 1px solid var(--rule); text-align: left; white-space: nowrap; }
-  th {
-    position: sticky;
-    top: 0;
-    background: var(--panel);
-    color: var(--hud-hi);
-    font-size: 11px;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    cursor: pointer;
+  .center-body { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 6px; }
+  .tabs button {
+    padding: 6px 14px; background: var(--steel); border: 1px solid var(--rule); color: var(--hud-hi);
+    font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
   }
-  .r { text-align: right; }
-  .faint { color: var(--faint); font-size: 11px; }
-  tr.held td:first-child { color: var(--hud); }
-
-  .tools { display: flex; gap: 6px; margin-bottom: 6px; }
-  .tools button {
-    padding: 6px 10px;
-    background: var(--steel);
-    border: 1px solid var(--rule);
-    color: var(--muted);
-    font-weight: 700;
-    font-size: 11px;
-  }
-  .tools button.active { background: var(--hud); color: var(--void); border-color: var(--hud); }
-  .tools input {
-    flex: 1;
-    min-width: 0;
-    padding: 6px 8px;
-    background: var(--void);
-    border: 1px solid var(--rule);
-    color: var(--text);
-    font: inherit;
-  }
+  .tabs button.on { background: var(--hud); border-color: var(--hud); color: var(--void); }
+  .pane { flex: 1; min-height: 0; }
 </style>

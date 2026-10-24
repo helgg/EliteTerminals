@@ -5,12 +5,14 @@ import { join, resolve } from 'node:path';
 import Fastify from 'fastify';
 import fastifyStatic from '@fastify/static';
 import fastifyWebsocket from '@fastify/websocket';
-import type { ClientMessage, ServerMessage } from '@et/shared';
+import type { ClientMessage, ServerMessage, TradeQuery } from '@et/shared';
 import { JournalReader } from './reader.ts';
 import { Controls } from './controls.ts';
 import { findGameDir } from './binds.ts';
 import { createWin32Sender } from './input.ts';
 import { Galaxy, summary } from './galaxy.ts';
+import { MarketScanner } from './trade/markets.ts';
+import { TradeService } from './trade/service.ts';
 
 const PORT = Number(process.env.PORT ?? 8420);
 const HOST = process.env.HOST ?? '0.0.0.0';
@@ -26,6 +28,9 @@ const reader = new JournalReader(JOURNAL_DIR);
 const controls = new Controls(BINDINGS_DIR, findGameDir(), process.platform === 'win32' ? createWin32Sender() : null);
 const galaxy = new Galaxy(CACHE_DIR);
 await galaxy.load();
+const scanner = new MarketScanner(CACHE_DIR);
+await scanner.load();
+const trade = new TradeService(scanner, () => reader.state);
 const app = Fastify({ logger: { level: 'info' } });
 await app.register(fastifyWebsocket);
 
@@ -97,6 +102,28 @@ app.get('/ws', { websocket: true }, (socket) => {
 });
 
 app.get('/api/state', async () => reader.state);
+
+scanner.on('progress', (p) => {
+  const data = encode({ type: 'tradeProgress', ...p });
+  clients.forEach((c) => c.send(data));
+});
+
+app.post('/api/trade/routes', async (req, reply) => {
+  const { query, force } = req.body as { query: TradeQuery; force?: boolean };
+  try {
+    return await trade.routes(query, force === true);
+  } catch (err) {
+    app.log.warn({ error: (err as Error).message }, 'trade scan failed');
+    return reply.code(502).send({ error: (err as Error).message });
+  }
+});
+
+app.get('/api/trade/last', async (_req, reply) => trade.last ?? reply.code(204).send());
+
+app.post('/api/trade/commodity', async (req) => {
+  const { name, query } = req.body as { name: string; query: TradeQuery };
+  return trade.quotes(String(name), query);
+});
 
 if (existsSync(WEB_DIST)) {
   await app.register(fastifyStatic, { root: WEB_DIST });

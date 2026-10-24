@@ -171,7 +171,7 @@ export interface EdState {
     subsystemHealth: number | null;
   };
   cargo: { items: CargoItem[]; count: number };
-  market: { station: string; system: string; updatedAt: string; items: MarketItem[] };
+  market: { marketId: number; station: string; system: string; updatedAt: string; items: MarketItem[] };
   /** Player's active control presets and the keyboard key behind each bindable action. */
   controls: { presets: string[]; keys: Record<string, string> };
   session: {
@@ -214,16 +214,109 @@ export function initialState(): EdState {
       shield: null, hull: null, subsystem: '', subsystemHealth: null,
     },
     cargo: { items: [], count: 0 },
-    market: { station: '', system: '', updatedAt: '', items: [] },
+    market: { marketId: 0, station: '', system: '', updatedAt: '', items: [] },
     controls: { presets: [], keys: {} },
     session: { startedAt: '', tradeProfit: 0, tonsSold: 0, tonsBought: 0, sales: 0 },
   };
+}
+
+// --- Trade (M3) ---
+
+export interface TradeMarket {
+  marketId: number;
+  station: string;
+  system: string;
+  systemId64: number;
+  pos: [number, number, number];
+  /** Distance from the system's arrival star, in light-seconds. */
+  ls: number;
+  type: string;
+  planetary: boolean;
+  pads: { s: number; m: number; l: number };
+  updatedAt: string;
+  /** "spansh" or "local" (the player's own Market.json, which is fresher). */
+  source: 'spansh' | 'local';
+  items: { name: string; buy: number; sell: number; supply: number; demand: number }[];
+}
+
+export interface TradeQuery {
+  radius: number;
+  /** Max price age in hours; 0 = any. */
+  maxAgeH: number;
+  pad: 'S' | 'M' | 'L';
+  planetary: boolean;
+  carriers: boolean;
+  /** Only routes that start at the current station / system. */
+  fromHere: boolean;
+  maxLs: number;
+  cargo: number;
+  capital: number;
+  jumpRange: number;
+}
+
+export interface TradeEnd {
+  marketId: number;
+  station: string;
+  system: string;
+  ls: number;
+  type: string;
+  pad: string;
+  planetary: boolean;
+  /** Distance from the player, in ly. */
+  fromMe: number;
+  ageH: number;
+}
+
+export interface TradeLeg {
+  commodity: string;
+  buy: number;
+  sell: number;
+  profit: number;
+  amount: number;
+  total: number;
+  supply: number;
+  demand: number;
+}
+
+export interface TradeRoute {
+  id: string;
+  src: TradeEnd;
+  dst: TradeEnd;
+  hopLy: number;
+  jumps: number;
+  leg: TradeLeg;
+  /** Best cargo for the way back, when the pair is worth running as a loop. */
+  back: TradeLeg | null;
+  pct: number;
+  /** Estimated seconds for one leg (jumps + supercruise + docking). */
+  legSeconds: number;
+  perHour: number;
+  loopPerHour: number;
+}
+
+export interface CommodityQuote {
+  commodity: string;
+  price: number;
+  /** Stock when buying, demand when selling. */
+  volume: number;
+  end: TradeEnd;
+}
+
+export interface TradeResult {
+  query: TradeQuery;
+  reference: string;
+  stations: number;
+  fetchedAt: string;
+  routes: TradeRoute[];
+  /** Every commodity traded in the scanned markets, for the commodity finder. */
+  commodities: string[];
 }
 
 // --- Wire protocol (WebSocket, JSON) ---
 
 export type ServerMessage =
   | { type: 'state'; state: EdState }
-  | { type: 'commandResult'; id: string; ok: boolean; error?: string };
+  | { type: 'commandResult'; id: string; ok: boolean; error?: string }
+  | { type: 'tradeProgress'; loaded: number; total: number; done: boolean; error?: string };
 
 export type ClientMessage = { type: 'command'; id: string; command: string };

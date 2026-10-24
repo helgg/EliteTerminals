@@ -221,6 +221,7 @@ export function applyStatus(state: EdState, e: JournalEvent) {
 export function applyMarket(state: EdState, e: JournalEvent) {
   if (!Array.isArray(e.Items)) return;
   state.market = {
+    marketId: e.MarketID ?? 0,
     station: str(e.StationName),
     system: str(e.StarSystem),
     updatedAt: str(e.timestamp),

@@ -8,6 +8,8 @@ export const link = $state({
   last: null as { command: string; ok: boolean; error?: string; at: number } | null,
   /** Last throttle detent the game accepted; the journal never reports throttle position. */
   throttleCmd: '' as string,
+  /** Spansh market scan progress for the TRADE screen. */
+  tradeProgress: null as { loaded: number; total: number; done: boolean } | null,
 });
 
 let socket: WebSocket | null = null;
@@ -25,6 +27,7 @@ export function connect() {
   socket.onmessage = (ev) => {
     const msg = JSON.parse(ev.data) as ServerMessage;
     if (msg.type === 'state') link.state = msg.state;
+    else if (msg.type === 'tradeProgress') link.tradeProgress = msg;
     else if (msg.type === 'commandResult') {
       const command = inFlight.get(msg.id) ?? '?';
       inFlight.delete(msg.id);
