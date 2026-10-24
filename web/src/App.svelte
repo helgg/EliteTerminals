@@ -109,8 +109,17 @@
     <span class:ok={live} class:bad={!live}>
       {!link.connected ? 'SEM CONEXÃO COM O SERVIDOR' : s.meta.online ? 'JOGO ONLINE' : 'JOGO OFFLINE · último estado conhecido'}
     </span>
-    <span class="dim">{s.meta.journal}</span>
-    <span class="dim right">{s.meta.gameVersion}{s.meta.odyssey ? ' · Odyssey' : ''}</span>
+    {#if link.last && now - link.last.at < 6000}
+      <span class:ok={link.last.ok} class:bad={!link.last.ok}>
+        {link.last.command} {link.last.ok ? '✓' : `✗ ${link.last.error}`}
+      </span>
+    {:else}
+      <span class="dim">{s.meta.journal}</span>
+    {/if}
+    <span class="dim right">
+      binds {s.controls.presets[1] ?? '—'} · {Object.keys(s.controls.keys).length} ações ·
+      {s.meta.gameVersion}{s.meta.odyssey ? ' · Odyssey' : ''}
+    </span>
   </footer>
 </div>
 

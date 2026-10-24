@@ -2,7 +2,7 @@
   import type { EdState } from '@et/shared';
   import Panel from '../lib/Panel.svelte';
   import Toggle from '../lib/Toggle.svelte';
-  import { sendCommand } from '../lib/link.svelte.ts';
+  import { keyFor, sendCommand } from '../lib/link.svelte.ts';
 
   let { s }: { s: EdState } = $props();
 
@@ -31,9 +31,9 @@
         <span class="dim">· alcance</span> {s.ship.maxJumpRange.toFixed(1)} ly
       </div>
       <div class="actions">
-        <button class="act chamfer" onclick={() => sendCommand('Supercruise')}>SUPERCRUISE</button>
-        <button class="act chamfer tele" onclick={() => sendCommand('Hyperspace')}>HYPERSPACE</button>
-        <button class="act chamfer" onclick={() => sendCommand('HyperSuperCombination')}>FSD (auto)</button>
+        <button class="act chamfer" disabled={!keyFor('Supercruise')} title={keyFor('Supercruise') ?? 'sem bind'} onclick={() => sendCommand('Supercruise')}>SUPERCRUISE</button>
+        <button class="act chamfer tele" disabled={!keyFor('Hyperspace')} title={keyFor('Hyperspace') ?? 'sem bind'} onclick={() => sendCommand('Hyperspace')}>HYPERSPACE</button>
+        <button class="act chamfer" disabled={!keyFor('HyperSuperCombination')} title={keyFor('HyperSuperCombination') ?? 'sem bind'} onclick={() => sendCommand('HyperSuperCombination')}>FSD (auto)</button>
       </div>
     </div>
   </Panel>
@@ -42,9 +42,9 @@
     <div class="throttle">
       {#each throttle as [label, cmd] (cmd)}
         <button class="thr chamfer" class:rev={label.startsWith('-')} class:zero={label === '0'}
-          onclick={() => sendCommand(cmd)}>{label}%</button>
+          disabled={!keyFor(cmd)} title={keyFor(cmd) ?? 'sem bind'} onclick={() => sendCommand(cmd)}>{label}%</button>
       {/each}
-      <button class="thr chamfer boost" onclick={() => sendCommand('UseBoostJuice')}>BOOST</button>
+      <button class="thr chamfer boost" disabled={!keyFor('UseBoostJuice')} title={keyFor('UseBoostJuice') ?? 'sem bind'} onclick={() => sendCommand('UseBoostJuice')}>BOOST</button>
     </div>
   </Panel>
 
@@ -112,6 +112,7 @@
   }
   .act.tele { color: var(--telemetry); }
   .act:active, .thr:active { background: var(--rule); }
+  .act:disabled, .thr:disabled { opacity: 0.35; cursor: not-allowed; }
 
   .throttle { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; }
   .thr {

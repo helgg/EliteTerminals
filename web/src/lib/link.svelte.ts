@@ -1,10 +1,16 @@
 // WebSocket link to the local server; exposes the live game state as Svelte 5 runes.
 import { initialState, type ClientMessage, type EdState, type ServerMessage } from '@et/shared';
 
-export const link = $state({ connected: false, state: initialState() as EdState });
+export const link = $state({
+  connected: false,
+  state: initialState() as EdState,
+  /** Last command outcome, shown in the status strip. */
+  last: null as { command: string; ok: boolean; error?: string; at: number } | null,
+});
 
 let socket: WebSocket | null = null;
 let seq = 0;
+const inFlight = new Map<string, string>();
 
 export function connect() {
   const url = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`;
@@ -17,11 +23,23 @@ export function connect() {
   socket.onmessage = (ev) => {
     const msg = JSON.parse(ev.data) as ServerMessage;
     if (msg.type === 'state') link.state = msg.state;
+    else if (msg.type === 'commandResult') {
+      const command = inFlight.get(msg.id) ?? '?';
+      inFlight.delete(msg.id);
+      link.last = { command, ok: msg.ok, error: msg.error, at: Date.now() };
+    }
   };
+}
+
+/** Keyboard key bound to an action in the player's presets, or undefined if it cannot be sent. */
+export function keyFor(action: string): string | undefined {
+  return link.state.controls.keys[action];
 }
 
 export function sendCommand(command: string) {
   if (socket?.readyState !== WebSocket.OPEN) return;
-  const msg: ClientMessage = { type: 'command', id: String(++seq), command };
+  const id = String(++seq);
+  inFlight.set(id, command);
+  const msg: ClientMessage = { type: 'command', id, command };
   socket.send(JSON.stringify(msg));
 }

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { sendCommand } from './link.svelte.ts';
+  import { keyFor, sendCommand } from './link.svelte.ts';
 
   // Values are half-pips (0..8): the game moves power in half-pip steps.
   let { sys, eng, wep }: { sys: number; eng: number; wep: number } = $props();
@@ -13,7 +13,8 @@
 
 <div class="pips">
   {#each channels as ch (ch.key)}
-    <button class="channel" onclick={() => sendCommand(ch.cmd)} title="+ {ch.key}">
+    <button class="channel" disabled={!keyFor(ch.cmd)} onclick={() => sendCommand(ch.cmd)}
+      title={keyFor(ch.cmd) ? `+ ${ch.key} · ${keyFor(ch.cmd)}` : 'sem bind'}>
       <svg viewBox="0 0 24 88" aria-hidden="true">
         {#each Array(8) as _, i}
           <!-- bottom-up; a full pip is two halves -->
@@ -25,7 +26,8 @@
       <span class="num muted">{(ch.value / 2).toFixed(1)}</span>
     </button>
   {/each}
-  <button class="reset chamfer" onclick={() => sendCommand('ResetPowerDistribution')}>RESET</button>
+  <button class="reset chamfer" disabled={!keyFor('ResetPowerDistribution')}
+    onclick={() => sendCommand('ResetPowerDistribution')}>RESET</button>
 </div>
 
 <style>
@@ -44,6 +46,7 @@
     border: 1px solid var(--rule);
   }
   .channel:active { border-color: var(--hud); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
   svg { width: 34px; height: 110px; }
   rect { fill: var(--steel); stroke: var(--rule); stroke-width: 0.6; }
   rect.on { fill: var(--telemetry); stroke: none; filter: drop-shadow(0 0 2px rgb(55 198 212 / 0.6)); }

@@ -113,6 +113,8 @@ export interface EdState {
   };
   cargo: { items: CargoItem[]; count: number };
   market: { station: string; system: string; updatedAt: string; items: MarketItem[] };
+  /** Player's active control presets and the keyboard key behind each bindable action. */
+  controls: { presets: string[]; keys: Record<string, string> };
   session: {
     startedAt: string;
     tradeProfit: number;
@@ -151,6 +153,7 @@ export function initialState(): EdState {
     },
     cargo: { items: [], count: 0 },
     market: { station: '', system: '', updatedAt: '', items: [] },
+    controls: { presets: [], keys: {} },
     session: { startedAt: '', tradeProfit: 0, tonsSold: 0, tonsBought: 0, sales: 0 },
   };
 }
