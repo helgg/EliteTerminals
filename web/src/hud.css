@@ -1,0 +1,70 @@
+/* Elite HUD design tokens, tuned toward the ED cockpit. */
+:root {
+  --void: #0b0705;
+  --panel: #15100b;
+  --rail: #1b130c;
+  --steel: #241a10;
+  --rule: #3d2404;
+  --hud: #ff7a18;
+  --hud-hi: #ffb545;
+  --text: #e9dccd;
+  --muted: #b49b80;
+  --dim: #9c6a3c;
+  --faint: #6d4826;
+  --telemetry: #37c6d4;
+  --ok: #35d07f;
+  --danger: #d1483a;
+  --glow: 0 0 6px rgb(255 122 24 / 0.45);
+
+  --mono: 'Cascadia Mono', Consolas, ui-monospace, 'SF Mono', Menlo, monospace;
+  --chamfer: 10px;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--void);
+  color: var(--text);
+  font: 13px/1.35 var(--mono);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+/* Faint scanlines over everything; cheap and easy to switch off. */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(to bottom, rgb(255 255 255 / 0.018) 0 1px, transparent 1px 3px);
+}
+
+#app { height: 100%; }
+
+.label {
+  color: var(--hud-hi);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.muted { color: var(--muted); }
+.dim { color: var(--dim); }
+.tele { color: var(--telemetry); }
+.ok { color: var(--ok); }
+.bad { color: var(--danger); }
+.num { font-variant-numeric: tabular-nums; }
+
+.chamfer {
+  clip-path: polygon(var(--chamfer) 0, 100% 0, 100% calc(100% - var(--chamfer)),
+    calc(100% - var(--chamfer)) 100%, 0 100%, 0 var(--chamfer));
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}

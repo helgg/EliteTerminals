@@ -1,0 +1,17 @@
+{
+  "name": "eliteterminals",
+  "private": true,
+  "license": "GPL-3.0-only",
+  "type": "module",
+  "workspaces": ["shared", "server", "web"],
+  "scripts": {
+    "dev": "npm run dev -w server & npm run dev -w web",
+    "dev:server": "npm run dev -w server",
+    "dev:web": "npm run dev -w web",
+    "build": "npm run build -w web",
+    "start": "npm run start -w server",
+    "test": "npm test -w server",
+    "check": "tsc -p server && npm run check -w web"
+  },
+  "engines": { "node": ">=24" }
+}

@@ -1,0 +1,13 @@
+{ "timestamp":"2026-10-08T19:29:12Z", "event":"ShipLocker", "Items":[ 
+{ "Name":"weaponschematic", "Name_Localised":"Esquema de Arma", "OwnerID":0, "MissionID":859973811, "Count":1 }
+ ], "Components":[ 
+
+ ], "Consumables":[ 
+{ "Name":"healthpack", "Name_Localised":"Kit médico", "OwnerID":0, "Count":99 }, 
+{ "Name":"energycell", "Name_Localised":"Célula de energia", "OwnerID":0, "Count":100 }, 
+{ "Name":"amm_grenade_emp", "Name_Localised":"Disruptor de escudo", "OwnerID":0, "Count":100 }, 
+{ "Name":"amm_grenade_frag", "Name_Localised":"Granada de fragmentação", "OwnerID":0, "Count":100 }, 
+{ "Name":"amm_grenade_shield", "Name_Localised":"Projetor de escudo", "OwnerID":0, "Count":98 }
+ ], "Data":[ 
+
+ ] }
