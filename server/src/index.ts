@@ -10,6 +10,7 @@ import { JournalReader } from './reader.ts';
 import { Controls } from './controls.ts';
 import { findGameDir } from './binds.ts';
 import { createWin32Sender } from './input.ts';
+import { Galaxy, summary } from './galaxy.ts';
 
 const PORT = Number(process.env.PORT ?? 8420);
 const HOST = process.env.HOST ?? '0.0.0.0';
@@ -18,10 +19,13 @@ const JOURNAL_DIR =
 const WEB_DIST = resolve(import.meta.dirname, '../../web/dist');
 const BINDINGS_DIR =
   process.env.ED_BINDINGS_DIR ?? join(homedir(), 'AppData', 'Local', 'Frontier Developments', 'Elite Dangerous', 'Options', 'Bindings');
+const CACHE_DIR = process.env.ET_CACHE_DIR ?? join(process.env.LOCALAPPDATA ?? homedir(), 'EliteTerminals');
 const BROADCAST_MS = 100;
 
 const reader = new JournalReader(JOURNAL_DIR);
 const controls = new Controls(BINDINGS_DIR, findGameDir(), process.platform === 'win32' ? createWin32Sender() : null);
+const galaxy = new Galaxy(CACHE_DIR);
+await galaxy.load();
 const app = Fastify({ logger: { level: 'info' } });
 await app.register(fastifyWebsocket);
 
@@ -37,7 +41,30 @@ const scheduleBroadcast = () => {
     clients.forEach((c) => c.send(data));
   }, BROADCAST_MS);
 };
-reader.on('change', scheduleBroadcast);
+/** Asks Spansh about the systems on screen and copies what we already know into the state. */
+function refreshGalaxy() {
+  const s = reader.state;
+  const current = s.location.address;
+  const dest = s.destination.system && s.destination.system !== current ? s.destination.system : 0;
+  const target = dest || (s.route.fsdTargetAddress !== current ? s.route.fsdTargetAddress : 0);
+  const ids = [current, target, ...s.route.hops.map((h) => h.address)].filter(Boolean);
+  galaxy.want(ids);
+  const systems: typeof s.galaxy.systems = {};
+  for (const id of ids) {
+    const d = galaxy.get(id);
+    if (d) systems[id] = summary(d);
+  }
+  s.galaxy = { systems, current: galaxy.get(current), target: target ? galaxy.get(target) : null };
+}
+
+reader.on('change', () => {
+  refreshGalaxy();
+  scheduleBroadcast();
+});
+galaxy.on('change', () => {
+  refreshGalaxy();
+  scheduleBroadcast();
+});
 controls.on('change', () => {
   reader.state.controls = { presets: controls.presets, keys: controls.keyLabels() };
   scheduleBroadcast();
@@ -55,7 +82,10 @@ app.get('/ws', { websocket: true }, (socket) => {
     }
     if (msg.type === 'command') {
       controls.run(String(msg.command)).then(
-        () => socket.send(encode({ type: 'commandResult', id: msg.id, ok: true })),
+        () => {
+          app.log.info({ command: msg.command }, 'command sent');
+          socket.send(encode({ type: 'commandResult', id: msg.id, ok: true }));
+        },
         (err: Error) => {
           app.log.warn({ command: msg.command, error: err.message }, 'command failed');
           socket.send(encode({ type: 'commandResult', id: msg.id, ok: false, error: err.message }));

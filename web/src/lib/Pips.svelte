@@ -47,7 +47,7 @@
   }
   .channel:active { border-color: var(--hud); }
   button:disabled { opacity: 0.4; cursor: not-allowed; }
-  svg { width: 34px; height: 110px; }
+  svg { width: 30px; height: 84px; }
   rect { fill: var(--steel); stroke: var(--rule); stroke-width: 0.6; }
   rect.on { fill: var(--telemetry); stroke: none; filter: drop-shadow(0 0 2px rgb(55 198 212 / 0.6)); }
   rect.on.half { opacity: 0.75; }

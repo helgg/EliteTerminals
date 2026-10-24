@@ -48,6 +48,48 @@ export interface RouteHop {
   pos: [number, number, number];
 }
 
+/** Galaxy data for one system, from Spansh (public API) plus the journal for the current system. */
+export interface SystemInfo {
+  id64: number;
+  name: string;
+  security: string;
+  allegiance: string;
+  government: string;
+  economy: string;
+  population: number;
+  controllingPower: string;
+  powers: string[];
+  powerState: string;
+  faction: string;
+  factionState: string;
+  needsPermit: boolean;
+  primaryStar: string;
+  updatedAt: string;
+}
+
+export interface BodyInfo {
+  name: string;
+  type: string;
+  subType: string;
+  distance: number;
+  mainStar: boolean;
+  terraforming: string;
+}
+
+export interface StationInfo {
+  name: string;
+  type: string;
+  distance: number;
+  pads: { s: number; m: number; l: number };
+  services: string[];
+  body: string;
+}
+
+export interface SystemDetail extends SystemInfo {
+  bodies: BodyInfo[];
+  stations: StationInfo[];
+}
+
 export interface EdState {
   meta: {
     online: boolean;
@@ -96,8 +138,22 @@ export interface EdState {
     allegiance: string;
     security: string;
     population: number;
+    controllingPower: string;
+    powers: string[];
+    powerState: string;
+    faction: string;
+    factionState: string;
+    stationType: string;
   };
-  route: { hops: RouteHop[]; fsdTarget: string; remainingJumps: number };
+  /** What the player has selected as destination (Status.json): a system, or a body/station in this one. */
+  destination: { system: number; body: number; name: string };
+  route: { hops: RouteHop[]; fsdTarget: string; fsdTargetAddress: number; remainingJumps: number };
+  /** Spansh lookups: summaries for route/target systems, full detail for the current and target system. */
+  galaxy: {
+    systems: Record<string, SystemInfo>;
+    current: SystemDetail | null;
+    target: SystemDetail | null;
+  };
   target: {
     locked: boolean;
     ship: string;
@@ -145,8 +201,11 @@ export function initialState(): EdState {
     location: {
       system: '', address: 0, pos: [0, 0, 0], body: '', station: '', economy: '', secondEconomy: '',
       government: '', allegiance: '', security: '', population: 0,
+      controllingPower: '', powers: [], powerState: '', faction: '', factionState: '', stationType: '',
     },
-    route: { hops: [], fsdTarget: '', remainingJumps: 0 },
+    destination: { system: 0, body: 0, name: '' },
+    route: { hops: [], fsdTarget: '', fsdTargetAddress: 0, remainingJumps: 0 },
+    galaxy: { systems: {}, current: null, target: null },
     target: {
       locked: false, ship: '', pilot: '', rank: '', faction: '', legalStatus: '', bounty: 0,
       shield: null, hull: null, subsystem: '', subsystemHealth: null,

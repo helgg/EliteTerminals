@@ -64,6 +64,7 @@ export function applyEvent(state: EdState, e: JournalEvent): void {
       setSystem(state, e);
       state.location.body = str(e.Body);
       state.location.station = e.Docked ? str(e.StationName) : '';
+      state.location.stationType = e.Docked ? str(e.StationType) : '';
       if (e.event === 'FSDJump') {
         state.status.fuelMain = e.FuelLevel ?? state.status.fuelMain;
         state.route.remainingJumps = Math.max(0, state.route.remainingJumps - 1);
@@ -77,14 +78,17 @@ export function applyEvent(state: EdState, e: JournalEvent): void {
 
     case 'Docked':
       state.location.station = str(e.StationName);
+      state.location.stationType = str(e.StationType);
       break;
 
     case 'Undocked':
       state.location.station = '';
+      state.location.stationType = '';
       break;
 
     case 'FSDTarget':
       state.route.fsdTarget = str(e.Name);
+      state.route.fsdTargetAddress = e.SystemAddress ?? 0;
       if (typeof e.RemainingJumpsInRoute === 'number') state.route.remainingJumps = e.RemainingJumpsInRoute;
       break;
 
@@ -152,6 +156,11 @@ function setSystem(state: EdState, e: JournalEvent) {
   loc.allegiance = str(e.SystemAllegiance);
   loc.security = str(e.SystemSecurity_Localised) || str(e.SystemSecurity);
   loc.population = e.Population ?? 0;
+  loc.controllingPower = str(e.ControllingPower);
+  loc.powers = Array.isArray(e.Powers) ? e.Powers.map(String) : [];
+  loc.powerState = str(e.PowerplayState);
+  loc.faction = str(e.SystemFaction?.Name);
+  loc.factionState = str(e.SystemFaction?.FactionState);
 }
 
 function applyTarget(state: EdState, e: JournalEvent) {
@@ -200,6 +209,9 @@ export function applyStatus(state: EdState, e: JournalEvent) {
   s.longitude = e.Longitude ?? null;
   s.altitude = e.Altitude ?? null;
   s.destination = str(e.Destination?.Name_Localised) || str(e.Destination?.Name);
+  state.destination = e.Destination
+    ? { system: e.Destination.System ?? 0, body: e.Destination.Body ?? 0, name: s.destination }
+    : { system: 0, body: 0, name: '' };
   // Balance is the authoritative credit figure whenever the game provides it.
   if (typeof e.Balance === 'number') state.commander.credits = e.Balance;
 }

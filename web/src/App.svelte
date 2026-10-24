@@ -4,6 +4,7 @@
   import Panel from './lib/Panel.svelte';
   import Pips from './lib/Pips.svelte';
   import Bar from './lib/Bar.svelte';
+  import SystemPanel from './lib/SystemPanel.svelte';
   import Flight from './screens/Flight.svelte';
   import Trade from './screens/Trade.svelte';
 
@@ -90,6 +91,7 @@
     <Panel title="Power" aside="SYS · ENG · WEP">
       <Pips sys={s.pips.sys} eng={s.pips.eng} wep={s.pips.wep} />
     </Panel>
+    <SystemPanel {s} />
   </aside>
 
   <main class="main">
@@ -161,7 +163,8 @@
   }
   nav button.active { background: var(--hud); color: var(--void); border-color: var(--hud); box-shadow: var(--glow); }
 
-  .side { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+  .side { display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow: auto; }
+  .side > :global(.system) { flex: 1; }
   .stack { display: flex; flex-direction: column; gap: 8px; }
   .facts { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; font-size: 12px; }
   .alerts { display: flex; flex-wrap: wrap; gap: 4px; }

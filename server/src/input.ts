@@ -11,6 +11,8 @@ const KEYEVENTF_SCANCODE = 0x0008;
 /** The game polls input per frame; shorter taps get dropped at low frame rates. */
 const HOLD_MS = 60;
 const GAP_MS = 15;
+/** After a focus change the game needs a frame or two before it reads the keyboard again. */
+const FOCUS_SETTLE_MS = 150;
 
 export interface KeySender {
   /** Presses modifiers + key, holds, releases in reverse order. */
@@ -37,7 +39,12 @@ export function createWin32Sender(): KeySender {
   const SetForegroundWindow = user32.func('bool __stdcall SetForegroundWindow(void *hwnd)');
   const IsIconic = user32.func('bool __stdcall IsIconic(void *hwnd)');
   const ShowWindow = user32.func('bool __stdcall ShowWindow(void *hwnd, int cmd)');
+  const BringWindowToTop = user32.func('bool __stdcall BringWindowToTop(void *hwnd)');
+  const GetWindowThreadProcessId = user32.func('uint32 __stdcall GetWindowThreadProcessId(void *hwnd, void *pid)');
+  const AttachThreadInput = user32.func('bool __stdcall AttachThreadInput(uint32 idAttach, uint32 idAttachTo, bool attach)');
+  const GetCurrentThreadId = koffi.load('kernel32.dll').func('uint32 __stdcall GetCurrentThreadId()');
   const size = koffi.sizeof(INPUT);
+  const ALT: ScanKey = { scan: 0x38, extended: false };
 
   const send = (k: ScanKey, up: boolean) => {
     const flags = KEYEVENTF_SCANCODE | (k.extended ? KEYEVENTF_EXTENDEDKEY : 0) | (up ? KEYEVENTF_KEYUP : 0);
@@ -67,10 +74,40 @@ export function createWin32Sender(): KeySender {
       if (!hwnd) return 'Elite Dangerous não está aberto';
       if (sameWindow(GetForegroundWindow(), hwnd)) return null;
       if (IsIconic(hwnd)) ShowWindow(hwnd, 9 /* SW_RESTORE */);
-      SetForegroundWindow(hwnd);
-      await sleep(80);
-      // Windows can refuse a focus change; never type into whatever app is in front instead.
-      return sameWindow(GetForegroundWindow(), hwnd) ? null : 'o jogo não está em foco (clique na janela do Elite)';
+
+      // Windows' foreground lock stops a background process (us) from taking focus.
+      // Escalate through the usual workarounds until the game is in front.
+      const attempts = [
+        () => SetForegroundWindow(hwnd),
+        () => {
+          // Borrow the foreground thread's input state so the focus change counts as "its" action.
+          const fgThread = GetWindowThreadProcessId(GetForegroundWindow(), null);
+          const me = GetCurrentThreadId();
+          AttachThreadInput(me, fgThread, true);
+          try {
+            BringWindowToTop(hwnd);
+            SetForegroundWindow(hwnd);
+          } finally {
+            AttachThreadInput(me, fgThread, false);
+          }
+        },
+        () => {
+          // A synthetic key event makes us the last input source, which lifts the lock.
+          send(ALT, false);
+          send(ALT, true);
+          SetForegroundWindow(hwnd);
+        },
+      ];
+      for (const attempt of attempts) {
+        attempt();
+        await sleep(60);
+        if (sameWindow(GetForegroundWindow(), hwnd)) {
+          await sleep(FOCUS_SETTLE_MS);
+          return null;
+        }
+      }
+      // Still refused: never type into whatever app is in front instead.
+      return 'o Windows não deixou focar o jogo (clique na janela do Elite)';
     },
   };
 }
