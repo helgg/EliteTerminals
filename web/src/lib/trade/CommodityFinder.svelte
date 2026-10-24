@@ -36,7 +36,7 @@
           <tr class={ageTone(q.end.ageH)}>
             <td class="c-st">
               <div class="st" title={q.end.station}>{q.end.station}</div>
-              <div class="dim sub">{q.end.system} · {q.end.pad} · {short(q.end.ls)} ls</div>
+              <div class="dim sub">{q.end.system} · {q.end.pad} · {short(q.end.ls)}ls</div>
             </td>
             <td class="r num price">{cr(q.price)}</td>
             <td class="r num muted">{short(q.volume)}</td>

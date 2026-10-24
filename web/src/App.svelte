@@ -60,7 +60,7 @@
       <div class="line tele">
         {s.ship.label || '—'} {s.ship.ident ? `· ${s.ship.ident}` : ''} {s.ship.name ? `· ${s.ship.name}` : ''}
         <span class="dim">· CMDR</span> {s.commander.name || '—'}
-        <span class="dim">·</span> <span class="num">{cr(s.commander.credits)} Cr</span>
+        <span class="dim">·</span> <span class="num">{cr(s.commander.credits)}Cr</span>
       </div>
     </div>
     <nav>
@@ -73,11 +73,11 @@
   <aside class="side">
     <Panel title="Ship">
       <div class="stack">
-        <Bar label="FUEL" value={s.status.fuelMain} max={s.ship.fuelCapacity} unit=" t" warnBelow={0.25} />
-        <Bar label="CARGO" value={s.cargo.count} max={s.ship.cargoCapacity} unit=" t" />
+        <Bar label="FUEL" value={s.status.fuelMain} max={s.ship.fuelCapacity} unit="t" warnBelow={0.25} />
+        <Bar label="CARGO" value={s.cargo.count} max={s.ship.cargoCapacity} unit="t" />
         <Bar label="HULL" value={Math.round(s.ship.hullHealth * 100)} max={100} unit="%" warnBelow={0.5} />
         <div class="facts">
-          <span class="dim">JUMP MAX</span><span class="num" title="Alcance do jogo: porão vazio e só o combustível de 1 salto">{s.ship.maxJumpRange.toFixed(2)} ly</span>
+          <span class="dim">JUMP MAX</span><span class="num" title="Alcance do jogo: cargo vazio e só o combustível de 1 salto">{s.ship.maxJumpRange.toFixed(2)}ly</span>
           <span class="dim">FIRE GRP</span><span class="num">{String.fromCharCode(65 + s.status.fireGroup)}</span>
           <span class="dim">LEGAL</span><span>{s.status.legalState || '—'}</span>
         </div>
@@ -88,9 +88,11 @@
         </div>
       </div>
     </Panel>
-    <Panel title="Power" aside="SYS · ENG · WEP">
-      <Pips sys={s.pips.sys} eng={s.pips.eng} wep={s.pips.wep} />
-    </Panel>
+    {#if tab !== 'TRADE'}
+      <Panel title="Power" aside="SYS · ENG · WEP">
+        <Pips sys={s.pips.sys} eng={s.pips.eng} wep={s.pips.wep} />
+      </Panel>
+    {/if}
     <SystemPanel {s} />
   </aside>
 

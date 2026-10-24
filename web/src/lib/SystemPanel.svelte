@@ -18,7 +18,7 @@
   const stations = $derived(g ? g.stations.filter((x) => !/carrier/i.test(x.type)).length : null);
   const carriers = $derived(g ? g.stations.length - (stations ?? 0) : null);
   const pop = (n: number) =>
-    n >= 1e9 ? `${(n / 1e9).toFixed(1)} bi` : n >= 1e6 ? `${(n / 1e6).toFixed(1)} mi` : n >= 1e3 ? `${(n / 1e3).toFixed(0)} mil` : String(n);
+    n >= 1e9 ? `${(n / 1e9).toFixed(1)}bi` : n >= 1e6 ? `${(n / 1e6).toFixed(1)}mi` : n >= 1e3 ? `${(n / 1e3).toFixed(0)}mil` : String(n);
 </script>
 
 <Panel class="system" scroll={false} title="System" aside={g?.updatedAt ? `spansh ${g.updatedAt.slice(0, 10)}` : ''}>

@@ -13,8 +13,8 @@
   let { s, now }: { s: EdState; now: number } = $props();
 
   // --- filters, remembered per device ---
-  type Filters = Pick<TradeQuery, 'radius' | 'maxAgeH' | 'pad' | 'planetary' | 'carriers' | 'fromHere' | 'maxLs'>;
-  const DEFAULTS: Filters = { radius: 25, maxAgeH: 24, pad: 'L', planetary: false, carriers: false, fromHere: false, maxLs: 5000 };
+  type Filters = Pick<TradeQuery, 'radius' | 'maxAgeH' | 'pad' | 'planetary' | 'carriers' | 'fromHere' | 'maxLs' | 'minSupply' | 'minDemand'>;
+  const DEFAULTS: Filters = { radius: 25, maxAgeH: 24, pad: 'L', planetary: false, carriers: false, fromHere: false, maxLs: 5000, minSupply: 0, minDemand: 0 };
   let f = $state<Filters>(readFilters());
   $effect(() => {
     try { localStorage.setItem('et.trade.filters', JSON.stringify(f)); } catch {}
@@ -26,6 +26,7 @@
   const RADII = [10, 15, 25, 40];
   const AGES: [number, string][] = [[1, '1h'], [3, '3h'], [12, '12h'], [24, '1d'], [72, '3d'], [168, '7d'], [720, '30d'], [0, 'todas']];
   const LS: [number, string][] = [[1000, '1k'], [5000, '5k'], [20000, '20k'], [0, '∞']];
+  const VOLUMES: [number, string][] = [[0, '—'], [100, '100'], [500, '500'], [1000, '1k'], [5000, '5k'], [10000, '10k']];
 
   const query = $derived<TradeQuery>({
     ...f,
@@ -83,13 +84,17 @@
     <Panel title="Scan" scroll={false} aside={result ? `${result.stations} mercados` : ''}>
       <div class="filters">
         <span class="k">RAIO</span>
-        {@render chips(RADII.map((r) => [r, `${r} ly`] as [number, string]), f.radius, (v) => (f.radius = v))}
+        {@render chips(RADII.map((r) => [r, `${r}ly`] as [number, string]), f.radius, (v) => (f.radius = v))}
         <span class="k">PREÇO ATUALIZADO HÁ NO MÁXIMO</span>
         {@render chips(AGES, f.maxAgeH, (v) => (f.maxAgeH = v))}
         <span class="k">PAD</span>
         {@render chips([['S', 'S'], ['M', 'M'], ['L', 'L']] as ['S' | 'M' | 'L', string][], f.pad, (v) => (f.pad = v))}
         <span class="k">DIST. DA ESTRELA</span>
         {@render chips(LS, f.maxLs, (v) => (f.maxLs = v))}
+        <span class="k">OFERTA MÍN. (t)</span>
+        {@render chips(VOLUMES, f.minSupply, (v) => (f.minSupply = v))}
+        <span class="k">DEMANDA MÍN. (t)</span>
+        {@render chips(VOLUMES, f.minDemand, (v) => (f.minDemand = v))}
         <div class="toggles">
           <button class:on={f.fromHere} onclick={() => (f.fromHere = !f.fromHere)}>SÓ DAQUI</button>
           <button class:on={f.planetary} onclick={() => (f.planetary = !f.planetary)}>PLANETÁRIAS</button>
@@ -106,7 +111,7 @@
           <div class="bar"><div style:width="{(progress.loaded / progress.total) * 100}%"></div></div>
         {/if}
         <div class="hint dim">
-          porão {cr(query.cargo)} t · alcance carregado ≈{query.jumpRange.toFixed(1)} ly
+          cargo {cr(query.cargo)}t · alcance carregado ≈{query.jumpRange.toFixed(1)}ly
           {#if result}<br />dados {new Date(result.fetchedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
             · <button class="link" disabled={busy} onclick={() => scan(true)}>recarregar</button>{/if}
         </div>
@@ -114,12 +119,12 @@
       </div>
     </Panel>
 
-    <Panel title="Session" scroll={false} aside={s.session.startedAt ? `${hours.toFixed(1)} h` : 'sem sessão'}>
+    <Panel title="Session" scroll={false} aside={s.session.startedAt ? `${hours.toFixed(1)}h` : 'sem sessão'}>
       <div class="kpis">
         <div><span class="dim">LUCRO</span><b class="num ok">{short(s.session.tradeProfit)}</b></div>
         <div><span class="dim">CR/H</span><b class="num tele">{short(crPerHour)}</b></div>
-        <div><span class="dim">VENDIDO</span><b class="num">{cr(s.session.tonsSold)} t</b></div>
-        <div><span class="dim">PORÃO</span><b class="num">{cr(s.cargo.count)}/{cr(s.ship.cargoCapacity)}</b></div>
+        <div><span class="dim">VENDIDO</span><b class="num">{cr(s.session.tonsSold)}t</b></div>
+        <div><span class="dim">CARGO</span><b class="num">{cr(s.cargo.count)}/{cr(s.ship.cargoCapacity)}</b></div>
       </div>
     </Panel>
   </div>

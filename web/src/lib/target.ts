@@ -15,7 +15,7 @@ export interface TargetView {
   pending: boolean;
 }
 
-const ls = (d: number) => `${Math.round(d).toLocaleString('pt-BR')} ls`;
+const ls = (d: number) => `${Math.round(d).toLocaleString('pt-BR')}ls`;
 
 export function resolveTarget(s: EdState): TargetView {
   const here = s.location.address;

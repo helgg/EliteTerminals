@@ -43,9 +43,12 @@ export function fromSpanshStation(x: any): TradeMarket {
     pads: { s: num(x.small_pads), m: num(x.medium_pads), l: num(x.large_pads) },
     updatedAt: str(x.market_updated_at),
     source: 'spansh',
-    items: (x.market ?? []).map((i: any) => ({
-      name: str(i.commodity), buy: num(i.buy_price), sell: num(i.sell_price), supply: num(i.supply), demand: num(i.demand),
-    })),
+    // Spansh lists every commodity (~350); keep only what can be bought or sold here.
+    items: (x.market ?? [])
+      .map((i: any) => ({
+        name: str(i.commodity), buy: num(i.buy_price), sell: num(i.sell_price), supply: num(i.supply), demand: num(i.demand),
+      }))
+      .filter((i: TradeMarket['items'][number]) => (i.buy > 0 && i.supply > 0) || (i.sell > 0 && i.demand > 0)),
   };
 }
 

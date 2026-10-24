@@ -249,6 +249,10 @@ export interface TradeQuery {
   /** Only routes that start at the current station / system. */
   fromHere: boolean;
   maxLs: number;
+  /** Minimum stock at the buying station, in t; 0 = any. */
+  minSupply: number;
+  /** Minimum demand at the selling station, in t; 0 = any. */
+  minDemand: number;
   cargo: number;
   capital: number;
   jumpRange: number;
@@ -267,13 +271,32 @@ export interface TradeEnd {
   ageH: number;
 }
 
-export interface TradeLeg {
+/** One commodity of a cargo load. */
+export interface LegItem {
   commodity: string;
   buy: number;
   sell: number;
+  /** Per ton. */
   profit: number;
   amount: number;
+  supply: number;
+  demand: number;
+}
+
+/** A full cargo load from A to B: the hold filled with the most profitable mix of commodities. */
+export interface TradeLeg {
+  /** Commodity bringing the most profit (the label shown in tables). */
+  commodity: string;
+  /** The load, most profitable part first. */
+  items: LegItem[];
+  /** Tons carried. */
+  amount: number;
+  /** Credits spent buying the load. */
+  cost: number;
   total: number;
+  /** Average profit per ton. */
+  profit: number;
+  /** Stock and demand of the main commodity. */
   supply: number;
   demand: number;
 }

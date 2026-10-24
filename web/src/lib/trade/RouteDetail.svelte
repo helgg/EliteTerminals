@@ -1,10 +1,14 @@
 <script lang="ts">
-  import type { TradeEnd, TradeRoute } from '@et/shared';
+  import type { LegItem, TradeEnd, TradeRoute } from '@et/shared';
   import Hologram from '../Hologram.svelte';
   import { ageLabel, ageTone, cr, duration, short } from '../format.ts';
 
-  // The selected trade, cockpit style: both stations as holograms, what to carry, what it pays.
+  // The selected trade, cockpit style: both stations as holograms, the load to buy, what it pays.
   let { route }: { route: TradeRoute | null } = $props();
+
+  // Results from before mixed loads carried a single commodity on the leg itself.
+  const load = $derived<LegItem[]>(route ? (route.leg.items ?? [route.leg as unknown as LegItem]) : []);
+  const cost = $derived(route ? (route.leg.cost ?? load.reduce((t, i) => t + i.buy * i.amount, 0)) : 0);
 </script>
 
 {#snippet station(e: TradeEnd, role: string)}
@@ -15,7 +19,7 @@
       <div class="name" title={e.station}>{e.station}</div>
       <div class="sys" title={e.system}>{e.system}</div>
       <div class="meta">
-        <span>{Math.round(e.ls).toLocaleString('pt-BR')} ls</span>
+        <span>{cr(e.ls)}ls</span>
         <span>PAD {e.pad}</span>
         <span class={ageTone(e.ageH)}>{ageLabel(e.ageH)}</span>
       </div>
@@ -27,25 +31,37 @@
   <div class="detail">
     {@render station(route.src, 'COMPRAR EM')}
     <div class="leg">
-      <div class="cargo">{route.leg.commodity}</div>
-      <div class="nums">
-        <span class="dim">{cr(route.leg.amount)} t × </span>{cr(route.leg.buy)} → {cr(route.leg.sell)}
-      </div>
-      <div class="profit">+{cr(route.leg.total)} Cr <span class="dim">({cr(route.leg.profit)}/t · {route.pct.toFixed(0)}%)</span></div>
+      {#each load as i (i.commodity)}
+        <div class="item">
+          <div class="line">
+            <span class="amt num">{cr(i.amount)}t</span>
+            <span class="cargo" title={i.commodity}>{i.commodity}</span>
+            <span class="gain num">+{short(i.profit * i.amount)}</span>
+          </div>
+          <div class="line dim sub">
+            <span class="num">{cr(i.buy)}→{cr(i.sell)}Cr</span>
+            <span class="num">of {short(i.supply)}t · dem {short(i.demand)}t</span>
+          </div>
+        </div>
+      {/each}
+      <div class="profit">+{cr(route.leg.total)}Cr <span class="dim">{cr(route.leg.profit)}/t · {route.pct.toFixed(0)}%</span></div>
+      <div class="dim sub">{cr(route.leg.amount)}t · custo {cr(cost)}Cr</div>
     </div>
     {@render station(route.dst, 'VENDER EM')}
 
     <dl class="facts">
-      <dt>SALTO</dt><dd>{route.hopLy.toFixed(1)} ly · {route.jumps} {route.jumps === 1 ? 'salto' : 'saltos'}</dd>
-      <dt>TEMPO</dt><dd>≈ {duration(route.legSeconds)} por perna</dd>
+      <dt>SALTO</dt><dd>{route.hopLy.toFixed(1)}ly · {route.jumps} {route.jumps === 1 ? 'salto' : 'saltos'}</dd>
+      <dt>TEMPO</dt><dd>≈{duration(route.legSeconds)} por perna</dd>
       <dt>CR/H</dt><dd class="tele">{short(route.perHour)}</dd>
-      <dt>ESTOQUE</dt><dd>{cr(route.leg.supply)} <span class="dim">· demanda {cr(route.leg.demand)}</span></dd>
       {#if route.back}
         <dt>VOLTA</dt>
-        <dd>{route.back.commodity} <span class="dim">+{short(route.back.total)}</span></dd>
+        <dd title={(route.back.items ?? []).map((i) => `${i.amount}t ${i.commodity}`).join(' + ')}>
+          {route.back.commodity}{#if (route.back.items?.length ?? 1) > 1} +{route.back.items.length - 1}{/if}
+          <span class="dim">+{short(route.back.total)}</span>
+        </dd>
         <dt>LOOP/H</dt><dd class="tele">{short(route.loopPerHour)}</dd>
       {/if}
-      <dt>DE MIM</dt><dd>{route.src.fromMe.toFixed(1)} ly até a origem</dd>
+      <dt>⌖ORIGEM</dt><dd>{route.src.fromMe.toFixed(1)}ly</dd>
     </dl>
   </div>
 {:else}
@@ -65,12 +81,18 @@
   .ok { color: var(--hud-hi); }
   .stale { color: var(--danger); }
   .leg {
-    padding: 6px 8px; text-align: center; border: 1px solid var(--rule);
+    display: flex; flex-direction: column; gap: 3px; padding: 6px 8px; border: 1px solid var(--rule);
     background: linear-gradient(to bottom, rgb(255 122 24 / 0.08), transparent), var(--rail);
   }
-  .cargo { color: var(--hud); font-weight: 700; font-size: 15px; letter-spacing: 0.04em; }
-  .nums { font-size: 12px; }
-  .profit { color: var(--ok); font-weight: 700; }
+  .item { padding-bottom: 3px; border-bottom: 1px solid var(--rule); }
+  .line { display: flex; gap: 6px; align-items: baseline; white-space: nowrap; }
+  .line > :last-child { margin-left: auto; }
+  .amt { color: var(--text); font-weight: 700; }
+  .cargo { color: var(--hud); font-weight: 700; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .gain { color: var(--ok); }
+  .sub { font-size: 10px; }
+  .profit { color: var(--ok); font-weight: 700; text-align: center; margin-top: 2px; }
+  .leg > .sub { text-align: center; }
   .facts { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 4px 0 0; font-size: 12px; }
   dt { color: var(--dim); font-size: 10px; letter-spacing: 0.1em; align-self: center; }
   dd { margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

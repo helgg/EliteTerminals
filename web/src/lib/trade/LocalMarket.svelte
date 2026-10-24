@@ -56,7 +56,7 @@
             <th class="r" onclick={() => sortBy(mode === 'sell' ? 'sell' : 'buy')}>{mode === 'sell' ? 'Venda' : 'Compra'}</th>
             <th class="r" onclick={() => sortBy('vsMean')}>vs média</th>
             <th class="r" onclick={() => sortBy(mode === 'sell' ? 'demand' : 'stock')}>{mode === 'sell' ? 'Demanda' : 'Estoque'}</th>
-            <th class="r">No porão</th>
+            <th class="r">Cargo</th>
           </tr>
         </thead>
         <tbody>

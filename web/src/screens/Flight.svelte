@@ -51,12 +51,12 @@
           <dt>NEXT</dt><dd>{next?.system ?? '—'}</dd>
           <dt>JUMPS</dt><dd class="num">{s.route.remainingJumps}</dd>
           <dt>RANGE</dt>
-          <dd class="num" title="Estimativa com a carga e o combustível atuais (máx. vazio: {s.ship.maxJumpRange.toFixed(2)} ly)">
-            ≈{currentJumpRange(s).toFixed(1)} ly
+          <dd class="num" title="Estimativa com a carga e o combustível atuais (máx. vazio: {s.ship.maxJumpRange.toFixed(2)}ly)">
+            ≈{currentJumpRange(s).toFixed(1)}ly
           </dd>
           <dt>LAST</dt>
           <dd class="num">{s.ship.lastJump.distance ? `${s.ship.lastJump.distance.toFixed(1)}ly ${s.ship.lastJump.fuelUsed.toFixed(1)}t` : '—'}</dd>
-          <dt>FUEL</dt><dd class="num" class:bad={f.lowFuel}>{s.status.fuelMain.toFixed(1)} t</dd>
+          <dt>FUEL</dt><dd class="num" class:bad={f.lowFuel}>{s.status.fuelMain.toFixed(1)}t</dd>
         </dl>
       </div>
 
@@ -107,7 +107,7 @@
   </Panel>
 
   <Panel class="route" title="Route"
-    aside={hops.length ? `${hops.length - 1} saltos · ${totalLy.toFixed(0)} ly · ${fuelStars} fuel` : ''}>
+    aside={hops.length ? `${hops.length - 1} saltos · ${totalLy.toFixed(0)}ly · ${fuelStars} fuel` : ''}>
     {#if hops.length}
       <ol class="hops">
         {#each hops as h, i (h.address || i)}

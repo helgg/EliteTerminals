@@ -14,7 +14,7 @@ const NOW = Date.parse('2026-10-24T12:00:00Z');
 const hoursAgo = (h: number) => new Date(NOW - h * 3.6e6).toISOString();
 
 const Q: TradeQuery = {
-  radius: 30, maxAgeH: 0, pad: 'L', planetary: false, carriers: false, fromHere: false, maxLs: 0,
+  radius: 30, maxAgeH: 0, pad: 'L', planetary: false, carriers: false, fromHere: false, maxLs: 0, minSupply: 0, minDemand: 0,
   cargo: 100, capital: 1e9, jumpRange: 20,
 };
 
@@ -26,16 +26,45 @@ function market(id: number, pos: [number, number, number], items: TradeMarket['i
 }
 const item = (name: string, buy: number, sell: number, supply = 10000, demand = 10000) => ({ name, buy, sell, supply, demand });
 
-test('best leg picks the commodity with the biggest total, limited by hold, stock, demand and money', () => {
+test('best leg fills the hold with the most profitable commodity first, limited by hold, stock, demand and money', () => {
   const a = market(1, [0, 0, 0], [item('Gold', 9000, 0, 50), item('Tea', 1000, 0)]);
   const b = market(2, [10, 0, 0], [item('Gold', 0, 9500), item('Tea', 0, 1600)]);
   const leg = bestLeg(a, b, Q)!;
-  // Gold: 500 × 50 (stock) = 25 000; Tea: 600 × 100 (hold) = 60 000
+  // Tea pays 600/t and fills the 100 t hold on its own: 60 000
   assert.equal(leg.commodity, 'Tea');
   assert.equal(leg.amount, 100);
   assert.equal(leg.total, 60000);
   assert.equal(bestLeg(a, b, { ...Q, capital: 50000 })!.amount, 50); // only 50 t of tea affordable
   assert.equal(bestLeg(b, a, Q), null); // nothing to buy at b
+});
+
+test('mixed load: scarce best commodity topped up with the next one (Spansh-style)', () => {
+  const a = market(1, [0, 0, 0], [item('Gold', 9000, 0, 2), item('Silver', 4000, 0, 5000), item('Tea', 1000, 0)]);
+  const b = market(2, [10, 0, 0], [item('Gold', 0, 12000), item('Silver', 0, 5500), item('Tea', 0, 1100)]);
+  const leg = bestLeg(a, b, Q)!;
+  assert.deepEqual(leg.items.map((i) => [i.commodity, i.amount]), [['Silver', 98], ['Gold', 2]]);
+  assert.equal(leg.total, 98 * 1500 + 2 * 3000);
+  assert.equal(leg.amount, 100);
+  assert.equal(leg.cost, 98 * 4000 + 2 * 9000);
+});
+
+test('mixed load when money and hold both bind', () => {
+  // 100 t, 100 000 Cr: cheap (100 Cr, +100) vs dear (10 000 Cr, +1 000). Best is 91 cheap + 9 dear = 18 100.
+  const a = market(1, [0, 0, 0], [item('Cheap', 100, 0), item('Dear', 10000, 0)]);
+  const b = market(2, [10, 0, 0], [item('Cheap', 0, 200), item('Dear', 0, 11000)]);
+  const leg = bestLeg(a, b, { ...Q, capital: 100000 })!;
+  assert.equal(leg.total, 18100);
+  assert.ok(leg.cost <= 100000 && leg.amount <= 100);
+});
+
+test('minimum stock and demand filters', () => {
+  const a = market(1, [0, 0, 0], [item('Gold', 9000, 0, 50), item('Tea', 1000, 0, 5000)]);
+  const b = market(2, [10, 0, 0], [item('Gold', 0, 12000, 0, 10000), item('Tea', 0, 1100, 0, 300)]);
+  assert.equal(bestLeg(a, b, Q)!.commodity, 'Gold');
+  assert.equal(bestLeg(a, b, { ...Q, minSupply: 100 })!.commodity, 'Tea');
+  assert.equal(bestLeg(a, b, { ...Q, minSupply: 100, minDemand: 500 }), null);
+  const q = commodityQuotes([a, b], 'tea', { ...Q, minDemand: 500 }, [0, 0, 0], NOW);
+  assert.equal(q.sell.length, 0);
 });
 
 test('filters: pad, planetary, carriers, distance to star, price age', () => {

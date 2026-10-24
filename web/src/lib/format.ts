@@ -22,5 +22,5 @@ export const ageTone = (hours: number) => (hours < 3 ? 'fresh' : hours < 24 ? 'o
 
 export function duration(seconds: number): string {
   const m = Math.round(seconds / 60);
-  return m < 60 ? `${m} min` : `${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}`;
+  return m < 60 ? `${m}min` : `${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}`;
 }
