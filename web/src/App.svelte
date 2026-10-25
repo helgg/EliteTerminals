@@ -3,7 +3,7 @@
   import { connect, link } from './lib/link.svelte.ts';
   import Panel from './lib/Panel.svelte';
   import Pips from './lib/Pips.svelte';
-  import Bar from './lib/Bar.svelte';
+  import ShipPanel from './lib/ShipPanel.svelte';
   import SystemPanel from './lib/SystemPanel.svelte';
   import Flight from './screens/Flight.svelte';
   import Trade from './screens/Trade.svelte';
@@ -21,6 +21,11 @@
   let showQr = $state(false);
   let menu = $state(false);
   const phone = $derived(viewport.device === 'phone');
+  // The side column only where the screen is wide enough for it next to the screen's own panels.
+  // Portrait screens bring SHIP and POWER into their own grid instead (RESPONSIVE-FLIGHT.md).
+  const side = $derived(
+    tab !== 'TRADE' && (viewport.vp === 'desktop-landscape' || viewport.vp === 'tablet-landscape' || phone),
+  );
 
   onMount(() => {
     connect();
@@ -59,16 +64,9 @@
         : null,
   );
 
-  const alerts = $derived([
-    { on: f.overHeating, label: 'HEAT' },
-    { on: f.isInDanger, label: 'DANGER' },
-    { on: f.beingInterdicted, label: 'INTERDICTION' },
-    { on: f.lowFuel, label: 'LOW FUEL' },
-    { on: !f.shieldsUp && f.inMainShip, label: 'SHIELDS DOWN' },
-  ]);
 </script>
 
-<div class="shell" class:wide={tab === 'TRADE'} class:phone>
+<div class="shell" class:wide={!side} class:phone>
   {#if phone}
   <!-- phones: one slim bar; the screen tabs live in the ≡ menu -->
   <header class="top slim">
@@ -116,29 +114,14 @@
   {/if}
 
   <!-- TRADE needs the width for its tables; it shows its own scan/session column instead. -->
-  {#if tab !== 'TRADE'}
+  {#if side}
   <aside class="side">
-    <Panel title="Ship">
-      <div class="stack">
-        <Bar label="FUEL" value={s.status.fuelMain} max={s.ship.fuelCapacity} unit="t" warnBelow={0.25} />
-        <Bar label="CARGO" value={s.cargo.count} max={s.ship.cargoCapacity} unit="t" />
-        <Bar label="HULL" value={Math.round(s.ship.hullHealth * 100)} max={100} unit="%" warnBelow={0.5} />
-        <div class="facts">
-          <span class="dim">JUMP MAX</span><span class="num" title="Game figure: empty hold, fuel for one jump only">{s.ship.maxJumpRange.toFixed(2)}ly</span>
-          <span class="dim">FIRE GRP</span><span class="num">{String.fromCharCode(65 + s.status.fireGroup)}</span>
-          <span class="dim">LEGAL</span><span>{s.status.legalState || '—'}</span>
-        </div>
-        <div class="alerts">
-          {#each alerts as a (a.label)}
-            <span class="alert" class:on={a.on}>{a.label}</span>
-          {/each}
-        </div>
-      </div>
-    </Panel>
+    <ShipPanel {s} />
     <Panel title="Power" aside="tap to add">
       <Pips sys={s.pips.sys} eng={s.pips.eng} wep={s.pips.wep} />
     </Panel>
-    <SystemPanel {s} />
+    <!-- on a tablet the FSD target card already names the system: the column keeps the controls -->
+    {#if viewport.device !== 'tablet'}<SystemPanel {s} />{/if}
   </aside>
   {/if}
 
@@ -160,6 +143,7 @@
     <span class:ok={live} class:bad={!live}>
       {!link.connected ? 'NO CONNECTION TO THE SERVER' : s.meta.online ? 'GAME ONLINE' : 'GAME OFFLINE · last known state'}
     </span>
+    <span class="vp" title="Layout picked for this screen">VP {viewport.vp}{viewport.forced ? '*' : ''} {viewport.width}×{viewport.height}</span>
     {#if notice}
       <span class:ok={notice.ok} class:bad={!notice.ok}>{notice.text}</span>
     {:else}
@@ -169,7 +153,6 @@
       binds {s.controls.presets[1] ?? '—'} · {Object.keys(s.controls.keys).length} actions ·
       {s.meta.gameVersion}{s.meta.odyssey ? ' · Odyssey' : ''}
     </span>
-    <span class="vp" title="Layout picked for this screen">VP {viewport.vp}{viewport.forced ? '*' : ''} {viewport.width}×{viewport.height}</span>
   </footer>
   {:else if notice || !live}
     <!-- phones: no status strip; a short toast instead -->
@@ -250,19 +233,6 @@
 
   .side { display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow: hidden; }
   .side > :global(.system) { flex: 1; min-height: 0; }
-  .stack { display: flex; flex-direction: column; gap: 8px; }
-  .facts { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; font-size: 12px; }
-  .alerts { display: flex; flex-wrap: wrap; gap: 4px; }
-  .alert {
-    padding: 2px 6px;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    color: var(--faint);
-    border: 1px solid var(--rule);
-  }
-  .alert.on { color: var(--void); background: var(--danger); border-color: var(--danger); animation: pulse 1s infinite alternate; }
-  @keyframes pulse { to { opacity: 0.6; } }
 
   .main { min-height: 0; min-width: 0; }
   .wide .main { grid-column: 1 / -1; }
@@ -282,8 +252,14 @@
 
   .vp { color: var(--faint); font-size: 11px; }
 
-  /* Narrow layouts stack for now; each screen gets its own arrangement per viewport (RESPONSIVE-FLIGHT.md). */
-  :global(html[data-vp='tablet-portrait']) .shell,
+  /* tablet: a slimmer side column */
+  :global(html[data-vp='tablet-landscape']) .shell { grid-template-columns: 224px 1fr; }
+  :global(html[data-vp='tablet-landscape']) .line { font-size: 11px; }
+  /* portrait tablets and monitors: no side column, the screen lays out SHIP and POWER itself */
+  :global(html[data-vp$='-portrait']) .top { flex-wrap: wrap; row-gap: 6px; }
+  :global(html[data-vp$='-portrait']) .top nav { flex: 1 1 100%; justify-content: stretch; }
+  :global(html[data-vp$='-portrait']) .top nav button { flex: 1; }
+  /* phones still stack until their own phase */
   :global(html[data-device='phone']) .shell {
     grid-template-columns: 1fr;
     grid-template-rows: auto auto 1fr auto;
@@ -291,7 +267,6 @@
     height: auto;
     min-height: 100%;
   }
-  :global(html[data-vp='tablet-portrait']) .top { flex-wrap: wrap; }
 
   /* phone bar */
   .shell.phone { gap: 6px; padding-top: max(6px, env(safe-area-inset-top)); }

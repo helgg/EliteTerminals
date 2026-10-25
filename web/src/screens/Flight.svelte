@@ -7,6 +7,9 @@
   import Hologram from '../lib/Hologram.svelte';
   import ScoopIcon from '../lib/ScoopIcon.svelte';
   import Name from '../lib/Name.svelte';
+  import ShipPanel from '../lib/ShipPanel.svelte';
+  import Pips from '../lib/Pips.svelte';
+  import { viewport } from '../lib/viewport.svelte.ts';
   import { keyFor, sendCommand } from '../lib/link.svelte.ts';
   import { resolveTarget } from '../lib/target.ts';
   import { currentJumpRange } from '../lib/jump.ts';
@@ -17,6 +20,11 @@
   let { s }: { s: EdState } = $props();
 
   const f = $derived(s.flags);
+  const vp = $derived(viewport.vp);
+  // Portrait screens have no side column: SHIP and POWER come into this grid.
+  const portrait = $derived(viewport.orientation === 'portrait' && viewport.device !== 'phone');
+  // The full route column only on a wide monitor; elsewhere a strip of the next jumps.
+  const routeColumn = $derived(vp === 'desktop-landscape' || viewport.device === 'phone');
   const target = $derived(resolveTarget(s));
   const hereIdx = $derived(s.route.hops.findIndex((h) => h.system === s.location.system));
   const next = $derived(hereIdx >= 0 ? s.route.hops[hereIdx + 1] : s.route.hops[0]);
@@ -34,6 +42,7 @@
     }),
   );
   const totalLy = $derived(hops.reduce((t, h) => t + h.jump, 0));
+  const ahead = $derived(hops.slice(hereIdx >= 0 ? hereIdx + 1 : 0));
   const fuelStars = $derived(hops.filter((h) => isScoopable(h.cls)).length);
 
   const range = $derived(currentJumpRange(s));
@@ -73,7 +82,7 @@
   ];
 </script>
 
-<div class="flight">
+<div class="flight {vp}" class:portrait>
   <Panel class="fsd" title="Frame shift drive" aside={f.supercruise ? 'supercruise' : 'normal space'}>
     <div class="fsd-body">
       <div class="gauge"><FsdGauge flags={f} caption={range ? `RANGE ≈${range.toFixed(1)}ly` : ''} /></div>
@@ -109,6 +118,27 @@
       </div>
     </div>
 
+    {#if !routeColumn}
+      <!-- the route column's job, in one line: the next stars and whether they refuel -->
+      <div class="strip" title="{hops.length ? `${hops.length - 1} jumps · ${totalLy.toFixed(0)}ly` : ''}">
+        <span class="k">ROUTE</span>
+        {#if ahead.length}
+          {#each ahead.slice(0, 4) as h, i (h.address || i)}
+            {#if i}<span class="sep">›</span>{/if}
+            <span class="hop">
+              <span class="cls" style:color={starColor(h.cls)}>{h.cls || '?'}</span>
+              {#if isScoopable(h.cls)}<ScoopIcon size={10} />{/if}
+              <Name value={h.system} system />
+            </span>
+          {/each}
+          {#if ahead.length > 4}<span class="more">+{ahead.length - 4}</span>{/if}
+          <span class="tot num">{totalLy.toFixed(0)}ly · {fuelStars} fuel</span>
+        {:else}
+          <span class="dim">No route plotted.</span>
+        {/if}
+      </div>
+    {/if}
+
     <div class="drive">
       {#each drive as b (b.cmd)}
         {@const key = keyFor(b.cmd)}
@@ -139,10 +169,18 @@
     </div>
   </Panel>
 
+  {#if portrait}
+    <ShipPanel {s} />
+    <Panel class="power" title="Power" aside="tap to add">
+      <Pips sys={s.pips.sys} eng={s.pips.eng} wep={s.pips.wep} />
+    </Panel>
+  {/if}
+
   <Panel class="throttle" title="Throttle">
     <Throttle />
   </Panel>
 
+  {#if routeColumn}
   <Panel class="route" title="Route"
     aside={hops.length ? `${hops.length - 1} jumps · ${totalLy.toFixed(0)}ly · ${fuelStars} fuel` : ''}>
     {#if hops.length}
@@ -184,6 +222,7 @@
       <p class="dim">No route plotted.</p>
     {/if}
   </Panel>
+  {/if}
 </div>
 
 <style>
@@ -201,6 +240,42 @@
   .flight > :global(.throttle) { grid-column: 2; grid-row: 1 / span 2; }
   .flight > :global(.throttle .body) { flex: 1; display: flex; flex-direction: column; }
   .flight > :global(.route) { grid-column: 3; grid-row: 1 / span 2; }
+
+  /* tablet landscape (iPad Air 3 1112×834): no route column, a narrow throttle */
+  .flight.tablet-landscape { grid-template-columns: minmax(0, 1fr) 150px; }
+  .tablet-landscape :global(.detent .key), .tablet-landscape :global(.boost .key) { display: none; }
+  .tablet-landscape :global(.boost) { font-size: 16px; letter-spacing: 0.12em; gap: 6px; padding: 0 10px; }
+  .tablet-landscape .fsd-body { grid-template-columns: minmax(160px, 200px) minmax(140px, 0.8fr) minmax(0, 1.2fr); }
+
+  /* portrait tablets and monitors: FSD across the top; under it the switches, then SHIP | POWER,
+     with the throttle as a tall lever down the right side (it needs height more than width) */
+  .flight.portrait {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 168px;
+    grid-template-rows: auto auto minmax(0, 1fr);
+  }
+  .portrait > :global(.fsd) { grid-column: 1 / -1; grid-row: 1; }
+  .portrait > :global(.systems) { grid-column: 1 / 3; grid-row: 2; }
+  .portrait > :global(.ship) { grid-column: 1; grid-row: 3; }
+  .portrait > :global(.power) { grid-column: 2; grid-row: 3; }
+  .portrait > :global(.throttle) { grid-column: 3; grid-row: 2 / 4; }
+  .portrait .groups { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  .portrait .group { grid-template-rows: auto repeat(3, 54px); }
+  .portrait .fsd-body { grid-template-columns: minmax(150px, 190px) minmax(140px, 0.8fr) minmax(0, 1.2fr); }
+  .portrait .target :global(.holo) { max-width: 96px; }
+  .portrait :global(.detent .key), .portrait :global(.boost .key) { display: none; }
+  .portrait :global(.boost) { font-size: 16px; letter-spacing: 0.12em; gap: 6px; padding: 0 10px; }
+
+  .strip {
+    display: flex; align-items: center; gap: 6px; margin-top: 8px; padding: 5px 8px;
+    border: 1px solid var(--rule); background: var(--rail); font-size: 12px;
+    white-space: nowrap; overflow: hidden;
+  }
+  .strip .k { color: var(--dim); font-size: 10px; letter-spacing: 0.1em; }
+  .strip .hop { display: inline-flex; align-items: center; gap: 4px; min-width: 0; }
+  .strip .cls { font-weight: 700; }
+  .strip .sep { color: var(--hud); }
+  .strip .more { color: var(--muted); }
+  .strip .tot { margin-left: auto; color: var(--dim); font-size: 11px; }
 
   .fsd-body {
     display: grid;
