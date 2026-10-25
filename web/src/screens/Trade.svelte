@@ -37,10 +37,10 @@
     }
   }
 
-  const RADII = [10, 15, 25, 40];
+  const RADII = [10, 15, 25, 40, 80];
   const AGES: [number, string][] = [[1, '1h'], [3, '3h'], [12, '12h'], [24, '1d'], [72, '3d'], [168, '7d'], [720, '30d'], [0, 'any']];
-  const LS: [number, string][] = [[1000, '1k'], [5000, '5k'], [20000, '20k'], [0, '∞']];
-  const VOLUMES: [number, string][] = [[0, '—'], [100, '100'], [500, '500'], [1000, '1k'], [5000, '5k'], [10000, '10k']];
+  const LS: [number, string][] = [[1000, '1k'], [5000, '5k'], [20000, '20k'], [0, 'any']];
+  const VOLUMES: [number, string][] = [[0, 'any'], [100, '100'], [500, '500'], [1000, '1k'], [5000, '5k'], [10000, '10k']];
   const STOPS: [number, string][] = [[2, '3'], [3, '4'], [4, '5']]; // legs → stops (max 5)
   const COMMON_STATES = ['Boom', 'Expansion', 'Investment', 'Public Holiday', 'Civil Liberty'];
   const states = $derived([...new Set([...COMMON_STATES, ...(ts.result?.states ?? [])])].filter((x) => x !== 'None'));
@@ -111,31 +111,41 @@
 
 <div class="trade">
   <div class="left">
-    <Panel title="Scan" scroll={false} aside={result ? `${result.stations} markets` : ''}>
+    <Panel class="scanp" title="Scan" scroll={false} aside={result ? `${result.stations} markets` : ''}>
       <div class="filters">
-        <span class="k">RADIUS</span>
-        {@render chips(RADII.map((r) => [r, `${r}ly`] as [number, string]), f.radius, (v) => (f.radius = v))}
-        <span class="k">MAX PRICE AGE</span>
-        {@render chips(AGES, f.maxAgeH, (v) => (f.maxAgeH = v))}
+        <div class="group">
+          <span class="k">RADIUS (ly)</span>
+          {@render chips(RADII.map((r) => [r, `${r}`] as [number, string]), f.radius, (v) => (f.radius = v))}
+        </div>
+        <div class="group">
+          <span class="k">MAX PRICE AGE</span>
+          {@render chips(AGES, f.maxAgeH, (v) => (f.maxAgeH = v))}
+        </div>
         <div class="pair">
-          <div>
+          <div class="group">
             <span class="k">PAD</span>
             {@render chips([['S', 'S'], ['M', 'M'], ['L', 'L']] as ['S' | 'M' | 'L', string][], f.pad, (v) => (f.pad = v))}
           </div>
-          <div>
-            <span class="k">DIST. FROM STAR (ls)</span>
+          <div class="group">
+            <span class="k" title="Max distance from the arrival star">STAR DIST (ls)</span>
             {@render chips(LS, f.maxLs, (v) => (f.maxLs = v))}
           </div>
         </div>
-        <span class="k">MIN SUPPLY (t)</span>
-        {@render chips(VOLUMES, f.minSupply, (v) => (f.minSupply = v))}
-        <span class="k">MIN DEMAND (t)</span>
-        {@render chips(VOLUMES, f.minDemand, (v) => (f.minDemand = v))}
-        <span class="k">FACTION STATE (A or B)</span>
-        <div class="chips">
-          {#each states as x (x)}
-            <button class="state" class:on={f.states.includes(x)} onclick={() => toggleState(x)}>{x.toUpperCase()}</button>
-          {/each}
+        <div class="group">
+          <span class="k">MIN SUPPLY (t)</span>
+          {@render chips(VOLUMES, f.minSupply, (v) => (f.minSupply = v))}
+        </div>
+        <div class="group">
+          <span class="k">MIN DEMAND (t)</span>
+          {@render chips(VOLUMES, f.minDemand, (v) => (f.minDemand = v))}
+        </div>
+        <div class="group">
+          <span class="k">FACTION STATE (A or B)</span>
+          <div class="chips">
+            {#each states as x (x)}
+              <button class="state" class:on={f.states.includes(x)} onclick={() => toggleState(x)}>{x.toUpperCase()}</button>
+            {/each}
+          </div>
         </div>
         <div class="toggles">
           <button class:on={f.exportHere} title="Routes starting here (current station, or current system when in flight)"
@@ -145,22 +155,24 @@
           <button class:on={f.planetary} onclick={() => (f.planetary = !f.planetary)}>PLANETARY</button>
           <button class:on={f.carriers} onclick={() => (f.carriers = !f.carriers)}>CARRIERS</button>
         </div>
-        <button class="scan" disabled={busy || !s.location.system} onclick={() => scan(false)}>
-          {#if busy}
-            SCANNING {progress ? `${progress.loaded}/${progress.total}` : '…'}
-          {:else}
-            SCAN · {s.location.system.toUpperCase() || '—'}
+        <div class="go">
+          <button class="scan" disabled={busy || !s.location.system} onclick={() => scan(false)}>
+            {#if busy}
+              SCANNING {progress ? `${progress.loaded}/${progress.total}` : '…'}
+            {:else}
+              SCAN · {s.location.system.toUpperCase() || '—'}
+            {/if}
+          </button>
+          {#if busy && progress?.total}
+            <div class="bar"><div style:width="{(progress.loaded / progress.total) * 100}%"></div></div>
           {/if}
-        </button>
-        {#if busy && progress?.total}
-          <div class="bar"><div style:width="{(progress.loaded / progress.total) * 100}%"></div></div>
-        {/if}
-        <div class="hint dim">
-          cargo {cr(query.cargo)}t · laden jump range ≈{query.jumpRange.toFixed(1)}ly
-          {#if result}<br />data {new Date(result.fetchedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-            · <button class="link" disabled={busy} onclick={() => scan(true)}>reload</button>{/if}
+          <div class="hint dim">
+            cargo {cr(query.cargo)}t · laden jump range ≈{query.jumpRange.toFixed(1)}ly
+            {#if result}<br />data {new Date(result.fetchedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+              · <button class="link" disabled={busy} onclick={() => scan(true)}>reload</button>{/if}
+          </div>
+          {#if error}<div class="bad">{error}</div>{/if}
         </div>
-        {#if error}<div class="bad">{error}</div>{/if}
       </div>
     </Panel>
 
@@ -223,7 +235,7 @@
 <style>
   .trade {
     display: grid;
-    grid-template-columns: 250px minmax(0, 1fr) 290px;
+    grid-template-columns: 272px minmax(0, 1fr) 290px;
     gap: 8px;
     height: 100%;
     min-height: 0;
@@ -231,22 +243,26 @@
   .left { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
   .trade :global(.center .body) { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 
-  .filters { display: flex; flex-direction: column; gap: 3px; }
-  .k { color: var(--dim); font-size: 10px; letter-spacing: 0.1em; margin-top: 3px; }
+  /* SCAN takes the column height left by SESSION; the filter groups spread out to fill it */
+  .left > :global(.scanp) { flex: 1 0 auto; }
+  .left > :global(.scanp .body) { flex: 1; display: flex; flex-direction: column; }
+  .filters { flex: 1; display: flex; flex-direction: column; justify-content: space-between; gap: 6px; }
+  .group { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .go { display: flex; flex-direction: column; gap: 3px; }
+  .k { color: var(--dim); font-size: 10px; letter-spacing: 0.1em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .pair { display: grid; grid-template-columns: 3fr 4fr; gap: 6px; }
-  .pair > div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
   .chips { display: flex; flex-wrap: wrap; gap: 3px; }
   .chips button, .toggles button {
-    flex: 1; padding: 5px 4px; background: var(--steel); border: 1px solid var(--rule);
+    flex: 1; padding: 8px 4px; background: var(--steel); border: 1px solid var(--rule);
     color: var(--muted); font-size: 11px; font-weight: 700;
   }
   .chips button.on { background: var(--hud); border-color: var(--hud); color: var(--void); }
   .chips button.state { flex: 1 1 auto; font-size: 10px; }
   .chips button.state.on { background: var(--telemetry); border-color: var(--telemetry); }
-  .toggles { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; margin-top: 6px; }
+  .toggles { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; }
   .toggles button.on { border-color: var(--telemetry); color: var(--telemetry); box-shadow: inset 0 2px var(--telemetry); }
   .scan {
-    margin-top: 8px; padding: 12px; background: var(--hud); color: var(--void); border: 0;
+    padding: 12px; background: var(--hud); color: var(--void); border: 0;
     font-weight: 800; letter-spacing: 0.1em; box-shadow: var(--glow);
     clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
