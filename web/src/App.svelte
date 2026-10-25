@@ -10,6 +10,7 @@
   import Name from './lib/Name.svelte';
   import { copied } from './lib/copy.svelte.ts';
   import ConnectQr from './lib/ConnectQr.svelte';
+  import FullScreen from './lib/FullScreen.svelte';
 
   const TABS = ['FLIGHT', 'COMBAT', 'EXPLORE', 'MINING', 'TRADE', 'SRV', 'CARRIER'] as const;
   type Tab = (typeof TABS)[number];
@@ -80,6 +81,7 @@
       {#each TABS as t (t)}
         <button class:active={tab === t} onclick={() => pick(t)}>{t}</button>
       {/each}
+      <FullScreen />
     </nav>
   </header>
 
@@ -155,6 +157,9 @@
     gap: 8px;
     height: 100%;
     padding: 8px;
+    /* full screen on iPhone/iPad: keep clear of the notch, rounded corners and home indicator */
+    padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right))
+      max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
   }
   .top {
     grid-column: 1 / -1;

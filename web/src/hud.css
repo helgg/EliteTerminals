@@ -32,6 +32,11 @@ html, body {
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
   user-select: none;
+  -webkit-user-select: none;
+  /* a panel, not a page: no double-tap zoom (nor its 300ms delay), no rubber-band scrolling */
+  touch-action: manipulation;
+  overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
 }
 
 /* Faint scanlines over everything; cheap and easy to switch off. */
@@ -43,7 +48,7 @@ body::after {
   background: repeating-linear-gradient(to bottom, rgb(255 255 255 / 0.018) 0 1px, transparent 1px 3px);
 }
 
-#app { height: 100%; }
+#app { height: 100%; height: 100dvh; }
 
 .label {
   color: var(--hud-hi);
