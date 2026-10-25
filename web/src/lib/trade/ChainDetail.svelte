@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { TradeChain, TradeEnd } from '@et/shared';
+  import Hop from './Hop.svelte';
   import LoadList from './LoadList.svelte';
   import StartDistance from './StartDistance.svelte';
   import Name from '../Name.svelte';
@@ -30,14 +31,14 @@
   <div class="detail">
     <StartDistance start={chain.legs[0].src} {jumpRange} />
     <div class="totals">
-      <span class="ok">+{short(chain.total)}Cr</span>
-      <span class="tele">{short(chain.perHour)}Cr/h</span>
+      <span class="ok">+{short(chain.total)} Cr</span>
+      <span class="tele">{short(chain.perHour)} Cr/h</span>
       <span class="dim">≈{duration(chain.seconds)} · {chain.legs.length + 1} stops</span>
     </div>
     {#each chain.legs as l, k (k)}
       {@render stop(l.src, k, k ? 'SELL ALL · BUY' : 'BUY')}
       <LoadList leg={l.leg} title="{letter(k)}→{letter(k + 1)}" />
-      <div class="hop dim">▼ {l.hopLy.toFixed(1)}ly · {l.jumps} {l.jumps === 1 ? 'jump' : 'jumps'} · ≈{duration(l.legSeconds)}</div>
+      <Hop ly={l.hopLy} jumps={l.jumps} seconds={l.legSeconds} />
     {/each}
     {@render stop(chain.legs[chain.legs.length - 1].dst, chain.legs.length, 'SELL ALL · END')}
   </div>
@@ -63,6 +64,5 @@
   .ok { color: var(--ok); }
   .stale { color: var(--danger); }
   .state { color: var(--telemetry); font-weight: 700; }
-  .hop { font-size: 10px; text-align: center; }
   .sub { font-size: 10px; }
 </style>

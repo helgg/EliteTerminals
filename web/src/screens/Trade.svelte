@@ -178,7 +178,7 @@
 
     <Panel title="Session" scroll={false} aside={s.session.startedAt ? `${hours.toFixed(1)}h` : 'no session'}>
       <div class="kpis">
-        <div><span class="dim">PROFIT</span><b class="num ok">{short(s.session.tradeProfit)}Cr</b></div>
+        <div><span class="dim">PROFIT</span><b class="num ok">{short(s.session.tradeProfit)} Cr</b></div>
         <div><span class="dim">CR/H</span><b class="num tele">{short(crPerHour)}</b></div>
         <div><span class="dim">SOLD</span><b class="num">{cr(s.session.tonsSold)}t</b></div>
         <div><span class="dim">CARGO</span><b class="num">{cr(s.cargo.count)}/{cr(s.ship.cargoCapacity)}t</b></div>

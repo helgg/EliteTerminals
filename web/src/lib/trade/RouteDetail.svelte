@@ -2,9 +2,10 @@
   import type { TradeEnd, TradeRoute } from '@et/shared';
   import Hologram from '../Hologram.svelte';
   import Name from '../Name.svelte';
+  import Hop from './Hop.svelte';
   import LoadList from './LoadList.svelte';
   import StartDistance from './StartDistance.svelte';
-  import { ageLabel, ageTone, cr, duration, short } from '../format.ts';
+  import { ageLabel, ageTone, cr, short } from '../format.ts';
 
   // The selected loop, cockpit style: buy at A, sell at B, buy the way-back load at B, sell it at A.
   let { route, jumpRange }: { route: TradeRoute | null; jumpRange: number } = $props();
@@ -33,15 +34,15 @@
     <StartDistance start={route.src} {jumpRange} />
     {@render station(route.src, 'A · BUY')}
     <LoadList leg={route.leg} title="OUT A→B" />
-    <div class="hop dim">▼ {route.hopLy.toFixed(1)}ly · {route.jumps} {route.jumps === 1 ? 'jump' : 'jumps'} · ≈{duration(route.legSeconds)}</div>
+    <Hop ly={route.hopLy} jumps={route.jumps} seconds={route.legSeconds} />
     {@render station(route.dst, 'B · SELL ALL, BUY')}
     <LoadList leg={route.back} title="BACK B→A" />
-    <div class="hop dim">▲ back to A, sell all</div>
+    <Hop up label="BACK TO A · SELL ALL" />
 
     <dl class="facts">
-      <dt>LOOP</dt><dd class="gain">+{short(total)}Cr per loop</dd>
-      <dt>CR/H</dt><dd class="tele">{short(route.loopPerHour)}Cr</dd>
-      <dt>OUT ONLY</dt><dd>+{short(route.leg.total)}Cr · {short(route.perHour)}Cr/h · {route.pct.toFixed(0)}%</dd>
+      <dt>LOOP</dt><dd class="gain">+{short(total)} Cr per loop</dd>
+      <dt>CR/H</dt><dd class="tele">{short(route.loopPerHour)} Cr</dd>
+      <dt>OUT ONLY</dt><dd>+{short(route.leg.total)} Cr · {short(route.perHour)} Cr/h · {route.pct.toFixed(0)}%</dd>
     </dl>
   </div>
 {:else}
@@ -61,7 +62,6 @@
   .ok { color: var(--hud-hi); }
   .stale { color: var(--danger); }
   .state { color: var(--telemetry); font-weight: 700; }
-  .hop { font-size: 10px; text-align: center; letter-spacing: 0.05em; }
   .facts { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 2px 0 0; font-size: 12px; }
   dt { color: var(--dim); font-size: 10px; letter-spacing: 0.1em; align-self: center; }
   dd { margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

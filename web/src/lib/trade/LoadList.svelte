@@ -25,15 +25,15 @@
           <span class="gain num">+{short(i.profit * i.amount)}</span>
         </div>
         <div class="line dim sub">
-          <span class="num">{cr(i.buy)}→{cr(i.sell)}Cr</span>
+          <span class="num">{cr(i.buy)}→{cr(i.sell)} Cr</span>
           <span class="num vol">SUP <Level level={i.supplyLevel ?? 0} exact={i.supplyExact} />{short(i.supply)}t
             · DEM <Level level={i.demandLevel ?? 0} exact={i.demandExact} />{short(i.demand)}t</span>
         </div>
       </div>
     {/each}
     <div class="sum">
-      <span class="ok">+{cr(leg.total)}Cr</span>
-      <span class="dim">{cr(leg.amount)}t · cost {short(cost)}Cr</span>
+      <span class="ok">+{cr(leg.total)} Cr</span>
+      <span class="dim">{cr(leg.amount)}t · cost {short(cost)} Cr</span>
     </div>
   {:else}
     <div class="dim sub">nothing profitable · fly empty</div>

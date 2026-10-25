@@ -38,6 +38,7 @@
   const f = $derived(s.flags);
   const live = $derived(link.connected && s.meta.online);
   const cr = (n: number) => n.toLocaleString('en-US');
+  const free = $derived(s.ship.cargoCapacity - s.cargo.count);
   const where = $derived(
     s.location.station ? `${s.location.station}` : s.location.body || (f.supercruise ? 'supercruise' : 'normal space'),
   );
@@ -62,7 +63,15 @@
       <div class="line tele">
         {s.ship.label || '—'} {s.ship.ident ? `· ${s.ship.ident}` : ''} {s.ship.name ? `· ${s.ship.name}` : ''}
         <span class="dim">· CMDR</span> {s.commander.name || '—'}
-        <span class="dim">·</span> <span class="num">{cr(s.commander.credits)}Cr</span>
+        <span class="dim">·</span> <span class="num">{cr(s.commander.credits)} Cr</span>
+        {#if s.ship.cargoCapacity}
+          <span class="dim">· CARGO</span>
+          <span class="hold" class:full={free <= 0}>
+            <span class="gauge"><span style:width="{Math.min(1, s.cargo.count / s.ship.cargoCapacity) * 100}%"></span></span>
+            <span class="num">{cr(s.cargo.count)}/{cr(s.ship.cargoCapacity)}t</span>
+            <span class="dim num">{free > 0 ? `${cr(free)}t free` : 'FULL'}</span>
+          </span>
+        {/if}
       </div>
     </div>
     <nav>
@@ -159,6 +168,12 @@
   .where { min-width: 0; flex: 1; }
   .sys { font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .line { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* hold fill, always in sight: mixed loads are bought line by line against the free tons */
+  .hold { display: inline-flex; gap: 6px; align-items: center; color: var(--text); }
+  .gauge { width: 56px; height: 6px; background: var(--steel); border: 1px solid var(--rule); }
+  .gauge span { display: block; height: 100%; background: var(--telemetry); }
+  .hold.full .gauge span { background: var(--hud); }
+  .hold.full .dim { color: var(--hud-hi); font-weight: 700; }
 
   nav { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
   nav button {
