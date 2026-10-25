@@ -25,7 +25,7 @@
   // The side column only where the screen is wide enough for it next to the screen's own panels.
   // Portrait screens bring SHIP and POWER into their own grid instead (RESPONSIVE-FLIGHT.md).
   const side = $derived(
-    tab !== 'TRADE' && (viewport.vp === 'desktop-landscape' || viewport.vp === 'tablet-landscape' || phone),
+    tab !== 'TRADE' && (viewport.vp === 'desktop-landscape' || viewport.vp === 'tablet-landscape'),
   );
 
   onMount(() => {
@@ -74,8 +74,10 @@
     <button class="brand" onclick={() => (showQr = true)} title="Open the panel on another device (QR code)">
       <span class="logo">ED·ET</span>
     </button>
+    <!-- system over station: two short lines fit where one long one would be cut -->
     <div class="where">
-      <div class="sys"><Name value={s.location.system} system /> <span class="dim">/</span> <span class="muted">{where}</span></div>
+      <div class="sys"><Name value={s.location.system} system /></div>
+      <div class="st muted">{where}</div>
     </div>
     <span class="cur">{tab}</span>
     <FullScreen />
@@ -266,20 +268,16 @@
   :global(html[data-vp$='-portrait']) .top { flex-wrap: wrap; row-gap: 6px; }
   :global(html[data-vp$='-portrait']) .top nav { flex: 1 1 100%; justify-content: stretch; }
   :global(html[data-vp$='-portrait']) .top nav button { flex: 1; }
-  /* phones still stack until their own phase */
-  :global(html[data-device='phone']) .shell {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto auto 1fr auto;
-    overflow: auto;
-    height: auto;
-    min-height: 100%;
-  }
+  /* phones: slim bar + the screen, nothing else (no side column, no status strip) */
+  .shell.phone { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
 
   /* phone bar */
   .shell.phone { gap: 6px; padding-top: max(6px, env(safe-area-inset-top)); }
   .top.slim { gap: 8px; padding: 4px 6px 4px 8px; position: sticky; top: 0; z-index: 5; }
   .top.slim .logo { font-size: 16px; }
-  .top.slim .sys { font-size: 13px; }
+  .top.slim .sys { font-size: 13px; line-height: 1.2; }
+  .top.slim .st { font-size: 11px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  :global(html[data-vp='phone-portrait']) .cur { display: none; }
   .cur { color: var(--hud-hi); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; }
   .burger {
     display: flex; flex-direction: column; justify-content: center; gap: 4px;

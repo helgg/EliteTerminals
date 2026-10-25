@@ -10,7 +10,7 @@
   import ShipPanel from '../lib/ShipPanel.svelte';
   import Pips from '../lib/Pips.svelte';
   import { viewport } from '../lib/viewport.svelte.ts';
-  import { keyFor, sendCommand } from '../lib/link.svelte.ts';
+  import { keyFor, link, sendCommand } from '../lib/link.svelte.ts';
   import { resolveTarget } from '../lib/target.ts';
   import { currentJumpRange } from '../lib/jump.ts';
   import {
@@ -21,10 +21,11 @@
 
   const f = $derived(s.flags);
   const vp = $derived(viewport.vp);
+  const phone = $derived(viewport.device === 'phone');
   // Portrait screens have no side column: SHIP and POWER come into this grid.
   const portrait = $derived(viewport.orientation === 'portrait' && viewport.device !== 'phone');
   // The full route column only on a wide monitor; elsewhere a strip of the next jumps.
-  const routeColumn = $derived(vp === 'desktop-landscape' || viewport.device === 'phone');
+  const routeColumn = $derived(vp === 'desktop-landscape');
   const target = $derived(resolveTarget(s));
   const hereIdx = $derived(s.route.hops.findIndex((h) => h.system === s.location.system));
   const next = $derived(hereIdx >= 0 ? s.route.hops[hereIdx + 1] : s.route.hops[0]);
@@ -57,6 +58,43 @@
     { label: 'NEXT SYSTEM', cmd: 'TargetNextRouteSystem', tone: 'target', icon: '⌖', sub: 'target on route' },
   ]);
 
+  // Phones show one page at a time; the last page is remembered per device.
+  type Page = 'drive' | 'systems' | 'power' | 'route';
+  const PAGES: { id: Page; label: string; icon: string }[] = [
+    { id: 'drive', label: 'DRIVE', icon: '»' },
+    { id: 'systems', label: 'SYSTEMS', icon: '▦' },
+    { id: 'power', label: 'POWER', icon: '▮' },
+    { id: 'route', label: 'ROUTE', icon: '⋯' },
+  ];
+  let page = $state<Page>(readPage());
+  function readPage(): Page {
+    try {
+      const saved = localStorage.getItem('et.flight.page') as Page | null;
+      if (saved && PAGES.some((p) => p.id === saved)) return saved;
+    } catch {}
+    return 'drive';
+  }
+  function setPage(p: Page) {
+    page = p;
+    try { localStorage.setItem('et.flight.page', p); } catch {}
+  }
+
+  // Phone DRIVE page: forward throttle detents and the three switches used on every approach.
+  const QUICK = [
+    { pct: 100, cmd: 'SetSpeed100' }, { pct: 75, cmd: 'SetSpeed75' }, { pct: 50, cmd: 'SetSpeed50' },
+    { pct: 25, cmd: 'SetSpeed25' }, { pct: 0, cmd: 'SetSpeedZero' },
+  ];
+  const QUICK_TOGGLES = ['LandingGearToggle', 'ToggleCargoScoop', 'DeployHardpointToggle'];
+
+  const alerts = $derived([
+    { on: f.overHeating, label: 'HEAT' },
+    { on: f.isInDanger, label: 'DANGER' },
+    { on: f.beingInterdicted, label: 'INTERDICTION' },
+    { on: f.lowFuel, label: 'LOW FUEL' },
+    { on: !f.shieldsUp && f.inMainShip, label: 'SHIELDS DOWN' },
+  ]);
+  const alertsOn = $derived(alerts.some((a) => a.on));
+
   // Ship switches by job, so a hand finds them without reading every label.
   const GROUPS: { title: string; items: { label: string; cmd: string; on?: () => boolean; hot?: boolean }[] }[] = [
     { title: 'Flight', items: [
@@ -82,93 +120,224 @@
   ];
 </script>
 
+<!-- The pieces of the screen, arranged differently per viewport (docs/design/RESPONSIVE-FLIGHT.md). -->
+{#snippet gauge()}
+  <div class="gauge"><FsdGauge flags={f} caption={range ? `RANGE ≈${range.toFixed(1)}ly` : ''} /></div>
+{/snippet}
+
+{#snippet readouts(full: boolean)}
+  <dl class="readouts">
+    <dt>NEXT</dt><dd class="next"><Name value={next?.system ?? ''} system /></dd>
+    <dt>JUMPS LEFT</dt><dd class="big num">{s.route.remainingJumps}</dd>
+    <dt>RANGE</dt>
+    <dd class="big num" title="Estimate with the current cargo and fuel (max empty: {s.ship.maxJumpRange.toFixed(2)}ly)">
+      ≈{range.toFixed(1)}<small>ly</small>
+    </dd>
+    <dt>FUEL</dt>
+    <dd class="num" class:bad={f.lowFuel}>{s.status.fuelMain.toFixed(1)}t</dd>
+    {#if fuelJumps !== null}
+      <dt title="Jumps the tank still holds, at the fuel the last jump used">ON TANK</dt>
+      <dd class="num">≈{fuelJumps} jumps</dd>
+    {/if}
+    {#if full}
+      <dt>LAST JUMP</dt>
+      <dd class="num">{s.ship.lastJump.distance ? `${s.ship.lastJump.distance.toFixed(1)}ly · ${s.ship.lastJump.fuelUsed.toFixed(1)}t` : '—'}</dd>
+    {/if}
+  </dl>
+{/snippet}
+
+{#snippet targetCard()}
+  <div class="target">
+    <div class="t-head">
+      <span class="t-label">{target.label}</span>
+      {#if target.scoopable}<span class="fuel"><ScoopIcon size={13} /> FUEL STAR</span>{/if}
+    </div>
+    <Hologram target={target.holo} />
+    <div class="t-name">{#if target.label === 'SYSTEM' || target.label === 'STATION'}<Name value={target.name}
+      system={target.label === 'SYSTEM'} stationType={target.subtitle} icon={target.label === 'STATION'} />{:else}{target.name}{/if}</div>
+    <div class="t-sub">{target.subtitle}{target.pending ? ' · fetching…' : ''}</div>
+    <dl class="t-facts">
+      {#each target.facts as [k, v] (k)}
+        <dt>{k}</dt><dd title={v}>{v}</dd>
+      {/each}
+    </dl>
+  </div>
+{/snippet}
+
+{#snippet strip(max: number)}
+  <!-- the route column's job, in one line: the next stars and whether they refuel -->
+  <div class="strip" title="{hops.length ? `${hops.length - 1} jumps · ${totalLy.toFixed(0)}ly` : ''}">
+    <span class="k">ROUTE</span>
+    {#if ahead.length}
+      {#each ahead.slice(0, max) as h, i (h.address || i)}
+        {#if i}<span class="sep">›</span>{/if}
+        <span class="hop">
+          <span class="cls" style:color={starColor(h.cls)}>{h.cls || '?'}</span>
+          {#if isScoopable(h.cls)}<ScoopIcon size={10} />{/if}
+          <Name value={h.system} system />
+        </span>
+      {/each}
+      {#if ahead.length > max}<span class="more">+{ahead.length - max}</span>{/if}
+      <span class="tot num">{totalLy.toFixed(0)}ly · {fuelStars} fuel</span>
+    {:else}
+      <span class="dim">No route plotted.</span>
+    {/if}
+  </div>
+{/snippet}
+
+{#snippet act(b: (typeof drive)[number])}
+  {@const key = keyFor(b.cmd)}
+  <button class="act {b.tone}" class:charging={b.tone === 'hero' && (f.fsdCharging || f.fsdJump)}
+    class:locked={b.tone === 'hero' && f.fsdMassLocked} disabled={!key} onclick={() => sendCommand(b.cmd)}
+    title={key ?? 'no bind'}>
+    <span class="icon" aria-hidden="true">{b.icon}</span>
+    <span class="words">
+      <b>{b.label}</b>
+      <span class="sub">{b.sub}</span>
+    </span>
+    <span class="key">{key ?? 'no bind'}</span>
+  </button>
+{/snippet}
+
+{#snippet groups()}
+  <div class="groups">
+    {#each GROUPS as g (g.title)}
+      <section class="group">
+        <h3>{g.title}</h3>
+        {#each g.items as t (t.cmd)}
+          <Toggle label={t.label} command={t.cmd} on={t.on?.() ?? false} hot={t.hot} />
+        {/each}
+      </section>
+    {/each}
+  </div>
+{/snippet}
+
+{#snippet routeList()}
+  {#if hops.length}
+    <ol class="hops">
+      {#each hops as h, i (h.address || i)}
+        <li class:here={i === hereIdx} class:done={hereIdx >= 0 && i < hereIdx}>
+          <div class="l1">
+            <span class="idx num">{String(i).padStart(2, '0')}</span>
+            <span class="cls {h.kind}" style:color={starColor(h.cls)} title="Class {h.cls}">{h.cls || '?'}</span>
+            {#if isScoopable(h.cls)}<ScoopIcon size={11} />{:else}<span class="noscoop"></span>{/if}
+            <span class="name"><Name value={h.system} system /></span>
+            {#if h.jump}<span class="jump-ly num">{h.jump.toFixed(1)}</span>{/if}
+          </div>
+          <div class="l2">
+            {#if h.kind === 'neutron' || h.kind === 'whiteDwarf'}
+              <span class="warn" title="Jet cone: can supercharge the FSD, careful when leaving">⚠ JET</span>
+            {/if}
+            {#if h.info}
+              <span class="sec" style:color={securityTone(h.info.security)}>■ {h.info.security || 'n/a'}</span>
+              {#if h.info.controllingPower}
+                <span class="pwr" title="{h.info.controllingPower} · {h.info.powerState}">
+                  {initials(h.info.controllingPower)}<span class="dim">·{h.info.powerState.slice(0, 4)}</span>
+                </span>
+              {/if}
+              {#if h.info.factionState && h.info.factionState !== 'None'}
+                <span class="state">{h.info.factionState}</span>
+              {/if}
+              {#if h.info.allegiance}<span class="dim">{ALLEGIANCE[h.info.allegiance] ?? h.info.allegiance}</span>{/if}
+              {#if h.info.needsPermit}<span class="bad" title="Permit required">🔒</span>{/if}
+              {#if !h.info.population}<span class="faint">unpopulated</span>{/if}
+            {:else}
+              <span class="faint">…</span>
+            {/if}
+          </div>
+        </li>
+      {/each}
+    </ol>
+  {:else}
+    <p class="dim">No route plotted.</p>
+  {/if}
+{/snippet}
+
+{#snippet throttleRow()}
+  <!-- phones: the forward detents only, in a row (the throttle column needs height a phone lacks) -->
+  <div class="trow">
+    {#each QUICK as d (d.cmd)}
+      <button class:set={link.throttleCmd === d.cmd} class:zero={d.pct === 0} disabled={!keyFor(d.cmd)}
+        onclick={() => sendCommand(d.cmd)} title={keyFor(d.cmd) ?? 'no bind'}>{d.pct || 'ZERO'}</button>
+    {/each}
+  </div>
+{/snippet}
+
+{#snippet boost()}
+  <button class="pboost" disabled={!keyFor('UseBoostJuice')} onclick={() => sendCommand('UseBoostJuice')}
+    title={keyFor('UseBoostJuice') ?? 'no bind'}><span aria-hidden="true">›››</span> BOOST</button>
+{/snippet}
+
+{#snippet quick()}
+  <div class="quick">
+    {#each GROUPS.flatMap((g) => g.items).filter((t) => QUICK_TOGGLES.includes(t.cmd)) as t (t.cmd)}
+      <Toggle label={t.label} command={t.cmd} on={t.on?.() ?? false} hot={t.hot} />
+    {/each}
+  </div>
+{/snippet}
+
+{#if phone}
+  <!-- PHONES: one page at a time, no scrolling; tabs at the bottom (portrait) or down the left (landscape) -->
+  <div class="phone {viewport.orientation}">
+    <nav class="pages" aria-label="Flight pages">
+      {#each PAGES as p (p.id)}
+        <button class:on={page === p.id} onclick={() => setPage(p.id)}>
+          <span class="pi" aria-hidden="true">{p.icon}</span><span>{p.label}</span>
+          {#if p.id === 'power' && alertsOn}<span class="dot"></span>{/if}
+        </button>
+      {/each}
+    </nav>
+
+    <div class="page p-{page}">
+      {#if page === 'drive'}
+        <div class="head">
+          {@render gauge()}
+          {@render readouts(false)}
+        </div>
+        {#if alertsOn}
+          <div class="alerts">{#each alerts.filter((a) => a.on) as a (a.label)}<span>{a.label}</span>{/each}</div>
+        {/if}
+        {#if viewport.orientation === 'portrait'}{@render strip(2)}{/if}
+        <div class="acts">
+          {#each drive as b (b.cmd)}{@render act(b)}{/each}
+          {@render boost()}
+        </div>
+        {@render throttleRow()}
+        {@render quick()}
+      {:else if page === 'systems'}
+        {@render groups()}
+      {:else if page === 'power'}
+        <ShipPanel {s} />
+        <Panel class="power" title="Power" aside="tap to add">
+          <Pips sys={s.pips.sys} eng={s.pips.eng} wep={s.pips.wep} />
+        </Panel>
+      {:else}
+        {@render targetCard()}
+        <Panel class="route" title="Route"
+          aside={hops.length ? `${hops.length - 1} jumps · ${totalLy.toFixed(0)}ly · ${fuelStars} fuel` : ''}>
+          {@render routeList()}
+        </Panel>
+      {/if}
+    </div>
+  </div>
+{:else}
 <div class="flight {vp}" class:portrait>
   <Panel class="fsd" title="Frame shift drive" aside={f.supercruise ? 'supercruise' : 'normal space'}>
     <div class="fsd-body">
-      <div class="gauge"><FsdGauge flags={f} caption={range ? `RANGE ≈${range.toFixed(1)}ly` : ''} /></div>
-      <dl class="readouts">
-        <dt>NEXT</dt><dd class="next"><Name value={next?.system ?? ''} system /></dd>
-        <dt>JUMPS LEFT</dt><dd class="big num">{s.route.remainingJumps}</dd>
-        <dt>RANGE</dt>
-        <dd class="big num" title="Estimate with the current cargo and fuel (max empty: {s.ship.maxJumpRange.toFixed(2)}ly)">
-          ≈{range.toFixed(1)}<small>ly</small>
-        </dd>
-        <dt>FUEL</dt>
-        <dd class="num" class:bad={f.lowFuel}>{s.status.fuelMain.toFixed(1)}t</dd>
-        {#if fuelJumps !== null}
-          <dt title="Jumps the tank still holds, at the fuel the last jump used">ON TANK</dt>
-          <dd class="num">≈{fuelJumps} jumps</dd>
-        {/if}
-        <dt>LAST JUMP</dt>
-        <dd class="num">{s.ship.lastJump.distance ? `${s.ship.lastJump.distance.toFixed(1)}ly · ${s.ship.lastJump.fuelUsed.toFixed(1)}t` : '—'}</dd>
-      </dl>
-
-      <div class="target">
-        <div class="t-head">
-          <span class="t-label">{target.label}</span>
-          {#if target.scoopable}<span class="fuel"><ScoopIcon size={13} /> FUEL STAR</span>{/if}
-        </div>
-        <Hologram target={target.holo} />
-        <div class="t-name">{#if target.label === 'SYSTEM' || target.label === 'STATION'}<Name value={target.name}
-          system={target.label === 'SYSTEM'} stationType={target.subtitle} icon={target.label === 'STATION'} />{:else}{target.name}{/if}</div>
-        <div class="t-sub">{target.subtitle}{target.pending ? ' · fetching…' : ''}</div>
-        <dl class="t-facts">
-          {#each target.facts as [k, v] (k)}
-            <dt>{k}</dt><dd title={v}>{v}</dd>
-          {/each}
-        </dl>
-      </div>
+      {@render gauge()}
+      {@render readouts(true)}
+      {@render targetCard()}
     </div>
 
-    {#if !routeColumn}
-      <!-- the route column's job, in one line: the next stars and whether they refuel -->
-      <div class="strip" title="{hops.length ? `${hops.length - 1} jumps · ${totalLy.toFixed(0)}ly` : ''}">
-        <span class="k">ROUTE</span>
-        {#if ahead.length}
-          {#each ahead.slice(0, 4) as h, i (h.address || i)}
-            {#if i}<span class="sep">›</span>{/if}
-            <span class="hop">
-              <span class="cls" style:color={starColor(h.cls)}>{h.cls || '?'}</span>
-              {#if isScoopable(h.cls)}<ScoopIcon size={10} />{/if}
-              <Name value={h.system} system />
-            </span>
-          {/each}
-          {#if ahead.length > 4}<span class="more">+{ahead.length - 4}</span>{/if}
-          <span class="tot num">{totalLy.toFixed(0)}ly · {fuelStars} fuel</span>
-        {:else}
-          <span class="dim">No route plotted.</span>
-        {/if}
-      </div>
-    {/if}
+    {#if !routeColumn}{@render strip(4)}{/if}
 
     <div class="drive">
-      {#each drive as b (b.cmd)}
-        {@const key = keyFor(b.cmd)}
-        <button class="act {b.tone}" class:charging={b.tone === 'hero' && (f.fsdCharging || f.fsdJump)}
-          class:locked={b.tone === 'hero' && f.fsdMassLocked} disabled={!key} onclick={() => sendCommand(b.cmd)}
-          title={key ?? 'no bind'}>
-          <span class="icon" aria-hidden="true">{b.icon}</span>
-          <span class="words">
-            <b>{b.label}</b>
-            <span class="sub">{b.sub}</span>
-          </span>
-          <span class="key">{key ?? 'no bind'}</span>
-        </button>
-      {/each}
+      {#each drive as b (b.cmd)}{@render act(b)}{/each}
     </div>
   </Panel>
 
   <Panel class="systems" title="Ship systems">
-    <div class="groups">
-      {#each GROUPS as g (g.title)}
-        <section class="group">
-          <h3>{g.title}</h3>
-          {#each g.items as t (t.cmd)}
-            <Toggle label={t.label} command={t.cmd} on={t.on?.() ?? false} hot={t.hot} />
-          {/each}
-        </section>
-      {/each}
-    </div>
+    {@render groups()}
   </Panel>
 
   {#if portrait}
@@ -185,47 +354,11 @@
   {#if routeColumn}
   <Panel class="route" title="Route"
     aside={hops.length ? `${hops.length - 1} jumps · ${totalLy.toFixed(0)}ly · ${fuelStars} fuel` : ''}>
-    {#if hops.length}
-      <ol class="hops">
-        {#each hops as h, i (h.address || i)}
-          <li class:here={i === hereIdx} class:done={hereIdx >= 0 && i < hereIdx}>
-            <div class="l1">
-              <span class="idx num">{String(i).padStart(2, '0')}</span>
-              <span class="cls {h.kind}" style:color={starColor(h.cls)} title="Class {h.cls}">{h.cls || '?'}</span>
-              {#if isScoopable(h.cls)}<ScoopIcon size={11} />{:else}<span class="noscoop"></span>{/if}
-              <span class="name"><Name value={h.system} system /></span>
-              {#if h.jump}<span class="jump-ly num">{h.jump.toFixed(1)}</span>{/if}
-            </div>
-            <div class="l2">
-              {#if h.kind === 'neutron' || h.kind === 'whiteDwarf'}
-                <span class="warn" title="Jet cone: can supercharge the FSD, careful when leaving">⚠ JET</span>
-              {/if}
-              {#if h.info}
-                <span class="sec" style:color={securityTone(h.info.security)}>■ {h.info.security || 'n/a'}</span>
-                {#if h.info.controllingPower}
-                  <span class="pwr" title="{h.info.controllingPower} · {h.info.powerState}">
-                    {initials(h.info.controllingPower)}<span class="dim">·{h.info.powerState.slice(0, 4)}</span>
-                  </span>
-                {/if}
-                {#if h.info.factionState && h.info.factionState !== 'None'}
-                  <span class="state">{h.info.factionState}</span>
-                {/if}
-                {#if h.info.allegiance}<span class="dim">{ALLEGIANCE[h.info.allegiance] ?? h.info.allegiance}</span>{/if}
-                {#if h.info.needsPermit}<span class="bad" title="Permit required">🔒</span>{/if}
-                {#if !h.info.population}<span class="faint">unpopulated</span>{/if}
-              {:else}
-                <span class="faint">…</span>
-              {/if}
-            </div>
-          </li>
-        {/each}
-      </ol>
-    {:else}
-      <p class="dim">No route plotted.</p>
-    {/if}
+    {@render routeList()}
   </Panel>
   {/if}
 </div>
+{/if}
 
 <style>
   .flight {
@@ -277,6 +410,97 @@
   .portrait > :global(.power .body) { flex: 1; display: flex; flex-direction: column; }
   .portrait { --bar-min: 60px; }
   .portrait :global(.ship .stack) { gap: 5px; }
+
+  /* ---------------- phones ---------------- */
+  .phone { height: 100%; min-height: 0; display: grid; gap: 6px; }
+  .phone.portrait { grid-template-rows: minmax(0, 1fr) auto; }
+  .phone.portrait .pages { grid-row: 2; }
+  .phone.portrait .page { grid-row: 1; }
+  .phone.landscape { grid-template-columns: 62px minmax(0, 1fr); }
+
+  .pages { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+  .landscape .pages { grid-template-columns: 1fr; grid-auto-rows: 1fr; }
+  .pages button {
+    position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+    min-height: 52px; background: var(--steel); border: 1px solid var(--rule); color: var(--hud-hi);
+    font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
+  }
+  .pages .pi { font-size: 18px; line-height: 1; }
+  .pages button.on { background: var(--hud); border-color: var(--hud); color: var(--void); box-shadow: var(--glow); }
+  .pages .dot { position: absolute; top: 5px; right: 7px; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); }
+
+  .page { min-height: 0; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+
+  /* DRIVE */
+  .page.p-drive .head { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1fr); gap: 8px; align-items: center; }
+  .page.p-drive .readouts { gap: 3px 8px; }
+  .page.p-drive .readouts .big { font-size: 19px; }
+  .acts { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1.25fr 1fr 1fr; gap: 6px; }
+  .acts .act.hero { grid-column: 1 / -1; }
+  .phone .act { min-height: 0; padding: 6px 10px; grid-template-rows: 1fr; }
+  .phone .act .key { display: none; }
+  .phone .act b { font-size: 13px; letter-spacing: 0.05em; }
+  .phone .act .icon { font-size: 22px; }
+  .phone .act.hero b { font-size: 18px; letter-spacing: 0.12em; }
+  .pboost {
+    display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 0;
+    background: linear-gradient(to right, #ff8c33, var(--hud)); border: 0; color: var(--void);
+    font-size: 16px; font-weight: 800; letter-spacing: 0.18em; box-shadow: var(--glow);
+    clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+  }
+  .pboost:active:not(:disabled) { filter: brightness(1.25); }
+  .pboost:disabled { opacity: 0.35; }
+  .trow { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+  .trow button {
+    min-height: 44px; background: var(--steel); border: 1px solid var(--rule); color: var(--text);
+    font-size: 15px; font-weight: 700;
+  }
+  .trow button.zero { color: var(--hud-hi); border-color: var(--hud-hi); letter-spacing: 0.08em; font-size: 13px; }
+  .trow button.set { background: var(--hud); border-color: var(--hud); color: var(--void); box-shadow: var(--glow); }
+  .trow button:disabled { opacity: 0.35; }
+  .quick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .quick :global(.toggle) { min-height: 50px; padding: 8px 8px 5px; font-size: 11px; }
+  .page .alerts { display: flex; flex-wrap: wrap; gap: 4px; }
+  .page .alerts span {
+    padding: 3px 8px; background: var(--danger); color: var(--void); font-size: 11px; font-weight: 800;
+    letter-spacing: 0.08em; animation: blink 1s infinite alternate;
+  }
+  @keyframes blink { to { opacity: 0.6; } }
+
+  /* DRIVE, phone on its side: instrument | actions | throttle column */
+  .landscape .page.p-drive {
+    display: grid;
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.6fr) 74px;
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+  .landscape .page.p-drive .head { grid-column: 1; grid-row: 1; grid-template-columns: 1fr; align-content: center; gap: 4px; }
+  .landscape .page.p-drive .head :global(.gauge) { max-width: 120px; margin: 0 auto; }
+  .landscape .page.p-drive .readouts { font-size: 12px; }
+  .landscape .page.p-drive .readouts .big { font-size: 16px; }
+  .landscape .page.p-drive .alerts { grid-column: 1; grid-row: 2; }
+  .landscape .acts { grid-column: 2; grid-row: 1; grid-template-rows: 1.2fr 1fr 1fr; }
+  .landscape .quick { grid-column: 2; grid-row: 2; }
+  .landscape .quick :global(.toggle) { min-height: 44px; }
+  .landscape .trow { grid-column: 3; grid-row: 1 / 3; grid-template-columns: 1fr; grid-template-rows: repeat(5, 1fr); }
+
+  /* SYSTEMS: the four groups fill the page */
+  .page.p-systems .groups { flex: 1; grid-template-columns: 1fr 1fr; grid-auto-rows: 1fr; gap: 6px; }
+  .landscape .page.p-systems .groups { grid-template-columns: repeat(4, 1fr); }
+  .page.p-systems .group { grid-template-rows: auto repeat(3, minmax(0, 1fr)); }
+
+  /* POWER: ship condition + a big distributor */
+  .page.p-power { --bar-min: 80px; }
+  .page.p-power > :global(.power) { flex: 1; min-height: 0; }
+  .page.p-power > :global(.power .body) { flex: 1; display: flex; flex-direction: column; }
+  .landscape .page.p-power { flex-direction: row; --bar-min: 60px; }
+  .landscape .page.p-power > :global(*) { flex: 1; min-width: 0; }
+
+  /* ROUTE: the target, then the route (the list scrolls inside its panel) */
+  .page.p-route > :global(.route) { flex: 1; min-height: 0; }
+  .page.p-route .target :global(.holo) { max-width: 110px; }
+  .landscape .page.p-route { flex-direction: row; }
+  .landscape .page.p-route .target { flex: 1; min-width: 0; }
+  .landscape .page.p-route > :global(.route) { flex: 1.3; min-width: 0; }
 
   .strip {
     display: flex; align-items: center; gap: 6px; margin-top: 8px; padding: 5px 8px;
