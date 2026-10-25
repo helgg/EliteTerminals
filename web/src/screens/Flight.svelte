@@ -94,9 +94,11 @@
           ≈{range.toFixed(1)}<small>ly</small>
         </dd>
         <dt>FUEL</dt>
-        <dd class="num" class:bad={f.lowFuel}>
-          {s.status.fuelMain.toFixed(1)}t{#if fuelJumps !== null} <span class="dim">· ≈{fuelJumps} jumps</span>{/if}
-        </dd>
+        <dd class="num" class:bad={f.lowFuel}>{s.status.fuelMain.toFixed(1)}t</dd>
+        {#if fuelJumps !== null}
+          <dt title="Jumps the tank still holds, at the fuel the last jump used">ON TANK</dt>
+          <dd class="num">≈{fuelJumps} jumps</dd>
+        {/if}
         <dt>LAST JUMP</dt>
         <dd class="num">{s.ship.lastJump.distance ? `${s.ship.lastJump.distance.toFixed(1)}ly · ${s.ship.lastJump.fuelUsed.toFixed(1)}t` : '—'}</dd>
       </dl>
@@ -246,6 +248,14 @@
   .tablet-landscape :global(.detent .key), .tablet-landscape :global(.boost .key) { display: none; }
   .tablet-landscape :global(.boost) { font-size: 16px; letter-spacing: 0.12em; gap: 6px; padding: 0 10px; }
   .tablet-landscape .fsd-body { grid-template-columns: minmax(160px, 200px) minmax(140px, 0.8fr) minmax(0, 1.2fr); }
+  /* drive labels must fit whole in ~120px buttons */
+  .tablet-landscape .drive { grid-template-columns: 1.3fr 1fr 1fr 1fr; }
+  .tablet-landscape .act { padding: 10px 8px 6px; gap: 0 7px; }
+  .tablet-landscape .act b { font-size: 13px; letter-spacing: 0.04em; }
+  .tablet-landscape .act.hero b { font-size: 16px; letter-spacing: 0.1em; }
+  .tablet-landscape .act .icon { font-size: 24px; }
+  .tablet-landscape .target :global(.holo) { max-width: 96px; }
+  .tablet-landscape .group { grid-template-rows: auto repeat(3, minmax(46px, 1fr)); }
 
   /* portrait tablets and monitors: FSD across the top; under it the switches, then SHIP | POWER,
      with the throttle as a tall lever down the right side (it needs height more than width) */
@@ -264,6 +274,9 @@
   .portrait .target :global(.holo) { max-width: 96px; }
   .portrait :global(.detent .key), .portrait :global(.boost .key) { display: none; }
   .portrait :global(.boost) { font-size: 16px; letter-spacing: 0.12em; gap: 6px; padding: 0 10px; }
+  .portrait > :global(.power .body) { flex: 1; display: flex; flex-direction: column; }
+  .portrait { --bar-min: 60px; }
+  .portrait :global(.ship .stack) { gap: 5px; }
 
   .strip {
     display: flex; align-items: center; gap: 6px; margin-top: 8px; padding: 5px 8px;
@@ -314,6 +327,8 @@
   .t-name { color: var(--text); font-weight: 700; font-size: 14px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .t-sub { color: var(--telemetry); font-size: 11px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .t-facts { margin-top: 4px; grid-template-columns: auto 1fr auto 1fr; }
+  /* long facts (services, power) wrap instead of ending in "…" */
+  .t-facts dd { white-space: normal; overflow-wrap: anywhere; line-height: 1.25; }
 
   /* drive actions: the most used buttons on the screen, sized for a thumb */
   .drive { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr; gap: 6px; margin-top: 10px; }

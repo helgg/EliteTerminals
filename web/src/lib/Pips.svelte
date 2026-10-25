@@ -87,8 +87,9 @@
 </div>
 
 <style>
-  .power { display: flex; flex-direction: column; gap: 6px; }
-  .channels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  /* fills its panel when the panel is given height; bars never shorter than --bar-min */
+  .power { flex: 1; display: flex; flex-direction: column; gap: 6px; min-height: 0; }
+  .channels { flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; min-height: 0; }
   .channel {
     position: relative;
     display: flex;
@@ -102,7 +103,7 @@
   .channel:active:not(:disabled) { border-color: var(--telemetry); background: var(--rule); transform: translateY(1px); }
   button:disabled { opacity: 0.4; cursor: not-allowed; }
   .value { color: var(--text); font-size: 15px; font-weight: 700; text-align: center; }
-  .bar { display: flex; flex-direction: column; gap: 2px; height: 128px; }
+  .bar { flex: 1; display: flex; flex-direction: column; gap: 2px; min-height: var(--bar-min, 128px); }
   .cell { flex: 1; background: var(--steel); border: 1px solid var(--rule); }
   .cell.half { margin-bottom: 2px; }
   .cell.on { background: var(--telemetry); border-color: var(--telemetry); box-shadow: 0 0 6px rgb(55 198 212 / 0.55); }

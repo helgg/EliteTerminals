@@ -12,6 +12,7 @@
   import ConnectQr from './lib/ConnectQr.svelte';
   import FullScreen from './lib/FullScreen.svelte';
   import { viewport } from './lib/viewport.svelte.ts';
+  import { short } from './lib/format.ts';
 
   const TABS = ['FLIGHT', 'COMBAT', 'EXPLORE', 'MINING', 'TRADE', 'SRV', 'CARRIER'] as const;
   type Tab = (typeof TABS)[number];
@@ -91,15 +92,17 @@
     <div class="where">
       <div class="sys"><Name value={s.location.system} system /> <span class="dim">/</span> <span class="muted">{where}</span></div>
       <div class="line tele">
-        {s.ship.label || '—'} {s.ship.ident ? `· ${s.ship.ident}` : ''} {s.ship.name ? `· ${s.ship.name}` : ''}
-        <span class="dim">· CMDR</span> {s.commander.name || '—'}
-        <span class="dim">·</span> <span class="num">{cr(s.commander.credits)} Cr</span>
+        {s.ship.label || '—'}
+        <!-- tablets drop the ident and the commander name: the line must fit without ellipsis -->
+        <span class="opt">{s.ship.ident ? `· ${s.ship.ident}` : ''} {s.ship.name ? `· ${s.ship.name}` : ''}
+          <span class="dim">· CMDR</span> {s.commander.name || '—'}</span>
+        <span class="dim">·</span> <span class="num">{viewport.device === 'tablet' ? short(s.commander.credits) : cr(s.commander.credits)} Cr</span>
         {#if s.ship.cargoCapacity}
           <span class="dim">· CARGO</span>
           <span class="hold" class:full={free <= 0}>
             <span class="gauge"><span style:width="{Math.min(1, s.cargo.count / s.ship.cargoCapacity) * 100}%"></span></span>
             <span class="num">{cr(s.cargo.count)}/{cr(s.ship.cargoCapacity)}t</span>
-            <span class="dim num">{free > 0 ? `${cr(free)}t free` : 'FULL'}</span>
+            <span class="dim num opt">{free > 0 ? `${cr(free)}t free` : 'FULL'}</span>
           </span>
         {/if}
       </div>
@@ -117,7 +120,7 @@
   {#if side}
   <aside class="side">
     <ShipPanel {s} />
-    <Panel title="Power" aside="tap to add">
+    <Panel class="power" title="Power" aside="tap to add">
       <Pips sys={s.pips.sys} eng={s.pips.eng} wep={s.pips.wep} />
     </Panel>
     <!-- on a tablet the FSD target card already names the system: the column keeps the controls -->
@@ -147,7 +150,7 @@
     {#if notice}
       <span class:ok={notice.ok} class:bad={!notice.ok}>{notice.text}</span>
     {:else}
-      <span class="dim">{s.meta.journal}</span>
+      <span class="dim opt">{s.meta.journal}</span>
     {/if}
     <span class="dim right">
       binds {s.controls.presets[1] ?? '—'} · {Object.keys(s.controls.keys).length} actions ·
@@ -233,6 +236,10 @@
 
   .side { display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow: hidden; }
   .side > :global(.system) { flex: 1; min-height: 0; }
+  /* when POWER is the last panel (tablets), it takes the rest of the column: taller bars, no dead space */
+  .side > :global(.power:last-child) { flex: 1; min-height: 0; }
+  .side > :global(.power .body) { flex: 1; display: flex; flex-direction: column; }
+  :global(html[data-device='tablet']) .opt { display: none; }
 
   .main { min-height: 0; min-width: 0; }
   .wide .main { grid-column: 1 / -1; }
