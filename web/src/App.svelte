@@ -11,6 +11,7 @@
   import { copied } from './lib/copy.svelte.ts';
   import ConnectQr from './lib/ConnectQr.svelte';
   import FullScreen from './lib/FullScreen.svelte';
+  import { viewport } from './lib/viewport.svelte.ts';
 
   const TABS = ['FLIGHT', 'COMBAT', 'EXPLORE', 'MINING', 'TRADE', 'SRV', 'CARRIER'] as const;
   type Tab = (typeof TABS)[number];
@@ -18,6 +19,8 @@
   let tab = $state<Tab>(readTab());
   let now = $state(Date.now());
   let showQr = $state(false);
+  let menu = $state(false);
+  const phone = $derived(viewport.device === 'phone');
 
   onMount(() => {
     connect();
@@ -34,6 +37,7 @@
   }
   function pick(t: Tab) {
     tab = t;
+    menu = false;
     try { localStorage.setItem('et.tab', t); } catch {}
   }
 
@@ -46,6 +50,15 @@
     s.location.station ? `${s.location.station}` : s.location.body || (f.supercruise ? 'supercruise' : 'normal space'),
   );
 
+  // Last command or copy, shown for a few seconds (status strip, or a toast on phones).
+  const notice = $derived(
+    copied.at && now - copied.at < 4000
+      ? { ok: copied.ok, text: `${copied.ok ? 'COPIED' : 'COPY FAILED ON PC'} · ${copied.text}` }
+      : link.last && now - link.last.at < 6000
+        ? { ok: link.last.ok, text: `${link.last.command} ${link.last.ok ? '✓' : `✗ ${link.last.error}`}` }
+        : null,
+  );
+
   const alerts = $derived([
     { on: f.overHeating, label: 'HEAT' },
     { on: f.isInDanger, label: 'DANGER' },
@@ -55,7 +68,23 @@
   ]);
 </script>
 
-<div class="shell" class:wide={tab === 'TRADE'}>
+<div class="shell" class:wide={tab === 'TRADE'} class:phone>
+  {#if phone}
+  <!-- phones: one slim bar; the screen tabs live in the ≡ menu -->
+  <header class="top slim">
+    <button class="brand" onclick={() => (showQr = true)} title="Open the panel on another device (QR code)">
+      <span class="logo">ED·ET</span>
+    </button>
+    <div class="where">
+      <div class="sys"><Name value={s.location.system} system /> <span class="dim">/</span> <span class="muted">{where}</span></div>
+    </div>
+    <span class="cur">{tab}</span>
+    <FullScreen />
+    <button class="burger" class:on={menu} onclick={() => (menu = !menu)} aria-label="Screens" aria-expanded={menu}>
+      <span></span><span></span><span></span>
+    </button>
+  </header>
+  {:else}
   <header class="top">
     <button class="brand" onclick={() => (showQr = true)} title="Open the panel on a phone or tablet (QR code)">
       <span class="logo">ED·ET</span>
@@ -84,6 +113,7 @@
       <FullScreen />
     </nav>
   </header>
+  {/if}
 
   <!-- TRADE needs the width for its tables; it shows its own scan/session column instead. -->
   {#if tab !== 'TRADE'}
@@ -124,19 +154,14 @@
     {/if}
   </main>
 
+  {#if !phone}
   <footer class="status">
     <span class="label">STATUS</span>
     <span class:ok={live} class:bad={!live}>
       {!link.connected ? 'NO CONNECTION TO THE SERVER' : s.meta.online ? 'GAME ONLINE' : 'GAME OFFLINE · last known state'}
     </span>
-    {#if copied.at && now - copied.at < 4000}
-      <span class:ok={copied.ok} class:bad={!copied.ok}>
-        {copied.ok ? 'COPIED' : 'COPY FAILED ON PC'} · {copied.text}
-      </span>
-    {:else if link.last && now - link.last.at < 6000}
-      <span class:ok={link.last.ok} class:bad={!link.last.ok}>
-        {link.last.command} {link.last.ok ? '✓' : `✗ ${link.last.error}`}
-      </span>
+    {#if notice}
+      <span class:ok={notice.ok} class:bad={!notice.ok}>{notice.text}</span>
     {:else}
       <span class="dim">{s.meta.journal}</span>
     {/if}
@@ -144,8 +169,30 @@
       binds {s.controls.presets[1] ?? '—'} · {Object.keys(s.controls.keys).length} actions ·
       {s.meta.gameVersion}{s.meta.odyssey ? ' · Odyssey' : ''}
     </span>
+    <span class="vp" title="Layout picked for this screen">VP {viewport.vp}{viewport.forced ? '*' : ''} {viewport.width}×{viewport.height}</span>
   </footer>
+  {:else if notice || !live}
+    <!-- phones: no status strip; a short toast instead -->
+    <div class="toast" class:ok={notice?.ok} class:bad={notice ? !notice.ok : true}>
+      {notice ? notice.text : !link.connected ? 'NO CONNECTION TO THE SERVER' : 'GAME OFFLINE'}
+    </div>
+  {/if}
 </div>
+
+{#if phone && menu}
+  <div class="sheet-bg" role="presentation" onclick={() => (menu = false)}>
+    <div class="sheet" role="dialog" aria-label="Screens" tabindex="-1" onclick={(e) => e.stopPropagation()} onkeydown={() => {}}>
+      {#each TABS as t (t)}
+        <button class:active={tab === t} onclick={() => pick(t)}>{t}</button>
+      {/each}
+      <button class="qr" onclick={() => { menu = false; showQr = true; }}>▣ OPEN ON ANOTHER DEVICE</button>
+      <div class="meta dim">
+        <span class:ok={live} class:bad={!live}>{live ? 'GAME ONLINE' : link.connected ? 'GAME OFFLINE' : 'NO SERVER'}</span>
+        · VP {viewport.vp} {viewport.width}×{viewport.height}
+      </div>
+    </div>
+  </div>
+{/if}
 
 <ConnectQr bind:open={showQr} />
 
@@ -233,8 +280,51 @@
   }
   .right { margin-left: auto; }
 
-  @media (max-width: 900px) {
-    .shell { grid-template-columns: 1fr; grid-template-rows: auto auto 1fr auto; overflow: auto; height: auto; min-height: 100%; }
-    .top { flex-wrap: wrap; }
+  .vp { color: var(--faint); font-size: 11px; }
+
+  /* Narrow layouts stack for now; each screen gets its own arrangement per viewport (RESPONSIVE-FLIGHT.md). */
+  :global(html[data-vp='tablet-portrait']) .shell,
+  :global(html[data-device='phone']) .shell {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto 1fr auto;
+    overflow: auto;
+    height: auto;
+    min-height: 100%;
+  }
+  :global(html[data-vp='tablet-portrait']) .top { flex-wrap: wrap; }
+
+  /* phone bar */
+  .shell.phone { gap: 6px; padding-top: max(6px, env(safe-area-inset-top)); }
+  .top.slim { gap: 8px; padding: 4px 6px 4px 8px; position: sticky; top: 0; z-index: 5; }
+  .top.slim .logo { font-size: 16px; }
+  .top.slim .sys { font-size: 13px; }
+  .cur { color: var(--hud-hi); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; }
+  .burger {
+    display: flex; flex-direction: column; justify-content: center; gap: 4px;
+    width: 44px; height: 38px; padding: 0 11px; background: var(--steel); border: 1px solid var(--rule);
+  }
+  .burger span { height: 2px; background: var(--hud-hi); }
+  .burger.on { border-color: var(--hud); }
+  .sheet-bg {
+    position: fixed; inset: 0; z-index: 40; background: rgb(5 3 2 / 0.7);
+    padding: calc(max(6px, env(safe-area-inset-top)) + 52px) max(8px, env(safe-area-inset-right)) 0 max(8px, env(safe-area-inset-left));
+  }
+  .sheet {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 10px;
+    background: var(--panel); border: 1px solid var(--hud); box-shadow: var(--glow);
+  }
+  .sheet button {
+    min-height: 48px; background: var(--steel); border: 1px solid var(--rule); color: var(--hud-hi);
+    font-weight: 700; letter-spacing: 0.08em;
+  }
+  .sheet button.active { background: var(--hud); border-color: var(--hud); color: var(--void); }
+  .sheet .qr { grid-column: 1 / -1; color: var(--telemetry); }
+  .sheet .meta { grid-column: 1 / -1; font-size: 11px; text-align: center; }
+  .toast {
+    position: fixed; left: 50%; transform: translateX(-50%); z-index: 30;
+    bottom: calc(max(10px, env(safe-area-inset-bottom)) + 4px);
+    max-width: calc(100% - 24px); padding: 6px 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    background: var(--rail); border: 1px solid currentColor; font-size: 12px; font-weight: 700;
+    pointer-events: none;
   }
 </style>
