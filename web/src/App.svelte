@@ -152,7 +152,7 @@
     {#if notice}
       <span class:ok={notice.ok} class:bad={!notice.ok}>{notice.text}</span>
     {:else}
-      <span class="dim opt">{s.meta.journal}</span>
+      <span class="dim opt journal">{s.meta.journal}</span>
     {/if}
     <span class="dim right">
       binds {s.controls.presets[1] ?? '—'} · {Object.keys(s.controls.keys).length} actions ·
@@ -242,6 +242,7 @@
   .side > :global(.power:last-child) { flex: 1; min-height: 0; }
   .side > :global(.power .body) { flex: 1; display: flex; flex-direction: column; }
   :global(html[data-device='tablet']) .opt { display: none; }
+  :global(html[data-vp$='-portrait']) .journal { display: none; }
 
   .main { min-height: 0; min-width: 0; }
   .wide .main { grid-column: 1 / -1; }

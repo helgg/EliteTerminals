@@ -9,6 +9,7 @@
   import Name from '../lib/Name.svelte';
   import ShipPanel from '../lib/ShipPanel.svelte';
   import Pips from '../lib/Pips.svelte';
+  import SystemPanel from '../lib/SystemPanel.svelte';
   import { viewport } from '../lib/viewport.svelte.ts';
   import { keyFor, link, sendCommand } from '../lib/link.svelte.ts';
   import { resolveTarget } from '../lib/target.ts';
@@ -24,8 +25,9 @@
   const phone = $derived(viewport.device === 'phone');
   // Portrait screens have no side column: SHIP and POWER come into this grid.
   const portrait = $derived(viewport.orientation === 'portrait' && viewport.device !== 'phone');
-  // The full route column only on a wide monitor; elsewhere a strip of the next jumps.
-  const routeColumn = $derived(vp === 'desktop-landscape');
+  // The full route list only on monitors (a column, or a bottom row when portrait); elsewhere a strip.
+  const routeColumn = $derived(viewport.device === 'desktop');
+  const tallPortrait = $derived(vp === 'desktop-portrait');
   const target = $derived(resolveTarget(s));
   const hereIdx = $derived(s.route.hops.findIndex((h) => h.system === s.location.system));
   const next = $derived(hereIdx >= 0 ? s.route.hops[hereIdx + 1] : s.route.hops[0]);
@@ -346,6 +348,8 @@
       <Pips sys={s.pips.sys} eng={s.pips.eng} wep={s.pips.wep} />
     </Panel>
   {/if}
+  <!-- a portrait monitor has the height for the system details the side column shows elsewhere -->
+  {#if tallPortrait}<SystemPanel {s} />{/if}
 
   <Panel class="throttle" title="Throttle">
     <Throttle />
@@ -501,6 +505,15 @@
   .landscape .page.p-route { flex-direction: row; }
   .landscape .page.p-route .target { flex: 1; min-width: 0; }
   .landscape .page.p-route > :global(.route) { flex: 1.3; min-width: 0; }
+
+  /* portrait monitor (1080×1920 at 125% ≈ 864×1430): the iPad portrait layout plus a fourth row
+     with the SYSTEM details and the full ROUTE, and bigger instruments */
+  .flight.desktop-portrait { grid-template-rows: auto auto auto minmax(0, 1fr); --bar-min: 110px; }
+  .flight.desktop-portrait > :global(.system) { grid-column: 1; grid-row: 4; }
+  .flight.desktop-portrait > :global(.route) { grid-column: 2 / -1; grid-row: 4; }
+  .flight.desktop-portrait .fsd-body { grid-template-columns: minmax(190px, 240px) minmax(150px, 0.8fr) minmax(0, 1.2fr); }
+  .flight.desktop-portrait .target :global(.holo) { max-width: 130px; }
+  .flight.desktop-portrait .group { grid-template-rows: auto repeat(3, 60px); }
 
   .strip {
     display: flex; align-items: center; gap: 6px; margin-top: 8px; padding: 5px 8px;
