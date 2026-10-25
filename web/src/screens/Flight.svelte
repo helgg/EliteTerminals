@@ -36,30 +36,61 @@
   const totalLy = $derived(hops.reduce((t, h) => t + h.jump, 0));
   const fuelStars = $derived(hops.filter((h) => isScoopable(h.cls)).length);
 
-  const jumpButtons = [
-    { label: 'SUPERCRUISE', cmd: 'Supercruise', tone: '' },
-    { label: 'HYPERSPACE', cmd: 'Hyperspace', tone: 'tele' },
-    { label: 'FSD AUTO', cmd: 'HyperSuperCombination', tone: '' },
+  const range = $derived(currentJumpRange(s));
+  // Jumps the tank still holds, from what the last jump burnt (the journal gives no fuel curve).
+  const fuelJumps = $derived(s.ship.lastJump.fuelUsed > 0 ? Math.floor(s.status.fuelMain / s.ship.lastJump.fuelUsed) : null);
+
+  const drive = $derived([
+    { label: 'HYPERSPACE', cmd: 'Hyperspace', tone: 'hero', icon: '⟫',
+      sub: f.fsdMassLocked ? 'MASS LOCKED' : next ? `to ${next.system.toUpperCase()}` : 'to the target system' },
+    { label: 'SUPERCRUISE', cmd: 'Supercruise', tone: 'cruise', icon: '»', sub: f.supercruise ? 'drop out' : 'in system' },
+    { label: 'FSD AUTO', cmd: 'HyperSuperCombination', tone: 'auto', icon: '◈', sub: 'jump or cruise' },
+    { label: 'NEXT SYSTEM', cmd: 'TargetNextRouteSystem', tone: 'target', icon: '⌖', sub: 'target on route' },
+  ]);
+
+  // Ship switches by job, so a hand finds them without reading every label.
+  const GROUPS: { title: string; items: { label: string; cmd: string; on?: () => boolean; hot?: boolean }[] }[] = [
+    { title: 'Flight', items: [
+      { label: 'Landing gear', cmd: 'LandingGearToggle', on: () => f.landingGearDown, hot: true },
+      { label: 'Cargo scoop', cmd: 'ToggleCargoScoop', on: () => f.cargoScoopDeployed, hot: true },
+      { label: 'Flight assist off', cmd: 'ToggleFlightAssist', on: () => f.flightAssistOff, hot: true },
+    ] },
+    { title: 'Combat', items: [
+      { label: 'Hardpoints', cmd: 'DeployHardpointToggle', on: () => f.hardpointsDeployed, hot: true },
+      { label: 'Silent running', cmd: 'ToggleButtonUpInput', on: () => f.silentRunning, hot: true },
+      { label: 'Heatsink', cmd: 'DeployHeatSink', on: () => f.overHeating, hot: true },
+    ] },
+    { title: 'HUD & lights', items: [
+      { label: 'Analysis mode', cmd: 'PlayerHUDModeToggle', on: () => f.hudAnalysisMode },
+      { label: 'Lights', cmd: 'ShipSpotLightToggle', on: () => f.lightsOn },
+      { label: 'Night vision', cmd: 'NightVisionToggle', on: () => f.nightVision },
+    ] },
+    { title: 'Nav', items: [
+      { label: 'Docking request', cmd: 'RequestDocking' },
+      { label: 'Galaxy map', cmd: 'GalaxyMapOpen' },
+      { label: 'System map', cmd: 'SystemMapOpen' },
+    ] },
   ];
 </script>
 
 <div class="flight">
   <Panel class="fsd" title="Frame shift drive" aside={f.supercruise ? 'supercruise' : 'normal space'}>
     <div class="fsd-body">
-      <div class="gauge-col">
-        <FsdGauge flags={f} />
-        <dl class="readouts">
-          <dt>NEXT</dt><dd><Name value={next?.system ?? ''} system /></dd>
-          <dt>JUMPS</dt><dd class="num">{s.route.remainingJumps}</dd>
-          <dt>RANGE</dt>
-          <dd class="num" title="Estimate with the current cargo and fuel (max empty: {s.ship.maxJumpRange.toFixed(2)}ly)">
-            ≈{currentJumpRange(s).toFixed(1)}ly
-          </dd>
-          <dt>LAST</dt>
-          <dd class="num">{s.ship.lastJump.distance ? `${s.ship.lastJump.distance.toFixed(1)}ly ${s.ship.lastJump.fuelUsed.toFixed(1)}t` : '—'}</dd>
-          <dt>FUEL</dt><dd class="num" class:bad={f.lowFuel}>{s.status.fuelMain.toFixed(1)}t</dd>
-        </dl>
-      </div>
+      <div class="gauge"><FsdGauge flags={f} caption={range ? `RANGE ≈${range.toFixed(1)}ly` : ''} /></div>
+      <dl class="readouts">
+        <dt>NEXT</dt><dd class="next"><Name value={next?.system ?? ''} system /></dd>
+        <dt>JUMPS LEFT</dt><dd class="big num">{s.route.remainingJumps}</dd>
+        <dt>RANGE</dt>
+        <dd class="big num" title="Estimate with the current cargo and fuel (max empty: {s.ship.maxJumpRange.toFixed(2)}ly)">
+          ≈{range.toFixed(1)}<small>ly</small>
+        </dd>
+        <dt>FUEL</dt>
+        <dd class="num" class:bad={f.lowFuel}>
+          {s.status.fuelMain.toFixed(1)}t{#if fuelJumps !== null} <span class="dim">· ≈{fuelJumps} jumps</span>{/if}
+        </dd>
+        <dt>LAST JUMP</dt>
+        <dd class="num">{s.ship.lastJump.distance ? `${s.ship.lastJump.distance.toFixed(1)}ly · ${s.ship.lastJump.fuelUsed.toFixed(1)}t` : '—'}</dd>
+      </dl>
 
       <div class="target">
         <div class="t-head">
@@ -78,29 +109,33 @@
       </div>
     </div>
 
-    <div class="jumps">
-      {#each jumpButtons as b (b.cmd)}
-        <button class="jump chamfer {b.tone}" disabled={!keyFor(b.cmd)} onclick={() => sendCommand(b.cmd)}>
-          <span>{b.label}</span><span class="key">{keyFor(b.cmd) ?? 'no bind'}</span>
+    <div class="drive">
+      {#each drive as b (b.cmd)}
+        {@const key = keyFor(b.cmd)}
+        <button class="act {b.tone}" class:charging={b.tone === 'hero' && (f.fsdCharging || f.fsdJump)}
+          class:locked={b.tone === 'hero' && f.fsdMassLocked} disabled={!key} onclick={() => sendCommand(b.cmd)}
+          title={key ?? 'no bind'}>
+          <span class="icon" aria-hidden="true">{b.icon}</span>
+          <span class="words">
+            <b>{b.label}</b>
+            <span class="sub">{b.sub}</span>
+          </span>
+          <span class="key">{key ?? 'no bind'}</span>
         </button>
       {/each}
     </div>
   </Panel>
 
   <Panel class="systems" title="Ship systems">
-    <div class="switches">
-      <Toggle label="Landing gear" command="LandingGearToggle" on={f.landingGearDown} hot />
-      <Toggle label="Cargo scoop" command="ToggleCargoScoop" on={f.cargoScoopDeployed} hot />
-      <Toggle label="Hardpoints" command="DeployHardpointToggle" on={f.hardpointsDeployed} hot />
-      <Toggle label="Flight assist off" command="ToggleFlightAssist" on={f.flightAssistOff} hot />
-      <Toggle label="Lights" command="ShipSpotLightToggle" on={f.lightsOn} />
-      <Toggle label="Night vision" command="NightVisionToggle" on={f.nightVision} />
-      <Toggle label="Silent running" command="ToggleButtonUpInput" on={f.silentRunning} hot />
-      <Toggle label="Analysis mode" command="PlayerHUDModeToggle" on={f.hudAnalysisMode} />
-      <Toggle label="Heatsink" command="DeployHeatSink" />
-      <Toggle label="Galaxy map" command="GalaxyMapOpen" />
-      <Toggle label="System map" command="SystemMapOpen" />
-      <Toggle label="Docking request" command="RequestDocking" />
+    <div class="groups">
+      {#each GROUPS as g (g.title)}
+        <section class="group">
+          <h3>{g.title}</h3>
+          {#each g.items as t (t.cmd)}
+            <Toggle label={t.label} command={t.cmd} on={t.on?.() ?? false} hot={t.hot} />
+          {/each}
+        </section>
+      {/each}
     </div>
   </Panel>
 
@@ -169,10 +204,16 @@
 
   .fsd-body {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+    grid-template-columns: minmax(170px, 250px) minmax(150px, 0.8fr) minmax(0, 1.2fr);
     gap: 12px;
+    align-items: center;
   }
-  .gauge-col { display: grid; grid-template-columns: minmax(110px, 170px) 1fr; gap: 10px; align-items: center; }
+  .gauge { min-width: 0; }
+  .readouts { gap: 5px 10px; }
+  .readouts dd { font-size: 14px; }
+  .readouts .big { font-size: 22px; font-weight: 700; color: var(--text); line-height: 1.1; }
+  .readouts .big small { font-size: 12px; color: var(--muted); margin-left: 1px; }
+  .readouts .next { font-size: 15px; font-weight: 700; color: var(--telemetry); }
   .readouts, .t-facts {
     display: grid;
     grid-template-columns: auto 1fr;
@@ -199,31 +240,75 @@
   .t-sub { color: var(--telemetry); font-size: 11px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .t-facts { margin-top: 4px; grid-template-columns: auto 1fr auto 1fr; }
 
-  .jumps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 10px; }
-  .jump {
-    display: flex;
-    flex-direction: column;
+  /* drive actions: the most used buttons on the screen, sized for a thumb */
+  .drive { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr; gap: 6px; margin-top: 10px; }
+  .act {
+    --tone: var(--hud);
+    position: relative;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: 1fr auto;
     align-items: center;
-    gap: 2px;
-    padding: 10px 4px;
-    background: var(--steel);
-    border: 0;
-    color: var(--hud);
-    font-weight: 700;
-    letter-spacing: 0.08em;
+    gap: 0 10px;
+    min-height: 76px;
+    padding: 10px 12px 6px;
+    background: linear-gradient(to bottom, #2b2014, var(--steel));
+    border: 1px solid var(--rule);
+    border-top: 3px solid var(--tone);
+    color: var(--tone);
+    text-align: left;
+    clip-path: polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%);
   }
-  .jump.tele { color: var(--telemetry); }
-  .jump .key { color: var(--dim); font-size: 10px; font-weight: 400; letter-spacing: 0; }
-  .jump:active:not(:disabled) { background: var(--rule); }
-  .jump:disabled { opacity: 0.35; cursor: not-allowed; }
+  .act .icon { grid-row: 1 / span 2; font-size: 30px; line-height: 1; text-shadow: 0 0 10px var(--tone); }
+  .act .words { display: flex; flex-direction: column; min-width: 0; }
+  .act b { font-size: 15px; letter-spacing: 0.1em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .act .sub { color: var(--muted); font-size: 10px; letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .act .key { grid-column: 2; color: var(--dim); font-size: 10px; }
+  .act:active:not(:disabled) { filter: brightness(1.35); transform: translateY(1px); }
+  .act:disabled { opacity: 0.35; cursor: not-allowed; }
+  .act.cruise { --tone: var(--hud); }
+  .act.auto { --tone: var(--hud-hi); }
+  .act.target { --tone: var(--telemetry); }
 
-  /* switches grow to fill the panel: big touch targets, no dead space */
-  .switches {
+  /* HYPERSPACE: the hero, a lit cyan plate that glows harder while the drive charges */
+  .act.hero {
+    --tone: var(--void);
+    background: linear-gradient(120deg, #7fe7f0, var(--telemetry) 55%, #1f8e99);
+    border: 0;
+    box-shadow: 0 0 18px rgb(55 198 212 / 0.35);
+  }
+  .act.hero b { font-size: 18px; letter-spacing: 0.14em; }
+  .act.hero .sub, .act.hero .key { color: rgb(11 7 5 / 0.7); font-weight: 700; }
+  .act.hero .icon { text-shadow: none; }
+  .act.hero.charging { animation: charge 0.45s ease-in-out infinite alternate; }
+  @keyframes charge { to { filter: brightness(1.35); box-shadow: 0 0 34px rgb(55 198 212 / 0.8); } }
+  .act.hero.locked { background: linear-gradient(120deg, #8a3d34, #5c2620); --tone: #ffd0c8; }
+  .act.hero.locked .sub { color: #ffd0c8; }
+
+  /* switches in four groups of three; they fill the panel height */
+  .groups {
     flex: 1;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    grid-auto-rows: minmax(52px, 1fr);
-    gap: 6px;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 8px;
+  }
+  .group {
+    display: grid;
+    grid-template-rows: auto repeat(3, minmax(56px, 1fr));
+    gap: 5px;
+    padding: 0 6px 6px;
+    border: 1px solid var(--rule);
+    background: linear-gradient(to bottom, rgb(255 122 24 / 0.05), transparent 40%);
+  }
+  .group h3 {
+    margin: 0 -6px;
+    padding: 4px 8px;
+    color: var(--hud-hi);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--rule);
   }
 
   .hops { list-style: none; margin: 0; padding: 0; }

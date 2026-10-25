@@ -22,11 +22,12 @@
 <style>
   .toggle {
     position: relative;
-    display: grid;
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
     gap: 3px;
     padding: 10px 10px 7px;
-    min-height: 52px;
+    min-height: 56px;
     background: linear-gradient(to bottom, #2b2014, var(--steel));
     border: 1px solid var(--rule);
     color: var(--muted);

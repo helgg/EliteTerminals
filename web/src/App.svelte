@@ -101,7 +101,7 @@
         </div>
       </div>
     </Panel>
-    <Panel title="Power" aside="SYS · ENG · WEP">
+    <Panel title="Power" aside="tap to add">
       <Pips sys={s.pips.sys} eng={s.pips.eng} wep={s.pips.wep} />
     </Panel>
     <SystemPanel {s} />

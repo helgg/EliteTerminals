@@ -48,4 +48,6 @@ export function sendCommand(command: string) {
   inFlight.set(id, command);
   const msg: ClientMessage = { type: 'command', id, command };
   socket.send(JSON.stringify(msg));
+  // A short tick under the finger on tablets that can vibrate (not iPad/Safari).
+  try { navigator.vibrate?.(12); } catch {}
 }
