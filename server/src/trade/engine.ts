@@ -61,6 +61,7 @@ function end(m: TradeMarket, me: [number, number, number], now: number): TradeEn
   return {
     marketId: m.marketId, station: m.station, system: m.system, ls: m.ls, type: m.type, pad: padOf(m),
     planetary: m.planetary, state: m.state ?? '', fromMe: dist(me, m.pos), ageH: ageHours(m, now),
+    live: m.source === 'local',
   };
 }
 

@@ -21,6 +21,7 @@
         <span>{cr(e.ls)}ls</span>
         <span>PAD {e.pad}</span>
         <span class={ageTone(e.ageH)}>{ageLabel(e.ageH)}</span>
+        {#if e.live}<span class="live" title="Prices and stock from your own Market.json">● OWN DATA</span>{/if}
         {#if e.state && e.state !== 'None'}<span class="state">{e.state.toUpperCase()}</span>{/if}
       </div>
     </div>
@@ -64,5 +65,6 @@
   .ok { color: var(--ok); }
   .stale { color: var(--danger); }
   .state { color: var(--telemetry); font-weight: 700; }
+  .live { color: var(--ok); font-weight: 700; }
   .sub { font-size: 10px; }
 </style>

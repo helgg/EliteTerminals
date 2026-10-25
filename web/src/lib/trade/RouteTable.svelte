@@ -26,7 +26,7 @@
     age: 'Oldest price of the two markets',
   };
   const GROUPS: { top: [Key, string]; bottom?: [Key, string] }[] = [
-    { top: ['profit', 'Cr/t'], bottom: ['pct', '%'] },
+    { top: ['profit', 'Loop Cr/t'], bottom: ['pct', 'Loop %'] },
     { top: ['total', 'Total'] },
     { top: ['loopPerHour', 'Cr/h'] },
     { top: ['hopLy', 'Ly'], bottom: ['fromMe', '⌖Ly'] },

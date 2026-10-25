@@ -295,6 +295,8 @@ export interface TradeEnd {
   /** Distance from the player, in ly. */
   fromMe: number;
   ageH: number;
+  /** Prices from the player's own Market.json (what the game showed), not from Spansh. */
+  live?: boolean;
 }
 
 /** One commodity of a cargo load. */

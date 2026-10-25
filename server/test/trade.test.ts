@@ -8,7 +8,7 @@ import {
   acceptsMarket, bestLeg, commodityKey, commodityQuotes, computeTrade, legSeconds, levelEstimator, supercruiseSeconds,
 } from '../src/trade/engine.ts';
 import { fromSpanshStation, searchBody } from '../src/trade/markets.ts';
-import { withLocalMarket } from '../src/trade/service.ts';
+import { withLocalMarket, withLocalMarkets } from '../src/trade/service.ts';
 
 const NOW = Date.parse('2026-10-24T12:00:00Z');
 const hoursAgo = (h: number) => new Date(NOW - h * 3.6e6).toISOString();
@@ -150,6 +150,23 @@ test('local Market.json replaces an older Spansh copy of the same station', () =
   assert.equal(merged.items[0].buy, 210);
   assert.equal(merged.items[0].supplyBracket, 1); // the game's own bracket survives the merge
   assert.equal(merged.ls, 1000); // station metadata kept from Spansh
+});
+
+test('the docked station uses its Market.json even when Spansh has a newer copy', () => {
+  const remote = market(7, [0, 0, 0], [item('Tea', 200, 180)], { updatedAt: hoursAgo(0.05) });
+  const snap = {
+    marketId: 7, station: 'S7', stationType: 'Coriolis', system: 'Sys7', updatedAt: hoursAgo(0.5),
+    items: [{ name: '$tea_name;', label: 'Tea', category: '', buy: 210, sell: 0, meanPrice: 0, stock: 5, demand: 0, stockBracket: 1, demandBracket: 0 }],
+  };
+  assert.equal(withLocalMarkets([remote], [snap])[0].source, 'spansh'); // not docked: the newer copy wins
+  const [docked] = withLocalMarkets([remote], [snap], 7);
+  assert.equal(docked.source, 'local');
+  assert.equal(docked.items[0].supply, 5);
+  const b = market(8, [10, 0, 0], [item('Tea', 0, 1600)]);
+  const me = { pos: [0, 0, 0] as [number, number, number], systemId64: 0, marketId: 7 };
+  const r = computeTrade([docked, b], Q, me, 'Sys7', NOW);
+  assert.equal(r.routes[0].src.live, true); // shown as the player's own data
+  assert.equal(r.routes[0].dst.live, false);
 });
 
 test('faction-state filter keeps routes touching a market in that state', () => {

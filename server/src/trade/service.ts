@@ -18,7 +18,8 @@ export class TradeService {
   }
 
   private local(fetched: TradeMarket[]) {
-    return withLocalMarkets(fetched, [this.state().market, ...this.visited()]);
+    const s = this.state();
+    return withLocalMarkets(fetched, [s.market, ...this.visited()], s.flags.docked ? s.market.marketId : 0);
   }
 
   async routes(q: TradeQuery, force = false): Promise<TradeResult> {
@@ -44,8 +45,11 @@ const me = (s: EdState) => ({
   marketId: s.flags.docked ? s.market.marketId : 0,
 });
 
-/** The player's own Market.json snapshots are newer than most crowd-sourced copies of those stations: use them. */
-export function withLocalMarkets(markets: TradeMarket[], snapshots: MarketSnapshot[]): TradeMarket[] {
+/**
+ * The player's own Market.json snapshots are newer than most crowd-sourced copies of those stations: use them.
+ * The station the player is docked at always uses its Market.json: it is what the game shows right now.
+ */
+export function withLocalMarkets(markets: TradeMarket[], snapshots: MarketSnapshot[], dockedAt = 0): TradeMarket[] {
   const byId = new Map<number, MarketSnapshot>();
   for (const m of snapshots) {
     const seen = byId.get(m.marketId);
@@ -54,7 +58,7 @@ export function withLocalMarkets(markets: TradeMarket[], snapshots: MarketSnapsh
   if (!byId.size) return markets;
   return markets.map((remote) => {
     const local = byId.get(remote.marketId);
-    if (!local || Date.parse(remote.updatedAt) >= Date.parse(local.updatedAt)) return remote;
+    if (!local || (local.marketId !== dockedAt && Date.parse(remote.updatedAt) >= Date.parse(local.updatedAt))) return remote;
     // Keep Spansh's English names where the commodity matches; journal names are localised.
     const names = new Map(remote.items.map((i) => [commodityKey(i.name), i.name]));
     return {

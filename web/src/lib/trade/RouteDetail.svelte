@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { TradeEnd, TradeRoute } from '@et/shared';
+  import type { TradeEnd, TradeLeg, TradeRoute } from '@et/shared';
   import Hologram from '../Hologram.svelte';
   import Name from '../Name.svelte';
   import Hop from './Hop.svelte';
@@ -9,6 +9,8 @@
 
   // The selected loop, cockpit style: buy at A, sell at B, buy the way-back load at B, sell it at A.
   let { route, jumpRange }: { route: TradeRoute | null; jumpRange: number } = $props();
+  // Return on what the cargo cost: the same figure as the table's % column.
+  const pct = (gain: number, cost: number) => (cost > 0 ? `${((gain / cost) * 100).toFixed(0)}%` : '—');
 </script>
 
 {#snippet station(e: TradeEnd, step: string)}
@@ -22,14 +24,22 @@
         <span>{cr(e.ls)}ls</span>
         <span>PAD {e.pad}</span>
         <span class={ageTone(e.ageH)}>{ageLabel(e.ageH)}</span>
+        {#if e.live}<span class="live" title="Prices and stock from your own Market.json">● OWN DATA</span>{/if}
         {#if e.state && e.state !== 'None'}<span class="state">{e.state.toUpperCase()}</span>{/if}
       </div>
     </div>
   </div>
 {/snippet}
 
+{#snippet leg(label: string, l: TradeLeg | null)}
+  <dt>{label}</dt>
+  <dd>{#if l}<span class="gain">+{short(l.total)} Cr</span> · {short(l.total / l.amount)} Cr/t · {pct(l.total, l.cost)}{:else}<span class="dim">empty</span>{/if}</dd>
+{/snippet}
+
 {#if route}
   {@const total = route.leg.total + (route.back?.total ?? 0)}
+  {@const tons = route.leg.amount + (route.back?.amount ?? 0)}
+  {@const cost = route.leg.cost + (route.back?.cost ?? 0)}
   <div class="detail">
     <StartDistance start={route.src} {jumpRange} />
     {@render station(route.src, 'A · BUY')}
@@ -40,9 +50,10 @@
     <Hop up label="BACK TO A · SELL ALL" />
 
     <dl class="facts">
-      <dt>LOOP</dt><dd class="gain">+{short(total)} Cr per loop</dd>
+      <dt>LOOP</dt><dd><b class="gain">+{short(total)} Cr</b> · {short(total / tons)} Cr/t · {pct(total, cost)}</dd>
       <dt>CR/H</dt><dd class="tele">{short(route.loopPerHour)} Cr</dd>
-      <dt>OUT ONLY</dt><dd>+{short(route.leg.total)} Cr · {short(route.perHour)} Cr/h · {route.pct.toFixed(0)}%</dd>
+      {@render leg('OUT A→B', route.leg)}
+      {@render leg('BACK B→A', route.back)}
     </dl>
   </div>
 {:else}
@@ -62,6 +73,7 @@
   .ok { color: var(--hud-hi); }
   .stale { color: var(--danger); }
   .state { color: var(--telemetry); font-weight: 700; }
+  .live { color: var(--ok); font-weight: 700; }
   .facts { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 2px 0 0; font-size: 12px; }
   dt { color: var(--dim); font-size: 10px; letter-spacing: 0.1em; align-self: center; }
   dd { margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
