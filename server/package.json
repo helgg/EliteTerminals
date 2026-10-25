@@ -13,10 +13,12 @@
     "@fastify/websocket": "^11.2.0",
     "fast-xml-parser": "^5.11.2",
     "fastify": "^5.6.1",
-    "koffi": "^2.16.3"
+    "koffi": "^2.16.3",
+    "qrcode": "^1.5.4"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
+    "@types/qrcode": "^1.5.5",
     "typescript": "^5.9.3"
   }
 }

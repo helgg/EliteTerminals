@@ -299,6 +299,18 @@ export interface TradeEnd {
   live?: boolean;
 }
 
+/** An address of this PC where other devices can open the panel, with its QR code (SVG markup). */
+export interface PanelAddress {
+  url: string;
+  /** Network adapter name, e.g. "Ethernet" or "Wi-Fi". */
+  name: string;
+  /** The adapter the PC routes through: the one phones on the same Wi-Fi can reach. */
+  primary: boolean;
+  /** VirtualBox, WSL, Hyper-V...: not reachable from other devices. */
+  virtual: boolean;
+  svg: string;
+}
+
 /** One commodity of a cargo load. */
 export interface LegItem {
   commodity: string;

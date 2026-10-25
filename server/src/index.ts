@@ -1,6 +1,6 @@
 // Local server: reads the game's journals and serves state + the web UI to the LAN.
 import { existsSync } from 'node:fs';
-import { networkInterfaces, homedir } from 'node:os';
+import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import Fastify from 'fastify';
 import fastifyStatic from '@fastify/static';
@@ -15,6 +15,7 @@ import { MarketScanner } from './trade/markets.ts';
 import { TradeService } from './trade/service.ts';
 import { MarketHistory } from './marketHistory.ts';
 import { clipText, setClipboard } from './clipboard.ts';
+import { panelAddresses } from './lan.ts';
 
 const PORT = Number(process.env.PORT ?? 8420);
 const HOST = process.env.HOST ?? '0.0.0.0';
@@ -129,6 +130,7 @@ app.post('/api/trade/routes', async (req, reply) => {
   }
 });
 
+app.get('/api/connect', async () => panelAddresses(PORT));
 app.get('/api/market/history', async () => history.markets);
 
 app.post('/api/clipboard', async (req, reply) => {
@@ -159,10 +161,7 @@ controls.start();
 await reader.start();
 await app.listen({ port: PORT, host: HOST });
 
-const lan = Object.values(networkInterfaces())
-  .flat()
-  .filter((i) => i && i.family === 'IPv4' && !i.internal)
-  .map((i) => `http://${i!.address}:${PORT}`);
+const lan = (await panelAddresses(PORT)).filter((a) => !a.virtual).map((a) => a.url);
 app.log.info(
   { journalDir: JOURNAL_DIR, presets: controls.presets, boundActions: Object.keys(controls.keyLabels()).length, open: lan },
   'EliteTerminals ready',

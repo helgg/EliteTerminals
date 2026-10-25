@@ -9,12 +9,14 @@
   import Trade from './screens/Trade.svelte';
   import Name from './lib/Name.svelte';
   import { copied } from './lib/copy.svelte.ts';
+  import ConnectQr from './lib/ConnectQr.svelte';
 
   const TABS = ['FLIGHT', 'COMBAT', 'EXPLORE', 'MINING', 'TRADE', 'SRV', 'CARRIER'] as const;
   type Tab = (typeof TABS)[number];
 
   let tab = $state<Tab>(readTab());
   let now = $state(Date.now());
+  let showQr = $state(false);
 
   onMount(() => {
     connect();
@@ -54,10 +56,10 @@
 
 <div class="shell" class:wide={tab === 'TRADE'}>
   <header class="top">
-    <div class="brand">
+    <button class="brand" onclick={() => (showQr = true)} title="Open the panel on a phone or tablet (QR code)">
       <span class="logo">ED·ET</span>
-      <span class="sub dim">TERMINALS</span>
-    </div>
+      <span class="sub dim">TERMINALS <span class="qr-hint">▣</span></span>
+    </button>
     <div class="where">
       <div class="sys"><Name value={s.location.system} system /> <span class="dim">/</span> <span class="muted">{where}</span></div>
       <div class="line tele">
@@ -143,6 +145,8 @@
   </footer>
 </div>
 
+<ConnectQr bind:open={showQr} />
+
 <style>
   .shell {
     display: grid;
@@ -162,7 +166,12 @@
     border-bottom: 1px solid var(--hud);
     box-shadow: 0 1px 0 rgb(255 122 24 / 0.25);
   }
-  .brand { display: flex; flex-direction: column; }
+  .brand {
+    display: flex; flex-direction: column; align-items: flex-start; padding: 2px 6px 2px 0;
+    background: none; border: 0; text-align: left; cursor: pointer;
+  }
+  .brand:active .logo { filter: brightness(1.4); }
+  .qr-hint { color: var(--hud); }
   .logo { color: var(--hud); font-size: 20px; font-weight: 700; letter-spacing: 0.08em; text-shadow: var(--glow); }
   .sub { font-size: 9px; letter-spacing: 0.15em; }
   .where { min-width: 0; flex: 1; }
