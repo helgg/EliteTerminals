@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { CommodityQuote, TradeQuery } from '@et/shared';
   import Name from '../Name.svelte';
+  import PadBadge from '../PadBadge.svelte';
   import { ageLabel, ageTone, cr, short } from '../format.ts';
 
   // Where to buy a commodity cheapest and where to sell it dearest, within the scanned area.
@@ -37,7 +38,7 @@
           <tr class={ageTone(q.end.ageH)}>
             <td class="c-st">
               <div class="st"><Name value={q.end.station} stationType={q.end.type} icon /></div>
-              <div class="dim sub"><Name value={q.end.system} system /> · {q.end.pad} · {short(q.end.ls)}ls</div>
+              <div class="dim sub"><Name value={q.end.system} system /> <PadBadge pad={q.end.pad} size={11} /> {short(q.end.ls)}ls</div>
             </td>
             <td class="r num price">{cr(q.price)}</td>
             <td class="r num muted">{short(q.volume)}</td>

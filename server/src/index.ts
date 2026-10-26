@@ -64,7 +64,17 @@ function refreshGalaxy() {
     const d = galaxy.get(id);
     if (d) systems[id] = summary(d);
   }
-  s.galaxy = { systems, current: galaxy.get(current), target: target ? galaxy.get(target) : null };
+  // a body (not a station) targeted in this system: ask for its rings
+  const d = s.destination;
+  const here = galaxy.get(current);
+  const isStation = here?.stations.some((st) => st.name.toLowerCase() === d.name.toLowerCase());
+  let targetBody: typeof s.galaxy.targetBody = null;
+  if (d.system && d.system === current && d.body > 0 && d.name && !isStation) {
+    galaxy.wantBody(d.system, d.body);
+    const rings = galaxy.bodyRings(d.system, d.body);
+    if (rings) targetBody = { system: d.system, body: d.body, rings };
+  }
+  s.galaxy = { systems, current: here, target: target ? galaxy.get(target) : null, targetBody };
 }
 
 let lastMarketAt = '';

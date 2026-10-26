@@ -2,6 +2,7 @@
   import type { TradeEnd, TradeLeg, TradeRoute } from '@et/shared';
   import Hologram from '../Hologram.svelte';
   import Name from '../Name.svelte';
+  import PadBadge from '../PadBadge.svelte';
   import Hop from './Hop.svelte';
   import LoadList from './LoadList.svelte';
   import StartDistance from './StartDistance.svelte';
@@ -22,7 +23,7 @@
       <div class="sys"><Name value={e.system} system icon /></div>
       <div class="meta">
         <span>{cr(e.ls)}ls</span>
-        <span>PAD {e.pad}</span>
+        <PadBadge pad={e.pad} />
         <span class={ageTone(e.ageH)}>{ageLabel(e.ageH)}</span>
         {#if e.live}<span class="live" title="Prices and stock from your own Market.json">● OWN DATA</span>{/if}
         {#if e.state && e.state !== 'None'}<span class="state">{e.state.toUpperCase()}</span>{/if}

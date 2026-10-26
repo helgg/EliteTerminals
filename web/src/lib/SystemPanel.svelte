@@ -1,9 +1,11 @@
 <script lang="ts">
   import type { EdState } from '@et/shared';
   import Panel from './Panel.svelte';
-  import ScoopIcon from './ScoopIcon.svelte';
+  import StarIcon from './StarIcon.svelte';
+  import PadBadge, { largestPad } from './PadBadge.svelte';
+  import ServiceIcon, { serviceKinds } from './ServiceIcon.svelte';
   import Name from './Name.svelte';
-  import { ALLEGIANCE, isScoopable, securityTone, starClass, starColor } from './astro.ts';
+  import { ALLEGIANCE, norm, securityTone, starClass, starColor } from './astro.ts';
 
   // Current system at a glance: journal data first (fresh), Spansh to fill the gaps.
   let { s }: { s: EdState } = $props();
@@ -18,6 +20,8 @@
   const cls = $derived(starClass(g?.primaryStar ?? ''));
   const stations = $derived(g ? g.stations.filter((x) => !/carrier/i.test(x.type)).length : null);
   const carriers = $derived(g ? g.stations.length - (stations ?? 0) : null);
+  // the station we're docked at, as Spansh lists it, for its pad and services
+  const docked = $derived(loc.station ? g?.stations.find((x) => norm(x.name) === norm(loc.station)) : undefined);
   const pop = (n: number) =>
     n >= 1e9 ? `${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(0)}k` : String(n);
 </script>
@@ -25,8 +29,7 @@
 <Panel class="system" scroll={false} title="System" aside={g?.updatedAt ? `spansh ${g.updatedAt.slice(0, 10)}` : ''}>
   <div class="sys">
     <div class="name">
-      {#if cls}<span class="cls" style:color={starColor(cls)}>{cls}</span>{/if}
-      {#if isScoopable(cls)}<ScoopIcon size={11} />{/if}
+      {#if cls}<StarIcon {cls} size={12} /><span class="cls" style:color={starColor(cls)}>{cls}</span>{/if}
       <Name value={loc.system} system />
     </div>
     <dl>
@@ -43,7 +46,12 @@
       {#if stations !== null}<dt>PORTS</dt><dd class="num">{stations} <span class="dim">· {carriers} carriers · {g?.bodies.length} bodies</span></dd>{/if}
     </dl>
     {#if loc.station}
-      <div class="docked"><span class="dim">DOCKED</span> <Name value={loc.station} stationType={loc.stationType} icon /> <span class="dim">{loc.stationType}</span></div>
+      <div class="docked"><span class="dim">DOCKED</span> <Name value={loc.station} stationType={loc.stationType} icon /> <span class="dim">{loc.stationType}</span>
+        {#if docked}
+          {#if largestPad(docked.pads)}<PadBadge pad={largestPad(docked.pads)} />{/if}
+          <span class="svcs">{#each serviceKinds(docked.services) as k (k)}<ServiceIcon kind={k} />{/each}</span>
+        {/if}
+      </div>
     {/if}
   </div>
 </Panel>
@@ -56,5 +64,6 @@
   dt { color: var(--dim); font-size: 10px; letter-spacing: 0.1em; align-self: center; }
   dd { margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .state { color: var(--telemetry); font-size: 11px; }
-  .docked { font-size: 11px; padding-top: 4px; border-top: 1px solid var(--rule); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .docked { font-size: 11px; padding-top: 4px; border-top: 1px solid var(--rule); display: flex; flex-wrap: wrap; align-items: center; gap: 2px 5px; }
+  .docked .svcs { display: inline-flex; gap: 2px; }
 </style>

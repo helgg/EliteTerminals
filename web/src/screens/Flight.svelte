@@ -6,6 +6,9 @@
   import FsdGauge from '../lib/FsdGauge.svelte';
   import Hologram from '../lib/Hologram.svelte';
   import ScoopIcon from '../lib/ScoopIcon.svelte';
+  import StarIcon from '../lib/StarIcon.svelte';
+  import PadBadge from '../lib/PadBadge.svelte';
+  import ServiceIcon, { serviceKinds } from '../lib/ServiceIcon.svelte';
   import Name from '../lib/Name.svelte';
   import ShipPanel from '../lib/ShipPanel.svelte';
   import Pips from '../lib/Pips.svelte';
@@ -162,6 +165,10 @@
       {#each target.facts as [k, v] (k)}
         <dt>{k}</dt><dd title={v}>{v}</dd>
       {/each}
+      {#if target.pad}<dt>PAD</dt><dd><PadBadge pad={target.pad} /></dd>{/if}
+      {#if target.services && serviceKinds(target.services).length}
+        <dt>SVC</dt><dd class="svcs">{#each serviceKinds(target.services) as k (k)}<ServiceIcon kind={k} size={14} />{/each}</dd>
+      {/if}
     </dl>
   </div>
 {/snippet}
@@ -174,8 +181,8 @@
       {#each ahead.slice(0, max) as h, i (h.address || i)}
         {#if i}<span class="sep">›</span>{/if}
         <span class="hop">
+          <StarIcon cls={h.cls} size={11} />
           <span class="cls" style:color={starColor(h.cls)}>{h.cls || '?'}</span>
-          {#if isScoopable(h.cls)}<ScoopIcon size={10} />{/if}
           <Name value={h.system} system />
         </span>
       {/each}
@@ -221,8 +228,8 @@
         <li class:here={i === hereIdx} class:done={hereIdx >= 0 && i < hereIdx}>
           <div class="l1">
             <span class="idx num">{String(i).padStart(2, '0')}</span>
+            <StarIcon cls={h.cls} size={12} />
             <span class="cls {h.kind}" style:color={starColor(h.cls)} title="Class {h.cls}">{h.cls || '?'}</span>
-            {#if isScoopable(h.cls)}<ScoopIcon size={11} />{:else}<span class="noscoop"></span>{/if}
             <span class="name"><Name value={h.system} system /></span>
             {#if h.jump}<span class="jump-ly num">{h.jump.toFixed(1)}</span>{/if}
           </div>
@@ -565,6 +572,7 @@
   .t-sub { color: var(--telemetry); font-size: 11px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .t-facts { margin-top: 4px; grid-template-columns: auto 1fr auto 1fr; }
   /* long facts (services, power) wrap instead of ending in "…" */
+  .t-facts .svcs { display: flex; flex-wrap: wrap; gap: 3px; }
   .t-facts dd { white-space: normal; overflow-wrap: anywhere; line-height: 1.25; }
 
   /* drive actions: the most used buttons on the screen, sized for a thumb */
@@ -646,7 +654,6 @@
   .idx { color: var(--faint); font-size: 11px; width: 1.6em; }
   .cls { font-weight: 700; min-width: 1.6em; text-align: center; font-size: 12px; }
   .cls.neutron, .cls.whiteDwarf { text-decoration: underline wavy var(--danger); }
-  .noscoop { width: 11px; flex: none; }
   .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .here .name { color: var(--hud); font-weight: 700; }
   .jump-ly { color: var(--dim); font-size: 11px; }

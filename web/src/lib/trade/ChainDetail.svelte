@@ -4,6 +4,7 @@
   import LoadList from './LoadList.svelte';
   import StartDistance from './StartDistance.svelte';
   import Name from '../Name.svelte';
+  import PadBadge from '../PadBadge.svelte';
   import { ageLabel, ageTone, cr, duration, short } from '../format.ts';
 
   // The selected linear route as a checklist: at each stop sell everything, then buy the listed load.
@@ -19,7 +20,7 @@
       <div class="meta">
         <span class="sys"><Name value={e.system} system icon /></span>
         <span>{cr(e.ls)}ls</span>
-        <span>PAD {e.pad}</span>
+        <PadBadge pad={e.pad} />
         <span class={ageTone(e.ageH)}>{ageLabel(e.ageH)}</span>
         {#if e.live}<span class="live" title="Prices and stock from your own Market.json">● OWN DATA</span>{/if}
         {#if e.state && e.state !== 'None'}<span class="state">{e.state.toUpperCase()}</span>{/if}

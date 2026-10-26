@@ -3,10 +3,20 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { initialState } from '@et/shared';
-import { fromSpansh, summary } from '../src/galaxy.ts';
+import { bodyId64, fromSpansh, ringTypes, summary } from '../src/galaxy.ts';
 import { applyEvent } from '../src/reducer.ts';
 
 const FIXTURE = resolve(import.meta.dirname, 'fixtures/spansh-system-LHS412.json');
+
+test('body id64 packs the body id over the system address, past 2^53', () => {
+  // Saturn: body 13 in Sol, as Spansh lists it
+  assert.equal(bodyId64(10477373803, 13), '468374371723905387');
+});
+
+test('ring types come from a Spansh body record, without repeats', () => {
+  assert.deepEqual(ringTypes({ rings: [{ name: 'A Ring', type: 'Icy' }, { name: 'B Ring', type: 'Icy' }, { name: 'C Ring', type: 'Rocky' }] }), ['Icy', 'Rocky']);
+  assert.deepEqual(ringTypes({ name: 'no rings' }), []);
+});
 
 test('Spansh record maps to system detail', () => {
   const d = fromSpansh(JSON.parse(readFileSync(FIXTURE, 'utf8')).record);

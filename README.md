@@ -34,7 +34,7 @@ a second.
 - Ship systems in four groups (flight, combat, HUD & lights, nav), lit by the game's status flags.
 - Fuel, cargo, hull and laden jump range, plus legal state and warnings (heat, danger, interdiction, low fuel).
 - Target hologram and route list with star class, fuel stars, jump distance, security and powerplay,
-  enriched from Spansh.
+  enriched from Spansh. Station targets show the landing pad and services; ringed planets show their rings.
 
 **COMBAT**
 
@@ -79,6 +79,17 @@ a second.
 - Installable as a full-screen web app (Android, iPadOS and iOS "Add to Home Screen"), with a reload button
   since home-screen apps have no browser bar.
 - Haptic feedback on touch devices.
+
+**Icons and holograms**
+
+![Station, service and hologram set](docs/images/icons.jpg)
+
+- Filled icons for every kind of station, landing pad size, station services, star classes and planet types,
+  in the HUD palette. Fuel stars carry an amber notch.
+- Holograms for each station type (the Coriolis and Dodec turn with their docking slot), carriers and
+  megaships, stars, planets (with rings when they have them), nav beacons, extraction sites, conflict zones
+  and other signals.
+- Open `http://localhost:8420/?sheet=icons` to see the whole set.
 
 > EXPLORE, MINING, SRV and CARRIER tabs are planned. See the [roadmap](#roadmap).
 
@@ -160,11 +171,11 @@ clipped text. Add `?tab=combat` (and `&page=survive` for a phone page) to open e
 | `server/src/binds.ts`, `controls.ts`, `input.ts` | Key bindings → scancodes → game window |
 | `server/src/combat.ts` | Contacts, massacre missions, bounties and bonds, fighter, consumables |
 | `server/src/trade/` | Market scan, route engine (loops, linear chains, mixed loads) |
-| `server/src/galaxy.ts` | Spansh system lookups with a disk cache |
+| `server/src/galaxy.ts` | Spansh system lookups with a disk cache, and rings of the targeted body |
 | `web/src/hud.css` | Elite HUD design tokens |
 | `web/src/screens/` | FLIGHT, COMBAT and TRADE screens |
 | `web/src/lib/macros.svelte.ts` | Multi-key macros, each step checked against the game's state |
-| `web/src/lib/` | HUD components: FSD ring, pips, throttle, hologram, panels |
+| `web/src/lib/` | HUD components: FSD ring, pips, throttle, hologram, panels, icons |
 
 ## Roadmap
 
@@ -174,6 +185,7 @@ clipped text. Add `?tab=combat` (and `&page=survive` for a phone page) to open e
 - [ ] TRADE layouts for phones and tablets
 - [ ] Live prices from EDDN with a local database
 - [x] COMBAT: contacts by bounty, target picking, massacre missions, session, console of checked macros
+- [x] Icons and holograms: stations, pads, services, stars, planets with rings, signals
 - [ ] SRV screen
 - [ ] EXPLORE and MINING screens
 - [ ] CARRIER screen

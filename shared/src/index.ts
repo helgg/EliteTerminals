@@ -169,6 +169,8 @@ export interface EdState {
     systems: Record<string, SystemInfo>;
     current: SystemDetail | null;
     target: SystemDetail | null;
+    /** The body targeted in this system, from Spansh's body endpoint: ring types ("Icy"…), empty when none. */
+    targetBody: { system: number; body: number; rings: string[] } | null;
   };
   target: {
     locked: boolean;
@@ -303,7 +305,7 @@ export function initialState(): EdState {
     },
     destination: { system: 0, body: 0, name: '' },
     route: { hops: [], fsdTarget: '', fsdTargetAddress: 0, remainingJumps: 0 },
-    galaxy: { systems: {}, current: null, target: null },
+    galaxy: { systems: {}, current: null, target: null, targetBody: null },
     target: {
       locked: false, ship: '', pilot: '', rank: '', faction: '', legalStatus: '', bounty: 0,
       shield: null, hull: null, subsystem: '', subsystemId: '', subsystemHealth: null, scanStage: 0, seq: 0,

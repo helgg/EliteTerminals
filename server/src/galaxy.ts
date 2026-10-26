@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import type { BodyInfo, StationInfo, SystemDetail, SystemInfo } from '@et/shared';
 
 const ENDPOINT = 'https://spansh.co.uk/api/system/';
+const BODY_ENDPOINT = 'https://spansh.co.uk/api/body/';
 const USER_AGENT = 'EliteTerminals/0.1 (personal second-screen tool)';
 const SPACING_MS = 400;
 const TTL_MS = 24 * 3600e3;
@@ -13,6 +14,15 @@ const RETRY_FAILED_MS = 10 * 60e3;
 
 const str = (v: unknown) => (typeof v === 'string' ? v : '');
 const num = (v: unknown) => (typeof v === 'number' ? v : 0);
+
+/** Spansh body id64: the in-system body id in the top bits over the system address. Passes 2^53, so a string. */
+export const bodyId64 = (system: number, body: number) => ((BigInt(body) << 55n) | BigInt(system)).toString();
+
+/** Ring types of a Spansh body record ("Icy", "Rocky"…), without repeats; empty when it has none. */
+export function ringTypes(r: any): string[] {
+  if (!Array.isArray(r?.rings)) return [];
+  return [...new Set<string>(r.rings.map((x: any) => str(x?.type)).filter(Boolean))];
+}
 
 /** Maps a Spansh `record` to our model. Pure, so it can be tested against a saved response. */
 export function fromSpansh(r: any): SystemDetail {
@@ -62,6 +72,8 @@ type Entry = { detail: SystemDetail | null; fetchedAt: number };
 
 export class Galaxy extends EventEmitter {
   private cache = new Map<number, Entry>();
+  /** Ring types per body id64; looked up only for the body the player targets. */
+  private rings = new Map<string, { rings: string[] | null; fetchedAt: number }>();
   private queue: number[] = [];
   private running = false;
   private saveTimer: NodeJS.Timeout | null = null;
@@ -83,6 +95,34 @@ export class Galaxy extends EventEmitter {
 
   get(id64: number): SystemDetail | null {
     return this.cache.get(id64)?.detail ?? null;
+  }
+
+  /** Ring types of a body in a system, or null while unknown. */
+  bodyRings(system: number, body: number): string[] | null {
+    return this.rings.get(bodyId64(system, body))?.rings ?? null;
+  }
+
+  /** Fetches one body's rings, once per run (and again after a failure, later). */
+  wantBody(system: number, body: number) {
+    const id = bodyId64(system, body);
+    const e = this.rings.get(id);
+    if (e && (e.rings || Date.now() - e.fetchedAt < RETRY_FAILED_MS)) return;
+    this.rings.set(id, { rings: null, fetchedAt: Date.now() });
+    void (async () => {
+      try {
+        const res = await fetch(BODY_ENDPOINT + id, {
+          headers: { 'User-Agent': USER_AGENT, Accept: 'application/json' },
+          signal: AbortSignal.timeout(15000),
+        });
+        if (!res.ok) return;
+        const rec = ((await res.json()) as any)?.record;
+        if (!rec) return;
+        this.rings.set(id, { rings: ringTypes(rec), fetchedAt: Date.now() });
+        this.emit('change');
+      } catch {
+        // stays unknown; retried after RETRY_FAILED_MS
+      }
+    })();
   }
 
   /** Queues lookups for systems we have no fresh data for; current/target go first. */

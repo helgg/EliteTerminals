@@ -2,6 +2,7 @@
 import type { BodyInfo, EdState, StationInfo, SystemDetail } from '@et/shared';
 import type { HoloTarget } from './Hologram.svelte';
 import { isScoopable, norm, starClass } from './astro.ts';
+import { largestPad } from './PadBadge.svelte';
 
 export interface TargetView {
   holo: HoloTarget;
@@ -11,6 +12,9 @@ export interface TargetView {
   subtitle: string;
   facts: [string, string][];
   scoopable: boolean;
+  /** Stations only: largest pad and Spansh service names, drawn as icons. */
+  pad?: string;
+  services?: string[];
   /** Spansh had no data (yet) for this target. */
   pending: boolean;
 }
@@ -46,11 +50,11 @@ export function resolveTarget(s: EdState): TargetView {
     const station = detail?.stations.find((st) => norm(st.name) === key);
     if (station) return stationView(station);
     const body = detail?.bodies.find((b) => norm(b.name) === key);
-    if (body) return bodyView(body);
-    return {
-      holo: { kind: 'unknown' }, label: 'DESTINATION', name: dest.name, subtitle: 'no data',
-      facts: [], scoopable: false, pending: !detail,
-    };
+    if (body) {
+      const tb = s.galaxy.targetBody;
+      return bodyView(body, tb && tb.system === dest.system && tb.body === dest.body ? tb.rings : []);
+    }
+    return signalView(dest.name, !detail);
   }
 
   return {
@@ -70,26 +74,37 @@ function systemFacts(d: SystemDetail | null): [string, string][] {
 }
 
 function stationView(st: StationInfo): TargetView {
-  const pad = st.pads.l ? 'L' : st.pads.m ? 'M' : st.pads.s ? 'S' : '—';
-  const facts: [string, string][] = [['DIST', ls(st.distance)], ['PAD', pad]];
-  const has = (svc: string) => st.services.some((x) => x.toLowerCase() === svc);
-  const svc = [has('refuel') && 'FUEL', has('repair') && 'REP', has('restock') && 'AMMO', has('market') && 'MKT',
-    has('shipyard') && 'YARD', has('outfitting') && 'OUTF'].filter(Boolean).join(' ');
-  if (svc) facts.push(['SVC', svc]);
+  const facts: [string, string][] = [['DIST', ls(st.distance)]];
   if (st.body) facts.push(['BODY', st.body]);
   return {
     holo: { kind: 'station', stationType: st.type }, label: 'STATION', name: st.name, subtitle: st.type,
-    facts, scoopable: false, pending: false,
+    facts, scoopable: false, pending: false, pad: largestPad(st.pads), services: st.services,
   };
 }
 
-function bodyView(b: BodyInfo): TargetView {
+/** Destinations Spansh doesn't list, told apart by the (localised) name the game gives them. */
+function signalView(name: string, pending: boolean): TargetView {
+  const view = (holo: HoloTarget, label: string, subtitle: string): TargetView =>
+    ({ holo, label, name, subtitle, facts: [], scoopable: false, pending });
+  if (/nav beacon/i.test(name)) return view({ kind: 'poi', poi: 'beacon' }, 'NAV BEACON', 'navigation beacon');
+  if (/resource extraction/i.test(name)) return view({ kind: 'poi', poi: 'res' }, 'RES', 'resource extraction site');
+  if (/conflict zone|combat zone/i.test(name)) return view({ kind: 'poi', poi: 'cz' }, 'CONFLICT ZONE', 'combat zone');
+  // fleet carriers are named "<name> <ID>" with an ident like "X7K-41T", and many aren't on Spansh
+  if (/\b[A-Z0-9]{3}-[A-Z0-9]{3}\b/.test(name)) return view({ kind: 'station', stationType: 'FleetCarrier' }, 'STATION', 'Fleet carrier');
+  // without the system's data yet it may still turn out to be a body or station
+  if (pending) return view({ kind: 'unknown' }, 'DESTINATION', 'no data');
+  return view({ kind: 'poi', poi: 'signal' }, 'SIGNAL', 'signal source');
+}
+
+function bodyView(b: BodyInfo, rings: string[]): TargetView {
   const star = b.type === 'Star';
   const cls = star ? starClass(b.subType) : '';
   const facts: [string, string][] = [['DIST', ls(b.distance)]];
   if (b.terraforming && b.terraforming !== 'Not terraformable') facts.push(['TERRA', b.terraforming]);
+  // a star's "rings" are asteroid belts: only planets get drawn with rings
+  if (!star && rings.length) facts.push(['RINGS', rings.join(', ')]);
   return {
-    holo: star ? { kind: 'star', cls } : { kind: 'planet', subType: b.subType },
+    holo: star ? { kind: 'star', cls } : { kind: 'planet', subType: b.subType, rings: rings.length > 0 },
     label: star ? 'STAR' : 'PLANET', name: b.name, subtitle: b.subType, facts,
     scoopable: star && isScoopable(cls), pending: false,
   };

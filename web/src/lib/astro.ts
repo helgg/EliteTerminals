@@ -63,20 +63,6 @@ export const PLANET_COLOR: Record<PlanetKind, string> = {
   icy: '#cfe6f2', metal: '#b08a6a', rocky: '#9a8574',
 };
 
-export type StationKind = 'coriolis' | 'orbis' | 'outpost' | 'planetary' | 'carrier' | 'megaship' | 'asteroid' | 'settlement';
-
-export function stationKind(type: string): StationKind {
-  const t = type.toLowerCase();
-  if (t.includes('carrier')) return 'carrier';
-  if (t.includes('planetary') || t.includes('surface') || t.includes('crater')) return 'planetary';
-  if (t.includes('settlement') || t.includes('onfoot')) return 'settlement';
-  if (t.includes('orbis') || t.includes('ocellus')) return 'orbis';
-  if (t.includes('outpost')) return 'outpost';
-  if (t.includes('asteroid')) return 'asteroid';
-  if (t.includes('mega')) return 'megaship';
-  return 'coriolis';
-}
-
 /** Security → CSS colour token. */
 export function securityTone(security: string): string {
   const s = security.toLowerCase();
