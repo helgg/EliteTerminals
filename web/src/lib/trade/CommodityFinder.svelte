@@ -55,7 +55,7 @@
 
 <div class="finder">
   <form class="search" onsubmit={(e) => { e.preventDefault(); look(); }}>
-    <input list="et-commodities" placeholder="commodity (e.g. Gold, Tritium, Basic Medicines)" bind:value={name} />
+    <input list="et-commodities" placeholder="commodity, e.g. Gold" bind:value={name} />
     <datalist id="et-commodities">
       {#each names as n (n)}<option value={n}></option>{/each}
     </datalist>
@@ -93,4 +93,12 @@
   .price { color: var(--hud-hi); }
   tr.fresh .age { color: var(--ok); }
   tr.stale td { opacity: 0.55; }
+
+  /* narrower than a wide monitor: the two lists stack and names wrap instead of being cut */
+  .finder { container-type: inline-size; }
+  @container (max-width: 900px) {
+    .cols { grid-template-columns: minmax(0, 1fr); }
+    td { white-space: normal; overflow-wrap: anywhere; }
+    td div { text-overflow: clip; }
+  }
 </style>

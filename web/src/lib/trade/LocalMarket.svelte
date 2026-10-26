@@ -106,7 +106,7 @@
   <div class="tools">
     <button class:active={mode === 'sell'} onclick={() => (mode = 'sell')}>SELL HERE</button>
     <button class:active={mode === 'buy'} onclick={() => (mode = 'buy')}>BUY HERE</button>
-    <input placeholder="filter commodity / category" bind:value={filter} />
+    <input placeholder="filter" bind:value={filter} />
   </div>
   {#if market}
     <div class="scroll">
@@ -115,7 +115,7 @@
           <tr>
             <th onclick={() => sortBy('label')}>Commodity</th>
             <th class="r" onclick={() => sortBy(mode === 'sell' ? 'sell' : 'buy')}>{mode === 'sell' ? 'Sell' : 'Buy'}</th>
-            <th class="r" onclick={() => sortBy('vsMean')}>vs avg</th>
+            <th class="r vs" onclick={() => sortBy('vsMean')}>vs avg</th>
             <th class="r" onclick={() => sortBy(mode === 'sell' ? 'demand' : 'stock')}>{mode === 'sell' ? 'Demand' : 'Supply'}</th>
             <th class="r">Cargo</th>
           </tr>
@@ -125,7 +125,7 @@
             <tr class:held={r.held > 0}>
               <td>{r.label} <span class="faint">{r.category}</span></td>
               <td class="r num">{cr(mode === 'sell' ? r.sell : r.buy)}</td>
-              <td class="r num" class:ok={r.vsMean > 0} class:bad={r.vsMean < 0}>{r.vsMean > 0 ? '+' : ''}{r.vsMean.toFixed(0)}%</td>
+              <td class="r num vs" class:ok={r.vsMean > 0} class:bad={r.vsMean < 0}>{r.vsMean > 0 ? '+' : ''}{r.vsMean.toFixed(0)}%</td>
               <td class="r num muted">
                 <Level level={(mode === 'sell' ? r.demandBracket : r.stockBracket) ?? 0} />
                 {cr(mode === 'sell' ? r.demand : r.stock)}
@@ -190,4 +190,14 @@
   .r { text-align: right; }
   .faint { color: var(--faint); font-size: 11px; }
   tr.held td:first-child { color: var(--hud); }
+
+  /* phones: names wrap, the price comparison and categories step aside */
+  .local { container-type: inline-size; }
+  @container (max-width: 480px) {
+    .which { flex-wrap: wrap; white-space: normal; }
+    .which :global(.name .text) { white-space: normal; overflow-wrap: anywhere; }
+    .vs, .faint { display: none; }
+    td:first-child { white-space: normal; overflow-wrap: anywhere; }
+    .tools button { padding: 6px 8px; }
+  }
 </style>

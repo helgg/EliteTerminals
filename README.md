@@ -74,6 +74,10 @@ a second.
 - Commodity finder, the market of the station you are docked at (from your own `Market.json`),
   visited-market history and session profit.
 - Tap a station or system name to copy it to the **PC's** clipboard, ready to paste into the galaxy map.
+- On tablets the filters open in a drawer and routes show as cards, with the route detail beside them (landscape)
+  or underneath in two columns (portrait). Phones get four pages: SCAN, ROUTES, ROUTE and MARKET.
+
+![TRADE on an iPad standing up and on an iPhone](docs/images/trade-devices.jpg)
 
 **Everywhere**
 
@@ -191,7 +195,7 @@ clipped text. Add `?tab=combat` (and `&page=survive` for a phone page) to open e
 - [x] FLIGHT: telemetry, commands, power presets, route and target
 - [x] TRADE: loop and linear routes, commodity finder, local market, session
 - [x] Layouts for phone, tablet and monitor, QR connect, full-screen app
-- [ ] TRADE layouts for phones and tablets
+- [x] TRADE layouts for phones and tablets
 - [x] Live prices from EDDN with a local database, routes from any system, route watch
 - [x] COMBAT: contacts by bounty, target picking, massacre missions, session, console of checked macros
 - [x] Icons and holograms: stations, pads, services, stars, planets with rings, signals

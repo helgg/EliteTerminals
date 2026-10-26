@@ -7,7 +7,14 @@
   // Sortable list of loop trades (A→B, then back B→A); the selected row drives the detail panel.
   // Every figure covers the whole loop (out + back); supply and demand show both loads, one line each,
   // lined up with the cargo lines.
-  let { routes, selected = $bindable() }: { routes: TradeRoute[]; selected: string } = $props();
+  // `compact`: one card per route (narrow screens), sorting by a row of chips instead of column headers.
+  let { routes, selected = $bindable(), compact = false, onpick }:
+    { routes: TradeRoute[]; selected: string; compact?: boolean; onpick?: () => void } = $props();
+  const CHIPS: [Key, string][] = [['loopPerHour', 'CR/H'], ['total', 'TOTAL'], ['profit', 'CR/T'], ['pct', '%'], ['hopLy', 'LY'], ['fromMe', '⌖LY'], ['age', 'AGE']];
+  function pick(id: string) {
+    selected = id;
+    onpick?.();
+  }
 
   type Key = 'profit' | 'pct' | 'total' | 'loopPerHour' | 'hopLy' | 'fromMe' | 'supply' | 'demand' | 'age';
   const ASC: Key[] = ['hopLy', 'fromMe', 'age'];
@@ -92,6 +99,45 @@
   {:else}—{/if}
 {/snippet}
 
+{#if compact}
+  <div class="sortbar" role="group" aria-label="Sort routes">
+    <span class="k">SORT</span>
+    {#each CHIPS as [k, label] (k)}
+      <button class:on={sortKey === k} title={TITLES[k]} onclick={() => sortBy(k)}>{label}{sortKey === k ? (sortDesc ? '▾' : '▴') : ''}</button>
+    {/each}
+  </div>
+  <div class="scroll cards">
+    {#each sorted as r (r.id)}
+      {@const age = Math.max(r.src.ageH, r.dst.ageH)}
+      <button class="card {ageTone(age)}" class:sel={selected === r.id} onclick={() => pick(r.id)}>
+        <span class="ends">
+          {#each [r.src, r.dst] as e, k (k)}
+            <span class="end">
+              <span class="arrow">{k ? 'B' : 'A'}</span>
+              <span class="st"><Name value={e.station} stationType={e.type} icon /></span>
+              <span class="sys"><Name value={e.system} system /></span>
+              {#if tag(e.state)}<span class="state">{tag(e.state)}</span>{/if}
+            </span>
+          {/each}
+        </span>
+        <span class="figs num">
+          <b class:hl={sortKey === 'loopPerHour'}>{cell(r, 'loopPerHour')}/h</b>
+          <span class:hl={sortKey === 'total'}>{cell(r, 'total')}</span>
+          <span class="sub"><span class:hl={sortKey === 'profit'}>{cell(r, 'profit')}/t</span> · <span class:hl={sortKey === 'pct'}>{cell(r, 'pct')}</span></span>
+        </span>
+        <span class="loads">
+          <span class="out"><span class="arrow">▸</span> {load(r.leg)}</span>
+          <span class="back"><span class="arrow">◂</span> {r.back ? load(r.back) : 'empty way back'}</span>
+        </span>
+        <span class="meta num">
+          <span class:hl={sortKey === 'hopLy'}>{cell(r, 'hopLy')}ly</span>
+          <span class:hl={sortKey === 'fromMe'}>⌖{cell(r, 'fromMe')}</span>
+          <span class="age" class:hl={sortKey === 'age'}>{ageLabel(age)}</span>
+        </span>
+      </button>
+    {/each}
+  </div>
+{:else}
 <div class="scroll">
   <table>
     <thead>
@@ -145,6 +191,7 @@
     </tbody>
   </table>
 </div>
+{/if}
 
 <style>
   .scroll { height: 100%; overflow-y: auto; overflow-x: hidden; }
@@ -183,4 +230,42 @@
   tr.fresh .age div { color: var(--ok); }
   tr.ok .age div { color: var(--hud-hi); }
   tr.stale td { opacity: 0.55; }
+
+  /* compact: cards, nothing cut; names wrap */
+  .sortbar { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; margin-bottom: 4px; }
+  .sortbar .k { color: var(--dim); font-size: 10px; letter-spacing: 0.1em; margin-right: 2px; }
+  .sortbar button {
+    padding: 6px 8px; background: var(--steel); border: 1px solid var(--rule); color: var(--muted);
+    font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+  }
+  .sortbar button.on { background: var(--hud); border-color: var(--hud); color: var(--void); }
+  .cards { display: flex; flex-direction: column; gap: 4px; }
+  .scroll.cards { height: auto; flex: 1; min-height: 0; }
+  /* with room (tablets, phones on their side) a card reads across: names · loads · money · distance */
+  .cards { container-type: inline-size; }
+  @container (min-width: 560px) {
+    .card { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) auto auto; gap: 2px 14px; }
+    .card .ends { grid-area: 1 / 1; }
+    .card .loads { grid-area: 1 / 2; }
+    .card .figs { grid-area: 1 / 3; }
+    .card .meta { grid-area: 1 / 4; min-width: 46px; }
+  }
+  .card :global(.name .text) { white-space: normal; overflow-wrap: anywhere; }
+  .card {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 10px; width: 100%; padding: 6px 8px;
+    text-align: left; font-size: 12px; color: var(--text); background: rgb(36 26 16 / 0.6); border: 1px solid var(--rule);
+  }
+  .card.sel { background: rgb(255 122 24 / 0.14); border-color: var(--hud); box-shadow: inset 2px 0 var(--hud); }
+  .card.stale { opacity: 0.55; }
+  .card .figs, .card .meta { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+  .card .figs b { color: var(--ok); font-size: 13px; }
+  .card .meta { color: var(--muted); }
+  .card.fresh .age { color: var(--ok); }
+  .card.ok .age { color: var(--hud-hi); }
+  .card .hl { color: var(--telemetry); }
+  .card .ends, .card .loads { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .card .end { display: flex; flex-wrap: wrap; gap: 0 5px; align-items: baseline; min-width: 0; overflow-wrap: anywhere; }
+  .card .end > * { flex: 0 1 auto; overflow: visible; }
+  .card .loads { overflow-wrap: anywhere; }
+  .card .out { color: var(--hud-hi); }
 </style>

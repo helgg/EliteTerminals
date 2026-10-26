@@ -4,7 +4,13 @@
   import { ageLabel, ageTone, duration, short } from '../format.ts';
 
   // Sortable list of linear routes (A→B→C…, no return); the selected row drives the detail panel.
-  let { chains, selected = $bindable() }: { chains: TradeChain[]; selected: string } = $props();
+  // `compact`: one card per route (narrow screens), sorting by a row of chips.
+  let { chains, selected = $bindable(), compact = false, onpick }:
+    { chains: TradeChain[]; selected: string; compact?: boolean; onpick?: () => void } = $props();
+  function pick(id: string) {
+    selected = id;
+    onpick?.();
+  }
 
   type Key = 'perHour' | 'total' | 'seconds' | 'ly' | 'fromMe' | 'age';
   const ASC: Key[] = ['seconds', 'ly', 'fromMe', 'age'];
@@ -45,6 +51,36 @@
   const stops = (c: TradeChain) => [c.legs[0].src, ...c.legs.map((l) => l.dst)];
 </script>
 
+{#if compact}
+  <div class="sortbar" role="group" aria-label="Sort routes">
+    <span class="k">SORT</span>
+    {#each COLS as [k, label] (k)}
+      <button class:on={sortKey === k} title={TITLES[k]} onclick={() => sortBy(k)}>{label.toUpperCase()}{sortKey === k ? (sortDesc ? '▾' : '▴') : ''}</button>
+    {/each}
+  </div>
+  <div class="scroll cards">
+    {#each sorted as c (c.id)}
+      {@const age = value(c, 'age')}
+      <button class="card {ageTone(age)}" class:sel={selected === c.id} onclick={() => pick(c.id)}>
+        <span class="stops">
+          {#each stops(c) as e, k (k)}{#if k}<span class="arrow"> → </span>{/if}<span class="st"><Name value={e.station} stationType={e.type} icon /></span>{/each}
+        </span>
+        <span class="figs num">
+          <b class:hl={sortKey === 'perHour'}>{cell(c, 'perHour')}/h</b>
+          <span class:hl={sortKey === 'total'}>{cell(c, 'total')}</span>
+        </span>
+        <span class="goods dim">
+          {#each c.legs as l, k (k)}{#if k}<span class="sep"> · </span>{/if}{l.leg.commodity}{#if (l.leg.items?.length ?? 1) > 1}<span class="plus">+{l.leg.items.length - 1}</span>{/if}{/each}
+        </span>
+        <span class="meta num">
+          <span class:hl={sortKey === 'seconds'}>{cell(c, 'seconds')}</span>
+          <span><span class:hl={sortKey === 'ly'}>{cell(c, 'ly')}ly</span> · <span class:hl={sortKey === 'fromMe'}>⌖{cell(c, 'fromMe')}</span></span>
+          <span class="age" class:hl={sortKey === 'age'}>{cell(c, 'age')}</span>
+        </span>
+      </button>
+    {/each}
+  </div>
+{:else}
 <div class="scroll">
   <table>
     <thead>
@@ -79,6 +115,7 @@
     </tbody>
   </table>
 </div>
+{/if}
 
 <style>
   .scroll { height: 100%; overflow-y: auto; overflow-x: hidden; }
@@ -108,4 +145,38 @@
   .hl { color: var(--telemetry); }
   tr.fresh td.age { color: var(--ok); }
   tr.stale td { opacity: 0.55; }
+
+  /* compact: cards, nothing cut; names wrap */
+  .sortbar { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; margin-bottom: 4px; }
+  .sortbar .k { color: var(--dim); font-size: 10px; letter-spacing: 0.1em; margin-right: 2px; }
+  .sortbar button {
+    padding: 6px 8px; background: var(--steel); border: 1px solid var(--rule); color: var(--muted);
+    font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+  }
+  .sortbar button.on { background: var(--hud); border-color: var(--hud); color: var(--void); }
+  .cards { display: flex; flex-direction: column; gap: 4px; }
+  .scroll.cards { height: auto; flex: 1; min-height: 0; }
+  /* with room a card reads across: stops · goods · money · time and distance */
+  .cards { container-type: inline-size; }
+  @container (min-width: 560px) {
+    .card { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) auto auto; gap: 2px 14px; }
+    .card .stops { grid-area: 1 / 1; }
+    .card .goods { grid-area: 1 / 2; }
+    .card .figs { grid-area: 1 / 3; }
+    .card .meta { grid-area: 1 / 4; min-width: 46px; }
+  }
+  .card :global(.name .text) { white-space: normal; overflow-wrap: anywhere; }
+  .card {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 10px; width: 100%; padding: 6px 8px;
+    text-align: left; font-size: 12px; color: var(--text); background: rgb(36 26 16 / 0.6); border: 1px solid var(--rule);
+  }
+  .card.sel { background: rgb(255 122 24 / 0.14); border-color: var(--hud); box-shadow: inset 2px 0 var(--hud); }
+  .card.stale { opacity: 0.55; }
+  .card .figs, .card .meta { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+  .card .figs b { color: var(--ok); font-size: 13px; }
+  .card .meta { color: var(--muted); }
+  .card.fresh .age { color: var(--ok); }
+  .card.ok .age { color: var(--hud-hi); }
+  .card .hl { color: var(--telemetry); }
+  .card .stops, .card .goods { min-width: 0; overflow-wrap: anywhere; line-height: 1.35; }
 </style>
