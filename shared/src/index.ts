@@ -165,6 +165,17 @@ export interface EdState {
   destination: { system: number; body: number; name: string };
   route: { hops: RouteHop[]; fsdTarget: string; fsdTargetAddress: number; remainingJumps: number };
   /** Spansh lookups: summaries for route/target systems, full detail for the current and target system. */
+  /** Local price database and the live EDDN feed. */
+  prices: {
+    live: boolean;
+    /** Markets stored from EDDN since the server started. */
+    heard: number;
+    lastAt: string;
+    /** Markets with prices in the local database. */
+    stored: number;
+  };
+  /** The picked trade route, priced again as new prices arrive; null when none is watched. */
+  tradeWatch: WatchState | null;
   galaxy: {
     systems: Record<string, SystemInfo>;
     current: SystemDetail | null;
@@ -305,6 +316,8 @@ export function initialState(): EdState {
     },
     destination: { system: 0, body: 0, name: '' },
     route: { hops: [], fsdTarget: '', fsdTargetAddress: 0, remainingJumps: 0 },
+    prices: { live: false, heard: 0, lastAt: '', stored: 0 },
+    tradeWatch: null,
     galaxy: { systems: {}, current: null, target: null, targetBody: null },
     target: {
       locked: false, ship: '', pilot: '', rank: '', faction: '', legalStatus: '', bounty: 0,
@@ -334,8 +347,8 @@ export interface TradeMarket {
   /** State of the station's controlling faction ("Boom", "Expansion"…); "" when unknown. */
   state: string;
   updatedAt: string;
-  /** "spansh" or "local" (the player's own Market.json, which is fresher). */
-  source: 'spansh' | 'local';
+  /** "spansh", "eddn" (live network feed) or "local" (the player's own Market.json, which is fresher). */
+  source: 'spansh' | 'eddn' | 'local';
   items: {
     name: string; buy: number; sell: number; supply: number; demand: number;
     /** Game brackets (1 low … 3 high), only known for markets the player docked at. */
@@ -343,7 +356,17 @@ export interface TradeMarket {
   }[];
 }
 
+/** A system offered by the trade reference picker. */
+export interface SystemMatch {
+  name: string;
+  pos: [number, number, number];
+  /** From the player, in ly. */
+  distance: number;
+}
+
 export interface TradeQuery {
+  /** Scan around this system instead of the current one; '' or absent = the current system. */
+  reference?: string;
   radius: number;
   /** Max price age in hours; 0 = any. */
   maxAgeH: number;
@@ -456,6 +479,43 @@ export interface TradeChain {
   total: number;
   seconds: number;
   perHour: number;
+}
+
+/** The route the player picked, sent by the panel so the server can watch its markets. */
+export interface TradeWatch {
+  /** The route or chain id. */
+  id: string;
+  legs: {
+    src: number;
+    dst: number;
+    srcName: string;
+    dstName: string;
+    items: { commodity: string; buy: number; sell: number; amount: number }[];
+  }[];
+}
+
+/** Something that cut a watched route's profit since it was picked. */
+export interface WatchAlert {
+  legIndex: number;
+  commodity: string;
+  /** profit: profit per ton fell; supply/demand: fewer tons than the load; gone: no longer traded there. */
+  kind: 'profit' | 'supply' | 'demand' | 'gone';
+  /** The station whose numbers changed. */
+  where: 'src' | 'dst';
+  src: string;
+  dst: string;
+  was: number;
+  now: number;
+}
+
+export interface WatchState {
+  id: string;
+  /** Credits per run when the route was picked, and with the prices known now. */
+  profitWas: number;
+  profitNow: number;
+  alerts: WatchAlert[];
+  /** Time of the newest prices the check used. */
+  checkedAt: string;
 }
 
 export interface CommodityQuote {

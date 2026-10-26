@@ -58,10 +58,16 @@ a second.
 
 **TRADE**
 
-![TRADE screen: loop routes from the current system](docs/images/trade.jpg)
+![TRADE screen: loop routes, live EDDN prices and a watched route](docs/images/trade.jpg)
 
-- Scans the markets around you (10 to 80 ly) and ranks **loop routes** (A → B → A) and **linear routes**
-  (up to five stops) by Cr/t, total profit, Cr/h or profit %.
+- Scans the markets around you, or around **any system you pick** (FROM, with name search), 10 to 80 ly out,
+  and ranks **loop routes** (A → B → A) and **linear routes** (up to five stops) by Cr/t, total profit, Cr/h or profit %.
+- **Live prices**: while the server runs it listens to [EDDN](https://github.com/EDCD/EDDN) and keeps every market
+  it hears in a local SQLite database, together with Spansh scans and your own `Market.json`. Once a region has been
+  scanned, the next scans there come from the database in a fraction of a second, with the newest prices.
+- **Route watch**: the route you pick is priced again whenever one of its markets gets new prices, and a warning
+  shows what changed (profit per ton, stock, demand, commodity gone). Prices of visited and watched markets are kept
+  for 7 days.
 - Mixed cargo loads that fill your hold within your stock, demand and credit limits.
 - Filters for price age, landing pad, distance from the star, minimum supply/demand, faction state
   (Boom, Expansion…), planetary stations and carriers.
@@ -100,6 +106,7 @@ a second.
                                        │  (read-only)
                                        ▼
                               EliteTerminals server  ◀── Spansh (systems, stations, prices)
+                              local price database   ◀── EDDN (live prices from other players)
                               Node 24 · Fastify · WebSocket
                                        │  LAN, port 8420
                 ┌──────────────────────┼──────────────────────┐
@@ -115,7 +122,7 @@ a second.
   window. An action with no key bound shows `no bind` and stays disabled. If the game window can't be
   focused, the command is refused, so no key press goes to another program.
 - **Public data.** Galaxy and market data come from [Spansh](https://spansh.co.uk), one request at a time,
-  cached on disk.
+  cached on disk, and live market prices from the [EDDN](https://github.com/EDCD/EDDN) relay while the server runs.
 
 ## Requirements
 
@@ -149,7 +156,8 @@ All optional, set as environment variables before `npm start`:
 | `ED_JOURNAL_DIR` | `%USERPROFILE%\Saved Games\Frontier Developments\Elite Dangerous` | Journal folder |
 | `ED_BINDINGS_DIR` | `%LOCALAPPDATA%\Frontier Developments\Elite Dangerous\Options\Bindings` | Key bindings folder |
 | `ED_GAME_DIR` | found through Steam | Game install folder, used for the built-in control schemes |
-| `ET_CACHE_DIR` | `%LOCALAPPDATA%\EliteTerminals` | Spansh cache and market history |
+| `ET_CACHE_DIR` | `%LOCALAPPDATA%\EliteTerminals` | Spansh cache, market history and the price database (`prices.db`) |
+| `ET_EDDN` | `1` | Set to `0` to stop listening to EDDN |
 
 ## Development
 
@@ -170,7 +178,8 @@ clipped text. Add `?tab=combat` (and `&page=survive` for a phone page) to open e
 | `server/src/reader.ts` | Follows the newest journal and the companion JSON files |
 | `server/src/binds.ts`, `controls.ts`, `input.ts` | Key bindings → scancodes → game window |
 | `server/src/combat.ts` | Contacts, massacre missions, bounties and bonds, fighter, consumables |
-| `server/src/trade/` | Market scan, route engine (loops, linear chains, mixed loads) |
+| `server/src/trade/` | Market scan, route engine (loops, linear chains, mixed loads), reference search |
+| `server/src/prices/` | Local price database (SQLite), EDDN listener, route watch |
 | `server/src/galaxy.ts` | Spansh system lookups with a disk cache, and rings of the targeted body |
 | `web/src/hud.css` | Elite HUD design tokens |
 | `web/src/screens/` | FLIGHT, COMBAT and TRADE screens |
@@ -183,7 +192,7 @@ clipped text. Add `?tab=combat` (and `&page=survive` for a phone page) to open e
 - [x] TRADE: loop and linear routes, commodity finder, local market, session
 - [x] Layouts for phone, tablet and monitor, QR connect, full-screen app
 - [ ] TRADE layouts for phones and tablets
-- [ ] Live prices from EDDN with a local database
+- [x] Live prices from EDDN with a local database, routes from any system, route watch
 - [x] COMBAT: contacts by bounty, target picking, massacre missions, session, console of checked macros
 - [x] Icons and holograms: stations, pads, services, stars, planets with rings, signals
 - [ ] SRV screen

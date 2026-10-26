@@ -74,6 +74,8 @@ export class MarketScanner extends EventEmitter {
   private last: Scan | null = null;
   private inFlight: Promise<TradeMarket[]> | null = null;
   readonly cacheFile: string;
+  /** Most stations one scan returns. */
+  readonly cap = PAGE_SIZE * MAX_PAGES;
 
   constructor(cacheDir: string) {
     super();

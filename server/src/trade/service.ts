@@ -2,6 +2,10 @@
 import type { EdState, MarketSnapshot, TradeMarket, TradeQuery, TradeResult } from '@et/shared';
 import { commodityKey, commodityQuotes, computeTrade } from './engine.ts';
 import type { MarketScanner } from './markets.ts';
+import type { NearQuery, PriceDb } from '../prices/db.ts';
+
+/** A Spansh scan of a region is trusted this long; EDDN keeps its prices fresh in between. */
+const COVERED_MS = 24 * 3600e3;
 
 export class TradeService {
   private markets: TradeMarket[] = [];
@@ -10,11 +14,44 @@ export class TradeService {
   readonly scanner: MarketScanner;
   readonly state: () => EdState;
   readonly visited: () => MarketSnapshot[];
+  readonly db: PriceDb | null;
 
-  constructor(scanner: MarketScanner, state: () => EdState, visited: () => MarketSnapshot[] = () => []) {
+  constructor(scanner: MarketScanner, state: () => EdState, visited: () => MarketSnapshot[] = () => [], db: PriceDb | null = null) {
     this.scanner = scanner;
     this.state = state;
     this.visited = visited;
+    this.db = db;
+  }
+
+  /**
+   * Markets around the player: from the local database when a Spansh scan already covered the region
+   * (EDDN keeps it fresh), otherwise from Spansh, whose results then go into the database.
+   */
+  /** The system to scan around: the one asked for, or the current one. */
+  private reference(s: EdState, q: TradeQuery) {
+    const asked = q.reference?.trim() ?? '';
+    if (!asked || asked.toLowerCase() === s.location.system.toLowerCase()) {
+      return { name: s.location.system, id64: s.location.address, pos: s.location.pos, remote: false };
+    }
+    const sys = this.db?.system(asked);
+    if (!sys) throw new Error(`unknown system "${asked}": pick it from the list`);
+    return { ...sys, remote: true };
+  }
+
+  private async around(ref: { name: string; pos: [number, number, number] }, q: TradeQuery, force: boolean): Promise<TradeMarket[]> {
+    const near: NearQuery = { pos: ref.pos, radius: q.radius, maxAgeH: q.maxAgeH, carriers: q.carriers };
+    if (this.db && !force && this.db.covered(near, Date.now() - COVERED_MS)) return this.db.near(near);
+    const fetched = await this.scanner.scan(
+      { reference: ref.name, radius: q.radius, maxAgeH: q.maxAgeH, carriers: q.carriers }, force,
+    );
+    if (!this.db) return fetched;
+    this.db.putSpansh(fetched);
+    // Spansh pages stop at a few hundred stations, nearest first: a cut-off scan covers less than asked
+    const reach = fetched.length >= this.scanner.cap
+      ? Math.max(0, ...fetched.map((m) => Math.hypot(m.pos[0] - near.pos[0], m.pos[1] - near.pos[1], m.pos[2] - near.pos[2])))
+      : near.radius;
+    this.db.markScanned({ ...near, radius: reach });
+    return this.db.near(near);
   }
 
   private local(fetched: TradeMarket[]) {
@@ -25,11 +62,12 @@ export class TradeService {
   async routes(q: TradeQuery, force = false): Promise<TradeResult> {
     const s = this.state();
     if (!s.location.system) throw new Error('current system unknown (start the game)');
-    const fetched = await this.scanner.scan(
-      { reference: s.location.system, radius: q.radius, maxAgeH: q.maxAgeH, carriers: q.carriers }, force,
-    );
+    const ref = this.reference(s, q);
+    const fetched = await this.around(ref, q, force);
     this.markets = this.local(fetched);
-    this.last = computeTrade(this.markets, q, me(s), s.location.system);
+    // far from home, EXPORT / IMPORT mean that system; distances stay measured from the player
+    const from = ref.remote ? { pos: s.location.pos, systemId64: ref.id64, marketId: 0 } : me(s);
+    this.last = computeTrade(this.markets, q, from, ref.name);
     return this.last;
   }
 

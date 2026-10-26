@@ -1,11 +1,11 @@
 // Local server: reads the game's journals and serves state + the web UI to the LAN.
-import { existsSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import Fastify from 'fastify';
 import fastifyStatic from '@fastify/static';
 import fastifyWebsocket from '@fastify/websocket';
-import type { ClientMessage, ServerMessage, TradeQuery } from '@et/shared';
+import type { ClientMessage, ServerMessage, TradeQuery, TradeWatch } from '@et/shared';
 import { JournalReader } from './reader.ts';
 import { Controls } from './controls.ts';
 import { findGameDir } from './binds.ts';
@@ -13,6 +13,11 @@ import { createWin32Sender } from './input.ts';
 import { Galaxy, summary } from './galaxy.ts';
 import { MarketScanner } from './trade/markets.ts';
 import { TradeService } from './trade/service.ts';
+import { commodityKey } from './trade/engine.ts';
+import { searchSystems } from './trade/reference.ts';
+import { checkWatch, watchedMarkets } from './prices/watch.ts';
+import { PriceDb } from './prices/db.ts';
+import { EddnListener } from './prices/eddn.ts';
 import { MarketHistory } from './marketHistory.ts';
 import { clipText, setClipboard } from './clipboard.ts';
 import { panelAddresses } from './lan.ts';
@@ -35,7 +40,25 @@ const scanner = new MarketScanner(CACHE_DIR);
 await scanner.load();
 const history = new MarketHistory(CACHE_DIR);
 await history.load();
-const trade = new TradeService(scanner, () => reader.state, () => history.markets);
+mkdirSync(CACHE_DIR, { recursive: true });
+const prices = new PriceDb(join(CACHE_DIR, 'prices.db'));
+const trade = new TradeService(scanner, () => reader.state, () => history.markets, prices);
+// Live prices only while the server runs; ET_EDDN=0 turns the feed off.
+const eddn = new EddnListener(prices);
+if (process.env.ET_EDDN !== '0') eddn.start();
+const syncPrices = () => {
+  reader.state.prices = { live: eddn.stats.connected, heard: eddn.stats.markets, lastAt: eddn.stats.lastAt, stored: prices.stats().markets };
+};
+syncPrices();
+prices.prune();
+setInterval(() => prices.prune(), 3600e3).unref();
+
+// The route the panel has picked: priced again whenever one of its markets gets new prices.
+let watch: TradeWatch | null = null;
+const recheck = () => {
+  reader.state.tradeWatch = watch ? checkWatch(watch, (id) => prices.market(id)) : null;
+  scheduleBroadcast();
+};
 const app = Fastify({ logger: { level: 'info' } });
 await app.register(fastifyWebsocket);
 
@@ -86,8 +109,28 @@ reader.on('change', () => {
     lastMarketAt = m.updatedAt;
     void history.record(structuredClone(m)).catch((err: Error) =>
       app.log.warn({ error: err.message }, 'market history not saved'));
+    // the player's own market goes into the database too, keyed by the game's internal names
+    const loc = reader.state.location;
+    prices.putSystem(loc.system, loc.pos, loc.address);
+    prices.putMarket({
+      marketId: m.marketId, station: m.station, system: m.system, type: m.stationType || undefined,
+      updatedAt: m.updatedAt, source: 'local',
+      items: m.items.map((i) => ({
+        key: commodityKey(i.name), name: i.label || i.name, buy: i.buy, sell: i.sell, supply: i.stock, demand: i.demand,
+        supplyBracket: i.stockBracket, demandBracket: i.demandBracket,
+      })),
+    });
+    if (watchedMarkets(watch).has(m.marketId)) recheck();
   }
 });
+eddn.on('markets', (ids: Set<number>) => {
+  if ([...watchedMarkets(watch)].some((id) => ids.has(id))) recheck();
+});
+eddn.on('stats', () => {
+  syncPrices();
+  scheduleBroadcast();
+});
+eddn.on('stats', (st) => st.error && app.log.warn({ error: st.error }, 'EDDN feed down, retrying'));
 galaxy.on('change', () => {
   refreshGalaxy();
   scheduleBroadcast();
@@ -142,6 +185,20 @@ app.post('/api/trade/routes', async (req, reply) => {
 
 app.get('/api/connect', async () => panelAddresses(PORT));
 app.get('/api/market/history', async () => history.markets);
+app.post('/api/trade/watch', async (req) => {
+  const w = (req.body as { watch?: TradeWatch | null }).watch ?? null;
+  for (const id of watchedMarkets(watch)) prices.tracked.delete(id);
+  watch = w && Array.isArray(w.legs) && w.legs.length ? w : null;
+  for (const id of watchedMarkets(watch)) prices.tracked.add(id);
+  recheck();
+  return reader.state.tradeWatch;
+});
+app.get('/api/prices/history', async (req) => {
+  const { market, commodity } = req.query as { market?: string; commodity?: string };
+  return prices.history(Number(market), String(commodity ?? ''));
+});
+app.get('/api/systems', async (req) =>
+  searchSystems(prices, String((req.query as { q?: string }).q ?? ''), reader.state.location.pos));
 
 app.post('/api/clipboard', async (req, reply) => {
   const text = clipText((req.body as { text?: unknown } | null)?.text);

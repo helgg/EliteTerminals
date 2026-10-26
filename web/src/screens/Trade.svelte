@@ -7,6 +7,8 @@
   import ChainDetail from '../lib/trade/ChainDetail.svelte';
   import CommodityFinder from '../lib/trade/CommodityFinder.svelte';
   import LocalMarket from '../lib/trade/LocalMarket.svelte';
+  import ReferencePicker from '../lib/trade/ReferencePicker.svelte';
+  import WatchBanner, { toWatch } from '../lib/trade/WatchBanner.svelte';
   import { link } from '../lib/link.svelte.ts';
   import { ladenJumpRange } from '../lib/jump.ts';
   import { cr, short } from '../lib/format.ts';
@@ -16,10 +18,10 @@
 
   // --- filters, remembered per device ---
   type Filters = Pick<TradeQuery,
-    'radius' | 'maxAgeH' | 'pad' | 'planetary' | 'carriers' | 'exportHere' | 'importHere' | 'maxLs' |
+    'reference' | 'radius' | 'maxAgeH' | 'pad' | 'planetary' | 'carriers' | 'exportHere' | 'importHere' | 'maxLs' |
     'minSupply' | 'minDemand' | 'states' | 'hops'>;
   const DEFAULTS: Filters = {
-    radius: 25, maxAgeH: 24, pad: 'L', planetary: false, carriers: false, exportHere: false, importHere: false,
+    reference: '', radius: 25, maxAgeH: 24, pad: 'L', planetary: false, carriers: false, exportHere: false, importHere: false,
     maxLs: 5000, minSupply: 0, minDemand: 0, states: [], hops: 3,
   };
   let f = $state<Filters>(readFilters());
@@ -93,6 +95,12 @@
   const route = $derived(result?.routes.find((r) => r.id === ts.selected) ?? null);
   const chain = $derived(result?.chains?.find((c) => c.id === ts.selectedChain) ?? null);
   const progress = $derived(link.tradeProgress);
+  // the picked route goes to the server, which warns when new prices make it pay less
+  const watchJson = $derived(JSON.stringify(toWatch(ts.tab === 'linear' ? null : route, ts.tab === 'linear' ? chain : null)));
+  $effect(() => {
+    const body = `{"watch":${watchJson}}`;
+    void fetch('/api/trade/watch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body }).catch(() => {});
+  });
   const TITLES = { loop: 'Loop routes', linear: 'Linear routes', finder: 'Commodity finder', local: 'Market' };
 
   // --- session ---
@@ -113,6 +121,7 @@
   <div class="left">
     <Panel class="scanp" title="Scan" scroll={false} aside={result ? `${result.stations} markets` : ''}>
       <div class="filters">
+        <ReferencePicker bind:value={f.reference} current={s.location.system} />
         <div class="group">
           <span class="k">RADIUS (ly)</span>
           {@render chips(RADII.map((r) => [r, `${r}`] as [number, string]), f.radius, (v) => (f.radius = v))}
@@ -160,7 +169,7 @@
             {#if busy}
               SCANNING {progress ? `${progress.loaded}/${progress.total}` : '…'}
             {:else}
-              SCAN · {s.location.system.toUpperCase() || '—'}
+              SCAN · {(f.reference || s.location.system).toUpperCase() || '—'}
             {/if}
           </button>
           {#if busy && progress?.total}
@@ -169,7 +178,12 @@
           <div class="hint dim">
             cargo {cr(query.cargo)}t · laden jump range ≈{query.jumpRange.toFixed(1)}ly
             {#if result}<br />data {new Date(result.fetchedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-              · <button class="link" disabled={busy} onclick={() => scan(true)}>reload</button>{/if}
+              · <button class="link" disabled={busy} onclick={() => scan(true)} title="Fetch this region from Spansh again">reload</button>{/if}
+          </div>
+          <!-- live prices: markets heard from EDDN since the server started, and how many the local database holds -->
+          <div class="hint eddn" title="EDDN: live prices from other players' game clients">
+            {#if s.prices.live}<span class="live">● EDDN LIVE</span>{:else}<span class="off">○ EDDN OFF</span>{/if}
+            · {cr(s.prices.heard)} heard · {cr(s.prices.stored)} markets stored
           </div>
           {#if error}<div class="bad">{error}</div>{/if}
         </div>
@@ -224,6 +238,7 @@
   </Panel>
 
   <Panel class="right" title={ts.tab === 'linear' ? 'Linear route' : 'Loop route'}>
+    <WatchBanner watch={s.tradeWatch} id={(ts.tab === 'linear' ? chain?.id : route?.id) ?? ''} {now} />
     {#if ts.tab === 'linear'}
       <ChainDetail {chain} jumpRange={query.jumpRange} />
     {:else}
@@ -271,6 +286,9 @@
   .bar { height: 4px; background: var(--steel); }
   .bar div { height: 100%; background: var(--telemetry); transition: width 0.3s; }
   .hint { font-size: 10px; line-height: 1.5; }
+  .eddn { color: var(--muted); }
+  .eddn .live { color: var(--ok); }
+  .eddn .off { color: var(--dim); }
   .link { background: none; border: 0; padding: 0; color: var(--hud-hi); text-decoration: underline; font-size: 10px; }
 
   .kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; }
