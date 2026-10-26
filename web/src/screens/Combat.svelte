@@ -7,10 +7,40 @@
     watchKills, type Subsystem,
   } from '../lib/macros.svelte.ts';
   import { short } from '../lib/format.ts';
+  import { viewport } from '../lib/viewport.svelte.ts';
 
   // COMBAT: one screen, actions first. Left: what the cockpit HUD does not show (contacts with bounties,
   // massacre progress, session). Right: the console; plain keys, and macros checked step by step by the game.
+  // Layouts per viewport: docs/design/RESPONSIVE-COMBAT.md.
   let { s, now }: { s: EdState; now: number } = $props();
+
+  const vp = $derived(viewport.vp);
+  const phone = $derived(viewport.device === 'phone');
+  /** Everything but the big monitor: tiles drop their subtitles, the contact list its long columns. */
+  const narrow = $derived(vp !== 'desktop-landscape');
+  /** Where the list needs every row of height, AUTO NEXT and the NEXT buttons move beside it, over the session. */
+  const pickerAside = $derived(vp.endsWith('portrait') ? !phone : phone);
+
+  // Phones show one page at a time; the last page is remembered.
+  type Page = 'targets' | 'attack' | 'fighter' | 'survive';
+  const PAGES: { id: Page; label: string; icon: string }[] = [
+    { id: 'targets', label: 'TARGETS', icon: '◎' }, { id: 'attack', label: 'ATTACK', icon: '⌖' },
+    { id: 'fighter', label: 'FIGHTER', icon: '⟁' }, { id: 'survive', label: 'SURVIVE', icon: '⛨' },
+  ];
+  let page = $state<Page>(readPage());
+  function readPage(): Page {
+    const asked = new URLSearchParams(location.search).get('page') as Page | null;
+    if (asked && PAGES.some((p) => p.id === asked)) return asked;
+    try {
+      const saved = localStorage.getItem('et.combat.page') as Page | null;
+      if (saved && PAGES.some((p) => p.id === saved)) return saved;
+    } catch {}
+    return 'targets';
+  }
+  function setPage(p: Page) {
+    page = p;
+    try { localStorage.setItem('et.combat.page', p); } catch {}
+  }
 
   const c = $derived(s.combat);
   $effect(() => {
@@ -44,6 +74,13 @@
     ['ship', 'SHIP'], ['pilot', 'PILOT'], ['rank', 'RANK'], ['legal', 'LEGAL'], ['bounty', 'BOUNTY'],
     ['faction', 'FACTION'], ['seen', 'SEEN'],
   ];
+  /** Columns that fit: all on monitors, no faction on the iPad standing up, the essentials elsewhere. */
+  const cols = $derived<Col[]>(
+    vp === 'desktop-landscape' ? COLS.map(([col]) => col)
+      : vp === 'desktop-portrait' ? ['ship', 'pilot', 'legal', 'bounty', 'faction', 'seen']
+      : vp === 'tablet-portrait' ? ['ship', 'pilot', 'rank', 'legal', 'bounty', 'seen']
+      : ['ship', 'legal', 'bounty'],
+  );
   let sort = $state<Sort>(readSort());
   function readSort(): Sort {
     try {
@@ -118,7 +155,7 @@
   );
   const subs: [Subsystem, string][] = [
     ['PowerPlant', 'POWER PLANT'], ['Drives', 'DRIVES'], ['FSD', 'FSD'], ['ShieldGen', 'SHIELD GEN'],
-    ['Distributor', 'DISTRIBUTOR'], ['Hatch', 'CARGO HATCH'],
+    ['Distributor', 'DISTRI­BUTOR'], ['Hatch', 'CARGO HATCH'],
   ];
   const ORDERS: [string, string, string][] = [
     ['OrderFocusTarget', 'FOCUS', 'my target'], ['OrderAggressiveBehaviour', 'ATTACK', 'at will'],
@@ -162,170 +199,335 @@
   </button>
 {/snippet}
 
-<div class="combat">
-  <div class="left">
-    <Panel class="contacts" title="Contacts" aside="scanned this instance · tap a row to lock it" scroll={false}>
-      <div class="pick">
-        <button class="act toggle" class:live={macro.autoNext} class:busy={macro.running === 'NextBest'}
-          disabled={!canRun('NextBest')} class:disabled={!canRun('NextBest')} onclick={toggleAutoNext}>
-          <span class="state">{macro.autoNext ? 'ON' : 'OFF'}</span>
-          <b>AUTO NEXT</b><small>on each kill → <span class="star">★</span></small>
-        </button>
-        {@render macroTile('NextWanted', 'NEXT WANTED', 'top bounty in range')}
-        {@render macroTile('NextMassacre', 'NEXT MASSACRE', 'mission faction')}
-      </div>
-      <div class="filters">
-        <button class="fchip" class:on={filt.wanted} onclick={() => setFilter({ ...filt, wanted: !filt.wanted })}>
-          WANTED<span class="n">{counts.wanted}</span></button>
-        <button class="fchip" class:on={filt.massacre} onclick={() => setFilter({ ...filt, massacre: !filt.massacre })}>
-          MASSACRE<span class="n">{counts.massacre}</span></button>
-        <button class="fchip" class:on={filt.clean} onclick={() => setFilter({ ...filt, clean: !filt.clean })}>
-          CLEAN<span class="n">{counts.clean}</span></button>
-        <button class="fchip all" onclick={() => setFilter({ wanted: !allOn, massacre: !allOn, clean: !allOn })}>
-          {allOn ? 'UNSELECT ALL' : 'SELECT ALL'}</button>
-      </div>
+<!-- the pieces; each layout below arranges them -->
+{#snippet picker()}
+  <div class="pick">
+    <button class="act toggle auto" class:live={macro.autoNext} class:busy={macro.running === 'NextBest'}
+      disabled={!canRun('NextBest')} class:disabled={!canRun('NextBest')} onclick={toggleAutoNext}>
+      <span class="state">{macro.autoNext ? 'ON' : 'OFF'}</span>
+      <b>AUTO NEXT</b><small>on each kill → <span class="star">★</span></small>
+    </button>
+    {@render macroTile('NextWanted', 'NEXT WANTED', 'top bounty in range')}
+    {@render macroTile('NextMassacre', 'NEXT MASSACRE', 'mission faction')}
+  </div>
+{/snippet}
+
+{#snippet filters()}
+  <div class="filters">
+    <button class="fchip" class:on={filt.wanted} onclick={() => setFilter({ ...filt, wanted: !filt.wanted })}>
+      WANTED<span class="n">{counts.wanted}</span></button>
+    <button class="fchip" class:on={filt.massacre} onclick={() => setFilter({ ...filt, massacre: !filt.massacre })}>
+      {narrow ? 'MASSACR.' : 'MASSACRE'}<span class="n">{counts.massacre}</span></button>
+    <button class="fchip" class:on={filt.clean} onclick={() => setFilter({ ...filt, clean: !filt.clean })}>
+      CLEAN<span class="n">{counts.clean}</span></button>
+    {#if !narrow}
+      <button class="fchip all" onclick={() => setFilter({ wanted: !allOn, massacre: !allOn, clean: !allOn })}>
+        {allOn ? 'UNSELECT ALL' : 'SELECT ALL'}</button>
+    {/if}
+  </div>
+{/snippet}
+
+{#snippet cell(k: Contact, col: Col)}
+  {#if col === 'ship'}
+    <td>{#if locked(k)}<span class="lock">◉</span> {:else if best === keyOf(k)}<span class="star">★</span> {/if}{k.ship}{#if !cols.includes('faction') && isMassacre(k)}<span class="mtag">M</span>{/if}</td>
+  {:else if col === 'pilot'}
+    <td class="muted">{k.pilot}</td>
+  {:else if col === 'rank'}
+    <td>{k.rank}</td>
+  {:else if col === 'legal'}
+    <td>{#if isWanted(k)}<span class="lw">WANTED</span>{:else if k.legalStatus}<span class="lc">{k.legalStatus.toUpperCase()}</span>{:else}<span class="dim">scan…</span>{/if}</td>
+  {:else if col === 'bounty'}
+    <td class="num r" class:bad={k.bounty > 0} class:dim={!k.bounty}>{k.bounty ? (narrow ? short(k.bounty) : cr(k.bounty)) : '—'}</td>
+  {:else if col === 'faction'}
+    <td class="muted fac">{k.faction}{#if isMassacre(k)}<span class="mtag">M</span>{/if}</td>
+  {:else}
+    <td class="dim">{macro.locking === keyOf(k) ? 'locking…' : absent(k) ? 'gone' : ago(k.seenAt)}</td>
+  {/if}
+{/snippet}
+
+{#snippet contacts()}
+  <Panel class="contacts" title="Contacts" aside={narrow ? 'tap to lock' : 'scanned this instance · tap a row to lock it'} scroll={false}>
+    <div class="cbody">
+      {#if !pickerAside}{@render picker()}{/if}
+      {@render filters()}
       {#if !c.contacts.length}
         <p class="none">No ships scanned in this instance yet. Lock one in the game, or tap NEXT WANTED.</p>
       {:else if !shown.length}
         <p class="none">Nothing matches. Pick WANTED, MASSACRE or CLEAN above.</p>
       {:else}
-        <table>
-          <thead><tr>
-            {#each COLS as [col, label] (col)}
-              <th class:r={col === 'bounty'} class:on={sort.col === col} onclick={() => sortBy(col)}>
-                {label}<span class="arrow">{sort.col === col ? (sort.desc ? '▼' : '▲') : ''}</span></th>
-            {/each}
-          </tr></thead>
-          <tbody>
-            {#each shown as k (k.ship + k.pilot)}
-              <tr class:sel={locked(k)} class:clean={isClean(k)} class:gone={absent(k)}
-                class:locking={macro.locking === keyOf(k)} onclick={() => lockContact(k)}>
-                <td>{#if locked(k)}<span class="lock">◉</span> {:else if best === keyOf(k)}<span class="star">★</span> {/if}{k.ship}</td>
-                <td class="muted">{k.pilot}</td>
-                <td>{k.rank}</td>
-                <td>{#if isWanted(k)}<span class="lw">WANTED</span>{:else if k.legalStatus}<span class="lc">{k.legalStatus.toUpperCase()}</span>{:else}<span class="dim">scan…</span>{/if}</td>
-                <td class="num r" class:bad={k.bounty > 0} class:dim={!k.bounty}>{k.bounty ? cr(k.bounty) : '—'}</td>
-                <td class="muted">{k.faction}{#if isMassacre(k)}<span class="mtag">M</span>{/if}</td>
-                <td class="dim">{macro.locking === keyOf(k) ? 'locking…' : absent(k) ? 'not in range' : ago(k.seenAt)}</td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
+        <div class="list">
+          <table>
+            <thead><tr>
+              {#each COLS.filter(([col]) => cols.includes(col)) as [col, label] (col)}
+                <th class:r={col === 'bounty'} class:on={sort.col === col} onclick={() => sortBy(col)}>
+                  {label}<span class="arrow">{sort.col === col ? (sort.desc ? '▼' : '▲') : ''}</span></th>
+              {/each}
+            </tr></thead>
+            <tbody>
+              {#each shown as k (k.ship + k.pilot)}
+                <tr class:sel={locked(k)} class:clean={isClean(k)} class:gone={absent(k)}
+                  class:locking={macro.locking === keyOf(k)} onclick={() => lockContact(k)}>
+                  {#each cols as col (col)}{@render cell(k, col)}{/each}
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
       {/if}
       <div class="tot">
         <span><b>{shown.length}</b> shown</span>
-        <span>bounty <b class="bad">{cr(shown.reduce((a, k) => a + k.bounty, 0))} Cr</b></span>
-        <span><span class="mtag">M</span> massacre mission</span>
+        <span>bounty <b class="bad">{(narrow ? short : cr)(shown.reduce((a, k) => a + k.bounty, 0))} Cr</b></span>
+        {#if !narrow}<span><span class="mtag">M</span> massacre mission</span>{/if}
         <span><span class="star">★</span> next pick</span>
       </div>
-    </Panel>
+    </div>
+  </Panel>
+{/snippet}
 
-    <Panel title="Session" aside={c.rebuy ? `rebuy ${short(c.rebuy)} · ${rebuyTimes ? `✓ ${rebuyTimes}×` : '✗ NOT COVERED'}` : ''} scroll={false}>
-      <div class="kpis">
-        <div><small>BOUNTIES</small><b class="ok">{short(ss.bounties)}</b></div>
-        <div><small>UNREDEEMED</small><b class="warn">{short(ss.unredeemed)}</b></div>
-        <div><small>CR/H</small><b class="tele">{short(perHour)}</b></div>
-        <div><small>KILLS</small><b>{ss.kills}</b></div>
-        <div><small>BONDS</small><b class:dim={!ss.bonds}>{short(ss.bonds)}</b></div>
+{#snippet session()}
+  <Panel title="Session" aside={c.rebuy && !narrow ? `rebuy ${short(c.rebuy)} · ${rebuyTimes ? `✓ ${rebuyTimes}×` : '✗ NOT COVERED'}` : ''} scroll={false}>
+    <div class="kpis">
+      <div><small>BOUNTIES</small><b class="ok">{short(ss.bounties)}</b></div>
+      <div><small>UNREDEEMED</small><b class="warn">{short(ss.unredeemed)}</b></div>
+      <div><small>CR/H</small><b class="tele">{short(perHour)}</b></div>
+      <div><small>KILLS</small><b>{ss.kills}</b></div>
+      {#if narrow && c.rebuy}<div><small>REBUY</small><b class={rebuyTimes ? 'ok' : 'bad'}>{rebuyTimes ? `✓ ${rebuyTimes}×` : '✗'}</b></div>{/if}
+      {#if !narrow || ss.bonds}<div><small>BONDS</small><b class:dim={!ss.bonds}>{short(ss.bonds)}</b></div>{/if}
+    </div>
+    {#each massacres.slice(0, narrow ? 1 : 2) as m (m.faction)}
+      <div class="mission">
+        <div class="line"><span>{narrow ? '' : 'Massacre · '}{m.faction}{narrow ? '' : ` · ${m.missions} stacked`} <span class="mtag">M</span></span>
+          <span class="num"><b>{m.done}</b>/{m.need}{narrow ? '' : ` · ${short(m.reward)}`}</span></div>
+        <div class="t"><i style:width="{m.need ? (m.done / m.need) * 100 : 0}%"></i></div>
       </div>
-      {#each massacres.slice(0, 2) as m (m.faction)}
-        <div class="mission">
-          <div class="line"><span>Massacre · {m.faction} · {m.missions} stacked <span class="mtag">M</span></span>
-            <span class="num"><b>{m.done}</b>/{m.need} · {short(m.reward)}</span></div>
-          <div class="t"><i style:width="{m.need ? (m.done / m.need) * 100 : 0}%"></i></div>
-        </div>
-      {:else}
-        <p class="dim mission">No massacre missions active.</p>
+    {:else}
+      <p class="dim mission">No massacre missions active.</p>
+    {/each}
+  </Panel>
+{/snippet}
+
+{#snippet bayPower()}
+  <section class="bay g-power" style:--rows="1">
+    <h4>POWER<span class="st">exact pips</span></h4>
+    <div class="tiles">
+      {@render power('DEF', pipBars(4, 2, 0))}
+      {@render power('RUN', pipBars(2, 4, 0))}
+      {@render power('ATK', pipBars(2, 0, 4))}
+      {@render keyTile('ResetPowerDistribution', 'RESET', '2 · 2 · 2', 'amber')}
+    </div>
+  </section>
+{/snippet}
+
+{#snippet baySubsystem()}
+  <section class="bay g-target" style:--rows="2">
+    <h4>SUBSYSTEM<span class="st">{s.target.locked ? s.target.subsystem || 'scan first' : 'no target'}</span></h4>
+    <div class="tiles">
+      {#each subs as [id, label] (id)}
+        {@render macroTile(`Sub${id}`, label, '', '', { led: true, live: onSubsystem(id) })}
       {/each}
-    </Panel>
-  </div>
-
-  <div class="console">
-    <div class="ccol">
-      <section class="bay g-power" style:--rows="1">
-        <h4>POWER<span class="st">exact pips</span></h4>
-        <div class="tiles">
-          {@render power('DEF', pipBars(4, 2, 0))}
-          {@render power('RUN', pipBars(2, 4, 0))}
-          {@render power('ATK', pipBars(2, 0, 4))}
-          {@render keyTile('ResetPowerDistribution', 'RESET', '2 · 2 · 2', 'amber')}
-        </div>
-      </section>
-
-      <section class="bay g-target" style:--rows="2">
-        <h4>SUBSYSTEM<span class="st">{s.target.locked ? s.target.subsystem || 'scan first' : 'no target'}</span></h4>
-        <div class="tiles">
-          {#each subs as [id, label] (id)}
-            {@render macroTile(`Sub${id}`, label, '', '', { led: true, live: onSubsystem(id) })}
-          {/each}
-          {@render macroTile('Hunt', 'HUNT', 'massacre → power plant → fighter', 'x2')}
-        </div>
-      </section>
-
-      <section class="bay g-fighter" style:--rows="3">
-        <h4>FIGHTER<span class="st">{fighterText}</span></h4>
-        <div class="tiles">
-          <button class="act macro disabled" disabled>
-            <span class="exp">COMING SOON</span><b>LAUNCH</b><small>NPC crew</small>
-          </button>
-          {#each ORDERS as [action, title, sub] (action)}
-            {@render keyTile(action, title, sub, 'cyan', { order: true })}
-          {/each}
-          {@render keyTile('OrderRequestDock', 'RECALL', 'dock', 'amber', { order: true })}
-          {@render macroTile('SicThreat', 'SIC THREAT', 'threat → focus', '', { fighter: true })}
-          {@render macroTile('SicWanted', 'SIC WANTED', 'wanted → focus', '', { fighter: true })}
-          {@render macroTile('Cripple', 'CRIPPLE', 'drives → focus', '', { fighter: true })}
-          {@render macroTile('FighterSafe', 'FIGHTER SAFE', 'follow · hold', '', { fighter: true })}
-        </div>
-      </section>
+      {@render macroTile('Hunt', 'HUNT', 'massacre → power plant → fighter', 'x2')}
     </div>
+  </section>
+{/snippet}
 
-    <div class="ccol">
-      <section class="bay g-escape" style:--rows="1">
-        <h4>ESCAPE<span class="st">{s.flags.fsdMassLocked ? 'mass locked' : s.flags.fsdCooldown ? 'FSD cooldown' : 'FSD ready'}</span></h4>
-        <!-- one row of tall plates: the big red one first -->
-        <div class="tiles tall">
-          {@render macroTile('Escape', '⟫ EMERGENCY ESCAPE', 'retract · RUN · boost · jump', 'danger')}
-          {@render macroTile('SubmitRun', 'SUBMIT & RUN', 'interdiction')}
-          {@render macroTile('RecallJump', 'RECALL & JUMP', 'after the dock')}
-          {@render macroTile('Disengage', 'DISENGAGE', 'retract · RUN')}
-        </div>
-      </section>
+{#snippet bayFighter()}
+  <section class="bay g-fighter" style:--rows="3">
+    <h4>FIGHTER<span class="st">{fighterText}</span></h4>
+    <div class="tiles">
+      <button class="act macro disabled" disabled>
+        <span class="exp">COMING SOON</span><b>LAUNCH</b><small>NPC crew</small>
+      </button>
+      {#each ORDERS as [action, title, sub] (action)}
+        {@render keyTile(action, title, sub, 'cyan', { order: true })}
+      {/each}
+      {@render keyTile('OrderRequestDock', 'RECALL', 'dock', 'amber', { order: true })}
+      {@render macroTile('SicThreat', 'SIC THREAT', 'threat → focus', '', { fighter: true })}
+      {@render macroTile('SicWanted', 'SIC WANTED', 'wanted → focus', '', { fighter: true })}
+      {@render macroTile('Cripple', 'CRIPPLE', 'drives → focus', '', { fighter: true })}
+      {@render macroTile('FighterSafe', 'FIGHTER SAFE', 'follow · hold', '', { fighter: true })}
+    </div>
+  </section>
+{/snippet}
 
-      <section class="bay g-defence" style:--rows="4">
-        <h4>DEFENCE<span class="st">loadout counts</span></h4>
-        <!-- the consumables you reach for most get two columns -->
-        <div class="tiles">
-          {@render keyTile('DeployHeatSink', 'HEAT SINK', '', 'amber x2', { count: c.heatSinks })}
-          {@render keyTile('UseShieldCell', 'SHIELD CELL', '', 'amber x2', { count: c.shieldCells })}
-          {@render keyTile('FireChaffLauncher', 'CHAFF', '', 'amber x2', { count: c.chaff })}
-          {@render keyTile('ChargeECM', 'ECM', 'hold', 'amber')}
-          {@render keyTile('ToggleAdvanceMode', 'SILENT RUN', s.flags.silentRunning ? 'on' : '')}
-          {@render macroTile('ShieldSink', 'SHIELD + SINK', 'cell, then a sink', 'x2', { count: `${c.shieldCells} · ${c.heatSinks}` })}
-          {@render macroTile('CellCell', 'CELL × 2', 'cell + sink, twice', 'x2')}
-          {@render macroTile('GoDark', 'GO DARK', 'silent run + sink')}
-          {@render macroTile('ChaffBoost', 'CHAFF + BOOST', 'break gimbal lock')}
-          {@render macroTile('Brace', 'BRACE', 'DEF · cell · chaff', 'x2')}
-        </div>
-      </section>
+{#snippet bayEscape()}
+  <section class="bay g-escape" style:--rows="1">
+    <h4>ESCAPE<span class="st">{s.flags.fsdMassLocked ? 'mass locked' : s.flags.fsdCooldown ? 'FSD cooldown' : 'FSD ready'}</span></h4>
+    <!-- one row; the big red plate first and wider -->
+    <div class="tiles tall">
+      {@render macroTile('Escape', '⟫ EMER­GENCY ESCAPE', 'retract · RUN · boost · jump', 'danger')}
+      {@render macroTile('SubmitRun', 'SUBMIT & RUN', 'interdiction')}
+      {@render macroTile('RecallJump', 'RECALL & JUMP', 'after the dock')}
+      {@render macroTile('Disengage', 'DIS­ENGAGE', 'retract · RUN')}
+    </div>
+  </section>
+{/snippet}
 
-      <section class="bay g-weapons" style:--rows="1">
-        <h4>ATTACK<span class="st">{s.flags.inWing ? 'wing' : 'solo'}</span></h4>
-        <div class="tiles">
-          {#each [0, 1, 2] as i (i)}
-            {@render macroTile(`Assist${i}`, `ASSIST ${i + 1}`, "wingman's target")}
-          {/each}
-          {@render macroTile('AttackRun', 'ATTACK RUN', 'deploy · ATK')}
+{#snippet bayDefence()}
+  <section class="bay g-defence" style:--rows="4">
+    <h4>DEFENCE<span class="st">loadout counts</span></h4>
+    <!-- the consumables you reach for most get two columns -->
+    <div class="tiles">
+      {@render keyTile('DeployHeatSink', 'HEAT SINK', '', 'amber x2', { count: c.heatSinks })}
+      {@render keyTile('UseShieldCell', 'SHIELD CELL', '', 'amber x2', { count: c.shieldCells })}
+      {@render keyTile('FireChaffLauncher', 'CHAFF', '', 'amber x2', { count: c.chaff })}
+      {@render keyTile('ChargeECM', 'ECM', 'hold', 'amber')}
+      {@render keyTile('ToggleAdvanceMode', 'SILENT RUN', s.flags.silentRunning ? 'on' : '')}
+      {@render macroTile('ShieldSink', 'SHIELD + SINK', 'cell, then a sink', 'x2', { count: `${c.shieldCells} · ${c.heatSinks}` })}
+      {@render macroTile('CellCell', 'CELL × 2', 'cell + sink, twice', 'x2')}
+      {@render macroTile('GoDark', 'GO DARK', 'silent run + sink', 'wl')}
+      {@render macroTile('ChaffBoost', 'CHAFF + BOOST', 'break gimbal lock', 'wl')}
+      {@render macroTile('Brace', 'BRACE', 'DEF · cell · chaff', 'x2')}
+    </div>
+  </section>
+{/snippet}
+
+{#snippet bayAttack()}
+  <section class="bay g-weapons" style:--rows="1">
+    <h4>ATTACK<span class="st">{s.flags.inWing ? 'wing' : 'solo'}</span></h4>
+    <div class="tiles">
+      {#each [0, 1, 2] as i (i)}
+        {@render macroTile(`Assist${i}`, `ASSIST ${i + 1}`, "wingman's target")}
+      {/each}
+      {@render macroTile('AttackRun', 'ATTACK RUN', 'deploy · ATK')}
+    </div>
+  </section>
+{/snippet}
+
+{#if phone}
+  <!-- PHONES: one page at a time, no scrolling; tabs at the bottom (portrait) or down the left (landscape) -->
+  <div class="combat phone narrow {viewport.orientation}">
+    <nav class="pages" aria-label="Combat pages">
+      {#each PAGES as p (p.id)}
+        <button class:on={page === p.id} onclick={() => setPage(p.id)}>
+          <span class="pi">{p.icon}</span>{p.label}
+          {#if p.id === 'targets' && macro.autoNext}<span class="dot"></span>{/if}
+        </button>
+      {/each}
+    </nav>
+    <div class="page p-{page}">
+      {#if page === 'targets'}
+        {@render contacts()}
+        <div class="side">
+          {#if pickerAside}{@render picker()}{/if}
+          {@render session()}
         </div>
-      </section>
+      {:else if page === 'attack'}
+        {@render bayPower()}
+        {@render baySubsystem()}
+        {@render bayAttack()}
+      {:else if page === 'fighter'}
+        {@render bayFighter()}
+      {:else}
+        {@render bayEscape()}
+        {@render bayDefence()}
+      {/if}
     </div>
   </div>
-</div>
+{:else}
+  <div class="combat {vp}" class:narrow>
+    <div class="left">
+      {@render contacts()}
+      <div class="side">
+        {#if pickerAside}{@render picker()}{/if}
+        {@render session()}
+      </div>
+    </div>
+    <div class="console">
+      <div class="ccol">
+        {@render bayPower()}
+        {@render baySubsystem()}
+        {@render bayFighter()}
+      </div>
+      <div class="ccol">
+        {@render bayEscape()}
+        {@render bayDefence()}
+        {@render bayAttack()}
+      </div>
+    </div>
+  </div>
+{/if}
 
 <style>
-  .combat { height: 100%; display: grid; grid-template-columns: 664px 1fr; gap: 8px; min-height: 0; }
-  .left { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
-  .left > :global(.contacts) { flex: 1; }
+  .combat { height: 100%; display: grid; grid-template-columns: 664px 1fr; gap: 8px; min-height: 0; min-width: 0; }
+  .left { display: flex; flex-direction: column; gap: 8px; min-height: 0; min-width: 0; }
+  .left > :global(.contacts), .page > :global(.contacts) { flex: 1; }
+  /* the contact panel: picker and filters on top, the list takes the rest and scrolls on its own */
+  .cbody { height: 100%; display: flex; flex-direction: column; min-height: 0; }
+  .list { flex: 1; min-height: 0; overflow-y: auto; }
+  thead th { position: sticky; top: 0; background: var(--panel); }
+
+  /* --- layouts per viewport (docs/design/RESPONSIVE-COMBAT.md) --- */
+  /* iPad on its side: a narrow column of targets beside the whole console */
+  .combat.tablet-landscape { grid-template-columns: 330px minmax(0, 1fr); gap: 6px; }
+  /* standing screens: targets on top, the console below */
+  .combat.tablet-portrait, .combat.desktop-portrait { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 0.4fr) minmax(0, 0.6fr); }
+  .combat.desktop-portrait { grid-template-rows: minmax(0, 0.42fr) minmax(0, 0.58fr); }
+  .combat.tablet-portrait .left, .combat.desktop-portrait .left { display: grid; grid-template-columns: minmax(0, 1fr) 210px; }
+  .combat.narrow .console, .combat.narrow .ccol { gap: 6px; }
+
+  /* narrow tiles: no subtitles or key names, titles may take two lines */
+  .narrow .act { padding: 7px 7px 6px; }
+  .narrow .act b { white-space: normal; font-size: 12.5px; line-height: 1.15; overflow: visible; }
+  .narrow .act small, .narrow .act .key:not(.nobind) { display: none; }
+  .narrow .act .key.nobind { right: 8px; bottom: 3px; font-size: 9px; }
+  .narrow .act.danger b { font-size: 15px; }
+  .narrow .act.toggle .state { font-size: 15px; right: 10px; }
+  .narrow .act.toggle small { display: block; padding-right: 40px; }
+  .narrow .bay h4 { width: 24px; font-size: 11px; letter-spacing: .16em; }
+  .narrow .bay h4 .st { font-size: 9px; }
+  .narrow .tiles { gap: 5px; padding: 6px; }
+  .narrow .pick { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); min-height: 0; }
+  .narrow .pick .auto { grid-column: span 2; min-height: 48px; }
+  .narrow .pick .act { min-height: 44px; }
+  .narrow .filters { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 6px; }
+  .narrow .fchip { min-height: 40px; padding: 0 8px; font-size: 11px; gap: 6px; letter-spacing: .04em; }
+  .phone .fchip::before { display: none; }
+  /* the side column: picker stacked over the session */
+  .side { display: flex; flex-direction: column; gap: 6px; min-height: 0; min-width: 0; }
+  .side > :global(.panel) { flex: 1; }
+  .side .pick { grid-template-columns: minmax(0, 1fr); margin-bottom: 0; }
+  .side .pick .auto { grid-column: auto; }
+  .narrow .tiles.tall .act b { font-size: 12.5px; }
+  .narrow .tiles.tall .act.danger b { font-size: 15px; }
+  .act b { hyphens: manual; }
+  .narrow .kpis { grid-template-columns: repeat(auto-fit, minmax(84px, 1fr)); row-gap: 4px; }
+  .narrow .kpis b { font-size: 14px; }
+  .narrow .tot { gap: 12px; margin-top: 6px; font-size: 11px; }
+  .narrow td { padding: 7px 4px; }
+  /* long faction names take a second line instead of pushing SEEN off the table */
+  td.fac { white-space: normal; line-height: 1.25; }
+
+  /* phones: pages; tabs at the bottom standing up, down the left on its side */
+  .combat.phone { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; gap: 6px; }
+  .combat.phone.landscape { grid-template-columns: 74px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+  .phone.portrait .pages { grid-row: 2; }
+  .phone.portrait .page { grid-row: 1; }
+  .pages { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+  .landscape .pages { grid-template-columns: 1fr; grid-auto-rows: 1fr; }
+  .pages button {
+    position: relative; min-height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    font-size: 10px; font-weight: 700; letter-spacing: .1em; color: var(--muted);
+    background: linear-gradient(to bottom, #2b2014, var(--steel)); border: 1px solid var(--rule);
+  }
+  .pages .pi { font-size: 18px; line-height: 1; }
+  .pages button.on { background: var(--hud); border-color: var(--hud); color: var(--void); box-shadow: var(--glow); }
+  .pages .dot { position: absolute; top: 5px; right: 7px; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
+  .page { min-height: 0; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+  .page > .bay { flex-basis: 0; }
+  .landscape .page.p-targets { display: grid; grid-template-columns: minmax(0, 1fr) 210px; }
+  /* phone on its side: height is scarce, so the bays sit side by side in two or three tall rows */
+  .landscape .page.p-attack, .landscape .page.p-survive { flex-direction: row; }
+  .landscape .p-attack > .bay, .landscape .p-survive > .bay { flex: var(--w) 1 0; }
+  .landscape .p-attack .g-power, .landscape .p-attack .g-weapons { --w: 2; }
+  .landscape .p-attack .g-target { --w: 4; }
+  .landscape .p-attack .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); }
+  .landscape .p-attack .g-target .tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .landscape .p-survive .g-escape { --w: 1.25; }
+  .landscape .p-survive .g-defence { --w: 6; }
+  /* escape: one column, the red plate twice as tall */
+  .landscape .p-survive .tiles.tall { grid-template-columns: minmax(0, 1fr); grid-template-rows: 2fr 1fr 1fr 1fr; }
+  .landscape .p-survive .g-defence .tiles { grid-template-columns: repeat(6, minmax(0, 1fr)); grid-template-rows: repeat(3, minmax(0, 1fr)); }
+  .landscape .p-survive .act.wl { grid-column: span 2; }
 
   /* contact filters: thumb-sized, same plate as the console tiles */
   .filters { display: grid; grid-template-columns: repeat(3, 1fr) 1.1fr; gap: 6px; margin-bottom: 10px; }

@@ -23,6 +23,7 @@
   let showQr = $state(false);
   let menu = $state(false);
   const phone = $derived(viewport.device === 'phone');
+  const tablet = $derived(viewport.device === 'tablet');
   // The side column only where the screen is wide enough for it next to the screen's own panels.
   // Portrait screens bring SHIP and POWER into their own grid instead (RESPONSIVE-FLIGHT.md).
   // TRADE needs the width for its tables, COMBAT for its console (it has its own POWER bay).
@@ -83,6 +84,7 @@
       <div class="sys"><Name value={s.location.system} system /></div>
       <div class="st muted">{where}</div>
     </div>
+    {#if !live}<span class="linkstate">{link.connected ? 'OFFLINE' : 'NO SERVER'}</span>{/if}
     <span class="cur">{tab}</span>
     <FullScreen />
     <button class="burger" class:on={menu} onclick={() => (menu = !menu)} aria-label="Screens" aria-expanded={menu}>
@@ -113,10 +115,13 @@
         {/if}
       </div>
     </div>
+    <!-- tablets: the game's state sits in the header's free space, not in the status strip -->
+    {#if tablet && !live}<span class="linkstate">{link.connected ? 'GAME OFFLINE' : 'NO SERVER'}</span>{/if}
     <nav>
       {#each TABS as t (t)}
         <button class:active={tab === t} onclick={() => pick(t)}>{t}</button>
       {/each}
+      {#if tablet}<button class="reload" onclick={() => location.reload()} title="Reload the panel" aria-label="Reload">⟳</button>{/if}
       <FullScreen />
     </nav>
   </header>
@@ -151,9 +156,13 @@
   {#if !phone}
   <footer class="status">
     <span class="label">STATUS</span>
-    <span class:ok={live} class:bad={!live}>
-      {!link.connected ? 'NO CONNECTION TO THE SERVER' : s.meta.online ? 'GAME ONLINE' : 'GAME OFFLINE · last known state'}
-    </span>
+    {#if !tablet}
+      <span class:ok={live} class:bad={!live}>
+        {!link.connected ? 'NO CONNECTION TO THE SERVER' : s.meta.online ? 'GAME ONLINE' : 'GAME OFFLINE · last known state'}
+      </span>
+    {:else if live}
+      <span class="ok">GAME ONLINE</span>
+    {/if}
     <span class="vp" title="Layout picked for this screen">VP {viewport.vp}{viewport.forced ? '*' : ''} {viewport.width}×{viewport.height}</span>
     {#if notice}
       <span class:ok={notice.ok} class:bad={!notice.ok}>{notice.text}</span>
@@ -165,11 +174,9 @@
       {s.meta.gameVersion}{s.meta.odyssey ? ' · Odyssey' : ''}
     </span>
   </footer>
-  {:else if notice || !live}
-    <!-- phones: no status strip; a short toast instead -->
-    <div class="toast" class:ok={notice?.ok} class:bad={notice ? !notice.ok : true}>
-      {notice ? notice.text : !link.connected ? 'NO CONNECTION TO THE SERVER' : 'GAME OFFLINE'}
-    </div>
+  {:else if notice}
+    <!-- phones: no status strip; the last command shows as a short toast (the game's state is in the bar) -->
+    <div class="toast" class:ok={notice.ok} class:bad={!notice.ok}>{notice.text}</div>
   {/if}
 </div>
 
@@ -180,6 +187,8 @@
         <button class:active={tab === t} onclick={() => pick(t)}>{t}</button>
       {/each}
       <button class="qr" onclick={() => { menu = false; showQr = true; }}>▣ OPEN ON ANOTHER DEVICE</button>
+      <!-- opened from the home screen there is no browser bar: this is the only way to load a new version -->
+      <button class="reload" onclick={() => location.reload()}>⟳ RELOAD</button>
       <div class="meta dim">
         <span class:ok={live} class:bad={!live}>{live ? 'GAME ONLINE' : link.connected ? 'GAME OFFLINE' : 'NO SERVER'}</span>
         · VP {viewport.vp} {viewport.width}×{viewport.height}
@@ -286,6 +295,13 @@
   .top.slim .st { font-size: 11px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   :global(html[data-vp='phone-portrait']) .cur { display: none; }
   .cur { color: var(--hud-hi); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; }
+  /* the game is not running (or the server is gone): a red tag in the header's free space */
+  .linkstate {
+    flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px;
+    color: var(--danger); border: 1px solid var(--danger); background: rgb(209 72 58 / 0.1);
+    font-size: 11px; font-weight: 700; letter-spacing: 0.1em; white-space: nowrap;
+  }
+  .linkstate::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--danger); }
   .burger {
     display: flex; flex-direction: column; justify-content: center; gap: 4px;
     width: 44px; height: 38px; padding: 0 11px; background: var(--steel); border: 1px solid var(--rule);
@@ -306,6 +322,11 @@
   }
   .sheet button.active { background: var(--hud); border-color: var(--hud); color: var(--void); }
   .sheet .qr { grid-column: 1 / -1; color: var(--telemetry); }
+  .sheet .reload { grid-column: 1 / -1; color: var(--text); }
+  nav .reload { font-size: 16px; padding: 4px 12px; }
+  /* tablets: slimmer tabs, so the station name keeps its room next to them */
+  :global(html[data-vp='tablet-landscape']) nav button { padding: 8px 8px; }
+  :global(html[data-vp='tablet-landscape']) .top { gap: 10px; }
   .sheet .meta { grid-column: 1 / -1; font-size: 11px; text-align: center; }
   .toast {
     position: fixed; left: 50%; transform: translateX(-50%); z-index: 30;

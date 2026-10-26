@@ -34,16 +34,21 @@
     ['phone-landscape', 'iPhone 13 · home screen, minus safe areas', 750, 369, 0.6],
     ['phone-portrait', 'iPhone 13 · home screen, minus safe areas', 390, 763, 0.46],
   ];
-  const only = new URLSearchParams(location.search).get('only');
+  const params = new URLSearchParams(location.search);
+  const only = params.get('only');
+  // the rest of the query goes to every frame (?tab=combat&page=survive opens that screen and page)
+  const pass = new URLSearchParams(params);
+  pass.delete('only');
+  const page = pass.size ? `/?${pass}` : '/';
   const grid = document.getElementById('grid');
   for (const [vp, device, w, h, scale] of FRAMES) {
     if (only && only !== vp) continue;
     const k = only ? Math.min(1, (innerWidth - 30) / w, (innerHeight - 70) / h) : scale;
     const fig = document.createElement('figure');
     fig.innerHTML = `<figcaption><b>${vp}</b><span>${device} · ${w}×${h}</span>
-      <a href="?only=${vp}">zoom</a><a href="/" target="_blank">open</a></figcaption>
+      <a href="?only=${vp}${pass.size ? `&${pass}` : ''}">zoom</a><a href="/" target="_blank">open</a></figcaption>
       <div class="box" style="width:${Math.round(w * k)}px;height:${Math.round(h * k)}px">
-        <iframe src="/" width="${w}" height="${h}" style="transform:scale(${k})" title="${vp}"></iframe>
+        <iframe src="${page}" width="${w}" height="${h}" style="transform:scale(${k})" title="${vp}"></iframe>
       </div>`;
     grid.append(fig);
   }
