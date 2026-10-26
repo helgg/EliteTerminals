@@ -181,8 +181,15 @@ export interface EdState {
     shield: number | null;
     hull: number | null;
     subsystem: string;
+    /** The game's internal subsystem id ("$int_powerplant_size8_class5_name;"), stable across languages. */
+    subsystemId: string;
     subsystemHealth: number | null;
+    /** 0 = ship type only, 1 = pilot and rank, 2 = shield/hull, 3 = faction, legal status, bounty, subsystem. */
+    scanStage: number;
+    /** Counts ShipTargeted events: tells a macro the game answered, even when it reported the same ship again. */
+    seq: number;
   };
+  combat: CombatState;
   cargo: { items: CargoItem[]; count: number };
   market: MarketSnapshot;
   /** Player's active control presets and the keyboard key behind each bindable action. */
@@ -193,6 +200,81 @@ export interface EdState {
     tonsSold: number;
     tonsBought: number;
     sales: number;
+  };
+}
+
+/** A ship the player scanned in the current instance (cleared on every instance change). */
+export interface Contact {
+  ship: string;
+  pilot: string;
+  rank: string;
+  /** "Wanted", "Clean"… from ShipTargeted scan stage 3; "" until then. */
+  legalStatus: string;
+  bounty: number;
+  faction: string;
+  seenAt: string;
+}
+
+/** A massacre mission: kill `killCount` ships of `targetFaction`, reported by the journal. */
+export interface MassacreMission {
+  id: number;
+  /** Faction that gave the mission; kills count once per giving faction (missions stack). */
+  faction: string;
+  targetFaction: string;
+  killCount: number;
+  kills: number;
+  reward: number;
+  expiry: string;
+  /** MissionRedirected: every kill is in, go back to the giver. */
+  done: boolean;
+}
+
+export interface CombatState {
+  contacts: Contact[];
+  missions: MassacreMission[];
+  fighter: 'none' | 'docked' | 'out' | 'destroyed';
+  /** Ammo of the ship's consumables from Loadout (the journal does not report their use). */
+  heatSinks: number;
+  shieldCells: number;
+  chaff: number;
+  rebuy: number;
+  session: {
+    bounties: number;
+    bonds: number;
+    kills: number;
+    /** Bounties and bonds earned this session and not redeemed yet. */
+    unredeemed: number;
+    firstKillAt: string;
+    lastKillAt: string;
+  };
+}
+
+/** Display names for ship ids whose journal events often come without a `_Localised` name. */
+const SHIP_NAMES: Record<string, string> = {
+  adder: 'Adder', anaconda: 'Anaconda', asp: 'Asp Explorer', asp_scout: 'Asp Scout', belugaliner: 'Beluga Liner',
+  cobramkiii: 'Cobra Mk III', cobramkiv: 'Cobra Mk IV', cobramkv: 'Cobra Mk V', corsair: 'Corsair',
+  cutter: 'Imperial Cutter', diamondback: 'Diamondback Scout', diamondbackxl: 'Diamondback Explorer',
+  dolphin: 'Dolphin', eagle: 'Eagle', empire_courier: 'Imperial Courier', empire_eagle: 'Imperial Eagle',
+  empire_trader: 'Imperial Clipper', federation_corvette: 'Federal Corvette',
+  federation_dropship: 'Federal Dropship', federation_dropship_mkii: 'Federal Assault Ship',
+  federation_gunship: 'Federal Gunship', ferdelance: 'Fer-de-Lance', hauler: 'Hauler',
+  independant_trader: 'Keelback', krait_light: 'Krait Phantom', krait_mkii: 'Krait Mk II', mamba: 'Mamba',
+  mandalay: 'Mandalay', orca: 'Orca', panthermkii: 'Panther Clipper Mk II', python: 'Python',
+  python_nx: 'Python Mk II', sidewinder: 'Sidewinder', type6: 'Type-6 Transporter', type7: 'Type-7 Transporter',
+  type8: 'Type-8 Transporter', type9: 'Type-9 Heavy', type9_military: 'Type-10 Defender',
+  typex: 'Alliance Chieftain', typex_2: 'Alliance Crusader', typex_3: 'Alliance Challenger', viper: 'Viper Mk III',
+  viper_mkiv: 'Viper Mk IV', vulture: 'Vulture',
+};
+
+/** A ship's display name: the game's localised one when given, else from its id. */
+export function shipLabel(id: string, localised = ''): string {
+  return localised || SHIP_NAMES[id.toLowerCase()] || id;
+}
+
+export function initialCombat(): CombatState {
+  return {
+    contacts: [], missions: [], fighter: 'none', heatSinks: 0, shieldCells: 0, chaff: 0, rebuy: 0,
+    session: { bounties: 0, bonds: 0, kills: 0, unredeemed: 0, firstKillAt: '', lastKillAt: '' },
   };
 }
 
@@ -224,8 +306,9 @@ export function initialState(): EdState {
     galaxy: { systems: {}, current: null, target: null },
     target: {
       locked: false, ship: '', pilot: '', rank: '', faction: '', legalStatus: '', bounty: 0,
-      shield: null, hull: null, subsystem: '', subsystemHealth: null,
+      shield: null, hull: null, subsystem: '', subsystemId: '', subsystemHealth: null, scanStage: 0, seq: 0,
     },
+    combat: initialCombat(),
     cargo: { items: [], count: 0 },
     market: { marketId: 0, station: '', stationType: '', system: '', updatedAt: '', items: [] },
     controls: { presets: [], keys: {} },

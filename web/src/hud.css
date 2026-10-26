@@ -14,6 +14,8 @@
   --telemetry: #37c6d4;
   --ok: #35d07f;
   --danger: #d1483a;
+  /* macros: several keys in one tap (COMBAT console) */
+  --macro: #c58cff;
   --glow: 0 0 6px rgb(255 122 24 / 0.45);
 
   --mono: 'Cascadia Mono', Consolas, ui-monospace, 'SF Mono', Menlo, monospace;
@@ -61,6 +63,7 @@ body::after {
 .tele { color: var(--telemetry); }
 .ok { color: var(--ok); }
 .bad { color: var(--danger); }
+.warn { color: var(--hud-hi); }
 .num { font-variant-numeric: tabular-nums; }
 
 .chamfer {

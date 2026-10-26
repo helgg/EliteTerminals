@@ -1,57 +1,24 @@
 <script lang="ts">
-  import { keyFor, link, sendCommand } from './link.svelte.ts';
+  import { keyFor, sendCommand } from './link.svelte.ts';
+  import { canRun, macro, PIPS_CMDS as CMDS, PRESETS, runMacro } from './macros.svelte.ts';
 
   // Power distributor for touch: each channel is one tall button (tap = +1 pip there), plus one-tap presets.
   // Values are half-pips (0..8): the game moves power in half-pip steps.
   let { sys, eng, wep }: { sys: number; eng: number; wep: number } = $props();
 
-  const CMDS = ['IncreaseSystemsPower', 'IncreaseEnginesPower', 'IncreaseWeaponsPower'];
   const channels = $derived([
     { key: 'SYS', value: sys, cmd: CMDS[0] },
     { key: 'ENG', value: eng, cmd: CMDS[1] },
     { key: 'WEP', value: wep, cmd: CMDS[2] },
   ]);
 
-  // Targets in half-pips (SYS, ENG, WEP); the label is in pips, the way players say it.
-  const PRESETS: { label: string; target: [number, number, number] }[] = [
-    { label: 'DEF', target: [8, 4, 0] },
-    { label: 'RUN', target: [4, 8, 0] },
-    { label: 'ATK', target: [4, 0, 8] },
-  ];
-  const pipsLabel = (t: number[]) => t.map((h) => h / 2).join('·');
-  const isAt = (t: number[]) => t[0] === sys && t[1] === eng && t[2] === wep;
-  const canPreset = $derived(CMDS.every((c) => keyFor(c)) && !!keyFor('ResetPowerDistribution'));
-
-  // Presets are closed-loop: reset, then press the channel furthest below its target and wait for the
-  // game to report the new pips, until they match (or stop moving: game closed, or out of reach).
-  let running = $state('');
-  async function apply(label: string, target: [number, number, number]) {
-    if (running) return;
-    running = label;
-    try {
-      sendCommand('ResetPowerDistribution');
-      await settle(current());
-      for (let n = 0; n < 10; n++) {
-        const now = current();
-        const gap = target.map((t, k) => t - now[k]);
-        const k = gap.indexOf(Math.max(...gap));
-        if (gap[k] <= 0) break;
-        sendCommand(CMDS[k]);
-        if (!(await settle(now))) break;
-      }
-    } finally {
-      running = '';
-    }
-  }
-  const current = () => [link.state.pips.sys, link.state.pips.eng, link.state.pips.wep];
-  /** Resolves true once the pips differ from `before`, false after ~0.7s without change. */
-  async function settle(before: number[]): Promise<boolean> {
-    for (let t = 0; t < 14; t++) {
-      await new Promise((r) => setTimeout(r, 50));
-      if (current().some((v, k) => v !== before[k])) return true;
-    }
-    return false;
-  }
+  // Presets are closed-loop macros (macros.svelte.ts), shared with the COMBAT console.
+  const PRESET_LIST = (Object.keys(PRESETS) as (keyof typeof PRESETS)[]).map((label) => ({ label, target: PRESETS[label] }));
+  const pipsLabel = (t: readonly number[]) => t.map((h) => h / 2).join('·');
+  const isAt = (t: readonly number[]) => t[0] === sys && t[1] === eng && t[2] === wep;
+  const canPreset = $derived(canRun('PowerDEF'));
+  const running = $derived(macro.running.startsWith('Power') ? macro.running.slice(5) : macro.running ? '-' : '');
+  const apply = (label: keyof typeof PRESETS) => runMacro(`Power${label}`);
 </script>
 
 <div class="power">
@@ -72,9 +39,9 @@
     {/each}
   </div>
   <div class="presets">
-    {#each PRESETS as p (p.label)}
+    {#each PRESET_LIST as p (p.label)}
       <button class="preset chamfer" class:at={isAt(p.target)} class:busy={running === p.label}
-        disabled={!canPreset || (!!running && running !== p.label)} onclick={() => apply(p.label, p.target)}
+        disabled={!canPreset || (!!running && running !== p.label)} onclick={() => apply(p.label)}
         title="SYS·ENG·WEP {pipsLabel(p.target)}">
         <b>{p.label}</b><span class="num">{pipsLabel(p.target)}</span>
       </button>

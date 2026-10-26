@@ -15,6 +15,7 @@ export const link = $state({
 let socket: WebSocket | null = null;
 let seq = 0;
 const inFlight = new Map<string, string>();
+const waiting = new Map<string, (ok: boolean) => void>();
 
 export function connect() {
   const url = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`;
@@ -22,6 +23,9 @@ export function connect() {
   socket.onopen = () => (link.connected = true);
   socket.onclose = () => {
     link.connected = false;
+    // Commands in flight will never be answered: let macros waiting on them stop.
+    waiting.forEach((done) => done(false));
+    waiting.clear();
     setTimeout(connect, 1500);
   };
   socket.onmessage = (ev) => {
@@ -32,6 +36,8 @@ export function connect() {
       const command = inFlight.get(msg.id) ?? '?';
       inFlight.delete(msg.id);
       link.last = { command, ok: msg.ok, error: msg.error, at: Date.now() };
+      waiting.get(msg.id)?.(msg.ok);
+      waiting.delete(msg.id);
       if (msg.ok && command.startsWith('SetSpeed')) link.throttleCmd = command;
     }
   };
@@ -42,7 +48,7 @@ export function keyFor(action: string): string | undefined {
   return link.state.controls.keys[action];
 }
 
-export function sendCommand(command: string) {
+export function sendCommand(command: string): string | undefined {
   if (socket?.readyState !== WebSocket.OPEN) return;
   const id = String(++seq);
   inFlight.set(id, command);
@@ -50,4 +56,12 @@ export function sendCommand(command: string) {
   socket.send(JSON.stringify(msg));
   // A short tick under the finger on tablets that can vibrate (not iPad/Safari).
   try { navigator.vibrate?.(12); } catch {}
+  return id;
+}
+
+/** Sends a command and resolves once the server reports whether the key reached the game. */
+export function runCommand(command: string): Promise<boolean> {
+  const id = sendCommand(command);
+  if (!id) return Promise.resolve(false);
+  return new Promise((resolve) => waiting.set(id, resolve));
 }

@@ -1,6 +1,7 @@
 // Applies journal events and companion-file snapshots to the published state.
 // Pure apart from mutating the `state` it is given; no I/O here.
-import { STATUS_FLAGS, STATUS_FLAGS2, type EdState, type Flags } from '@et/shared';
+import { STATUS_FLAGS, STATUS_FLAGS2, shipLabel, type EdState, type Flags } from '@et/shared';
+import { applyCombat } from './combat.ts';
 
 export type JournalEvent = { event: string; timestamp?: string; [key: string]: any };
 
@@ -42,14 +43,26 @@ export function applyEvent(state: EdState, e: JournalEvent): void {
       state.commander.gameMode = str(e.GameMode);
       state.commander.credits = e.Credits ?? state.commander.credits;
       state.ship.type = str(e.Ship);
-      state.ship.label = str(e.Ship_Localised) || str(e.Ship);
+      state.ship.label = shipLabel(str(e.Ship), str(e.Ship_Localised));
       state.ship.name = str(e.ShipName).trim();
       state.ship.ident = str(e.ShipIdent);
       state.ship.fuelCapacity = e.FuelCapacity ?? state.ship.fuelCapacity;
       state.status.fuelMain = e.FuelLevel ?? state.status.fuelMain;
       break;
 
+    // A ship bought or swapped at the shipyard; its Loadout follows.
+    case 'ShipyardSwap':
+    case 'ShipyardNew':
+      state.ship.type = str(e.ShipType);
+      state.ship.label = shipLabel(str(e.ShipType), str(e.ShipType_Localised));
+      break;
+
     case 'Loadout':
+      // The ship flown now, whatever LoadGame said (ids differ in case: "PantherMkII" / "panthermkii").
+      if (str(e.Ship).toLowerCase() !== state.ship.type.toLowerCase()) {
+        state.ship.type = str(e.Ship);
+        state.ship.label = shipLabel(str(e.Ship));
+      }
       state.ship.name = str(e.ShipName).trim();
       state.ship.ident = str(e.ShipIdent);
       state.ship.cargoCapacity = e.CargoCapacity ?? 0;
@@ -145,6 +158,7 @@ export function applyEvent(state: EdState, e: JournalEvent): void {
       applyMarket(state, e);
       break;
   }
+  applyCombat(state, e);
 }
 
 function setSystem(state: EdState, e: JournalEvent) {
@@ -167,13 +181,22 @@ function setSystem(state: EdState, e: JournalEvent) {
 
 function applyTarget(state: EdState, e: JournalEvent) {
   const t = state.target;
+  t.seq += 1;
   if (!e.TargetLocked) {
     state.target = { ...t, locked: false, ship: '', pilot: '', rank: '', faction: '', legalStatus: '',
-      bounty: 0, shield: null, hull: null, subsystem: '', subsystemHealth: null };
+      bounty: 0, shield: null, hull: null, subsystem: '', subsystemId: '', subsystemHealth: null, scanStage: 0 };
     return;
   }
+  const ship = shipLabel(str(e.Ship), str(e.Ship_Localised));
+  const pilot = str(e.PilotName_Localised) || str(e.PilotName);
+  // A new lock (stage 0) or a different ship: forget what the previous lock told us.
+  if (e.ScanStage === 0 || ship !== t.ship || (pilot && pilot !== t.pilot)) {
+    Object.assign(t, { pilot: '', rank: '', faction: '', legalStatus: '', bounty: 0, shield: null, hull: null,
+      subsystem: '', subsystemId: '', subsystemHealth: null, scanStage: 0 });
+  }
   t.locked = true;
-  t.ship = str(e.Ship_Localised) || str(e.Ship);
+  t.ship = ship;
+  t.scanStage = typeof e.ScanStage === 'number' ? e.ScanStage : t.scanStage;
   // Higher scan stages add fields; keep what earlier stages gave us for the same lock.
   if ('PilotName' in e) t.pilot = str(e.PilotName_Localised) || str(e.PilotName);
   if ('PilotRank' in e) t.rank = str(e.PilotRank);
@@ -184,6 +207,7 @@ function applyTarget(state: EdState, e: JournalEvent) {
   if ('HullHealth' in e) t.hull = e.HullHealth;
   if ('Subsystem' in e) {
     t.subsystem = str(e.Subsystem_Localised) || str(e.Subsystem);
+    t.subsystemId = str(e.Subsystem);
     t.subsystemHealth = e.SubsystemHealth ?? null;
   }
 }

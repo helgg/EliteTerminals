@@ -5,11 +5,14 @@ import { open, readdir, readFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { initialState, type EdState } from '@et/shared';
 import { applyEvent, type JournalEvent } from './reducer.ts';
+import { MISSION_EVENTS, missionHistory } from './combat.ts';
 
 export const JOURNAL_RE = /^Journal(Alpha|Beta)?\.(.+)\.log$/;
 const COMPANION_FILES = ['Status.json', 'Cargo.json', 'NavRoute.json', 'Market.json'];
 const POLL_MS = 250;
 const DIR_SCAN_MS = 2000;
+/** Massacre missions last up to a week: older journals cannot hold one that is still active. */
+const MISSION_HISTORY_MS = 8 * 24 * 3600 * 1000;
 
 /** Splits a chunk into complete lines, returning the unterminated tail separately. */
 export function splitLines(buffered: string): { lines: string[]; rest: string } {
@@ -46,6 +49,7 @@ export class JournalReader extends EventEmitter {
 
   async start() {
     await this.scanDir();
+    await this.loadMissionHistory();
     await this.poll();
     this.timers.push(setInterval(() => void this.poll(), POLL_MS));
     this.timers.push(setInterval(() => void this.scanDir(), DIR_SCAN_MS));
@@ -86,6 +90,36 @@ export class JournalReader extends EventEmitter {
       this.rest = '';
       this.state.meta.journal = newest;
     }
+  }
+
+  /** Missions taken in earlier sessions, from the journals before the one we follow. */
+  private async loadMissionHistory() {
+    let names: string[];
+    try {
+      names = (await readdir(this.dir)).filter((n) => JOURNAL_RE.test(n) && n !== this.journal);
+    } catch {
+      return;
+    }
+    const since = Date.now() - MISSION_HISTORY_MS;
+    const files: { name: string; mtime: number }[] = [];
+    for (const name of names) {
+      const mtime = (await stat(join(this.dir, name)).catch(() => null))?.mtimeMs ?? 0;
+      if (mtime >= since) files.push({ name, mtime });
+    }
+    files.sort((a, b) => a.mtime - b.mtime || a.name.localeCompare(b.name));
+    const events: JournalEvent[] = [];
+    for (const { name } of files) {
+      const text = await readFile(join(this.dir, name), 'utf8').catch(() => '');
+      for (const line of text.split(/\r?\n/)) {
+        // Cheap pre-filter before JSON.parse: most lines are not mission events.
+        if (!line.includes('"Mission') && !line.includes('"Bounty"')) continue;
+        try {
+          const e = JSON.parse(line) as JournalEvent;
+          if (MISSION_EVENTS.has(e.event)) events.push(e);
+        } catch {}
+      }
+    }
+    this.state.combat.missions = missionHistory(events);
   }
 
   private async poll() {

@@ -7,6 +7,7 @@
   import SystemPanel from './lib/SystemPanel.svelte';
   import Flight from './screens/Flight.svelte';
   import Trade from './screens/Trade.svelte';
+  import Combat from './screens/Combat.svelte';
   import Name from './lib/Name.svelte';
   import { copied } from './lib/copy.svelte.ts';
   import ConnectQr from './lib/ConnectQr.svelte';
@@ -24,8 +25,9 @@
   const phone = $derived(viewport.device === 'phone');
   // The side column only where the screen is wide enough for it next to the screen's own panels.
   // Portrait screens bring SHIP and POWER into their own grid instead (RESPONSIVE-FLIGHT.md).
+  // TRADE needs the width for its tables, COMBAT for its console (it has its own POWER bay).
   const side = $derived(
-    tab !== 'TRADE' && (viewport.vp === 'desktop-landscape' || viewport.vp === 'tablet-landscape'),
+    tab !== 'TRADE' && tab !== 'COMBAT' && (viewport.vp === 'desktop-landscape' || viewport.vp === 'tablet-landscape'),
   );
 
   onMount(() => {
@@ -35,6 +37,8 @@
   });
 
   function readTab(): Tab {
+    const asked = new URLSearchParams(location.search).get('tab')?.toUpperCase() as Tab | undefined;
+    if (asked && TABS.includes(asked)) return asked;
     try {
       const saved = localStorage.getItem('et.tab') as Tab | null;
       if (saved && TABS.includes(saved)) return saved;
@@ -135,6 +139,8 @@
       <Flight {s} />
     {:else if tab === 'TRADE'}
       <Trade {s} {now} />
+    {:else if tab === 'COMBAT'}
+      <Combat {s} {now} />
     {:else}
       <Panel title={tab} aside="under construction">
         <p class="dim">The {tab} screen arrives in a later milestone (see docs/PLAN.md).</p>
