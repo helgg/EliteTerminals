@@ -6,7 +6,7 @@
 
 <p align="center">
   <b>A second-screen cockpit for Elite Dangerous.</b><br />
-  Live ship telemetry, one-tap ship controls and a trade-route planner,<br />
+  Live ship telemetry, one-tap ship controls, a combat console and a trade-route planner,<br />
   on any tablet, phone or spare monitor, in the look of the in-game HUD.
 </p>
 
@@ -36,6 +36,26 @@ a second.
 - Target hologram and route list with star class, fuel stars, jump distance, security and powerplay,
   enriched from Spansh.
 
+**COMBAT**
+
+![COMBAT screen: contacts ranked by bounty beside the console](docs/images/combat.jpg)
+
+- **Contacts** scanned in the current instance with pilot, rank, legal status, bounty and faction. Sort by any
+  column (highest bounty first by default), filter WANTED / MASSACRE / CLEAN, and tap a row to lock that ship
+  in the game.
+- **NEXT WANTED**, **NEXT MASSACRE** and **AUTO NEXT** (after every kill): one quick lap of the targets in range,
+  then straight to the best one (a ship of your massacre target faction, else the highest bounty). The next
+  pick is marked ★, and ships that left sensor range are dimmed.
+- **Session**: bounties, unredeemed vouchers, Cr/h, kills, combat bonds, stacked massacre progress per giving
+  faction (missions taken in earlier sessions included) and how many rebuys your credits cover.
+- **Console** in colour-coded groups: power presets, one-tap subsystem lock (power plant, drives, FSD, shield
+  generator, distributor, cargo hatch), fighter orders without a numpad, escape (emergency jump, submit & run,
+  recall & jump), defence (heat sink, shield cell, chaff, ECM, silent running, combos) and wing assist.
+- Macros press one key at a time and wait for the game to confirm each step (status flags, pips, the targeted
+  ship and subsystem) before the next. Tap a running macro again to stop it.
+- Phones get four pages (TARGETS, ATTACK, FIGHTER, SURVIVE); the iPad keeps a narrow targets column beside
+  the whole console.
+
 **TRADE**
 
 ![TRADE screen: loop routes from the current system](docs/images/trade.jpg)
@@ -56,10 +76,11 @@ a second.
 - Six layout classes (phone, tablet and monitor, each in landscape and portrait) with no scrolling and
   no cut-off text.
 - Tap the logo for a QR code of the PC's LAN address, so any device can connect without typing an IP.
-- Installable as a full-screen web app (Android, iPadOS and iOS "Add to Home Screen").
+- Installable as a full-screen web app (Android, iPadOS and iOS "Add to Home Screen"), with a reload button
+  since home-screen apps have no browser bar.
 - Haptic feedback on touch devices.
 
-> COMBAT, EXPLORE, MINING, SRV and CARRIER tabs are planned. See the [roadmap](#roadmap).
+> EXPLORE, MINING, SRV and CARRIER tabs are planned. See the [roadmap](#roadmap).
 
 ## How it works
 
@@ -129,7 +150,7 @@ npm run check        # TypeScript + svelte-check
 ```
 
 Open `http://localhost:8420/lab.html` to see the live panel at every layout class at once, with a check for
-clipped text.
+clipped text. Add `?tab=combat` (and `&page=survive` for a phone page) to open every frame on that screen.
 
 | Path | What it holds |
 |---|---|
@@ -137,10 +158,12 @@ clipped text.
 | `server/src/reducer.ts` | Journal event → state (pure and tested) |
 | `server/src/reader.ts` | Follows the newest journal and the companion JSON files |
 | `server/src/binds.ts`, `controls.ts`, `input.ts` | Key bindings → scancodes → game window |
+| `server/src/combat.ts` | Contacts, massacre missions, bounties and bonds, fighter, consumables |
 | `server/src/trade/` | Market scan, route engine (loops, linear chains, mixed loads) |
 | `server/src/galaxy.ts` | Spansh system lookups with a disk cache |
 | `web/src/hud.css` | Elite HUD design tokens |
-| `web/src/screens/` | FLIGHT and TRADE screens |
+| `web/src/screens/` | FLIGHT, COMBAT and TRADE screens |
+| `web/src/lib/macros.svelte.ts` | Multi-key macros, each step checked against the game's state |
 | `web/src/lib/` | HUD components: FSD ring, pips, throttle, hologram, panels |
 
 ## Roadmap
@@ -150,7 +173,8 @@ clipped text.
 - [x] Layouts for phone, tablet and monitor, QR connect, full-screen app
 - [ ] TRADE layouts for phones and tablets
 - [ ] Live prices from EDDN with a local database
-- [ ] COMBAT and SRV screens
+- [x] COMBAT: contacts by bounty, target picking, massacre missions, session, console of checked macros
+- [ ] SRV screen
 - [ ] EXPLORE and MINING screens
 - [ ] CARRIER screen
 
