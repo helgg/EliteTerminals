@@ -176,6 +176,8 @@ export interface EdState {
   };
   /** The picked trade route, priced again as new prices arrive; null when none is watched. */
   tradeWatch: WatchState | null;
+  /** Systems (or stations) the player saved here, newest first: the game keeps its own bookmarks on Frontier's servers. */
+  favorites: Favorite[];
   galaxy: {
     systems: Record<string, SystemInfo>;
     current: SystemDetail | null;
@@ -318,6 +320,7 @@ export function initialState(): EdState {
     route: { hops: [], fsdTarget: '', fsdTargetAddress: 0, remainingJumps: 0 },
     prices: { live: false, heard: 0, lastAt: '', stored: 0 },
     tradeWatch: null,
+    favorites: [],
     galaxy: { systems: {}, current: null, target: null, targetBody: null },
     target: {
       locked: false, ship: '', pilot: '', rank: '', faction: '', legalStatus: '', bounty: 0,
@@ -357,6 +360,17 @@ export interface TradeMarket {
 }
 
 /** A system offered by the trade reference picker. */
+export interface Favorite {
+  id: string;
+  system: string;
+  /** A station in that system, or '' for the system itself. The route always goes to the system. */
+  station: string;
+  stationType: string;
+  /** Galactic coordinates when known, for the distance. */
+  pos: [number, number, number] | null;
+  addedAt: string;
+}
+
 export interface SystemMatch {
   name: string;
   pos: [number, number, number];
@@ -548,4 +562,7 @@ export type ServerMessage =
   | { type: 'commandResult'; id: string; ok: boolean; error?: string }
   | { type: 'tradeProgress'; loaded: number; total: number; done: boolean; error?: string };
 
-export type ClientMessage = { type: 'command'; id: string; command: string };
+export type ClientMessage =
+  | { type: 'command'; id: string; command: string }
+  /** Puts the text on the PC's clipboard and presses Ctrl+V in the game (galaxy map search). */
+  | { type: 'paste'; id: string; text: string };

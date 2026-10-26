@@ -21,6 +21,7 @@ import { EddnListener } from './prices/eddn.ts';
 import { MarketHistory } from './marketHistory.ts';
 import { clipText, setClipboard } from './clipboard.ts';
 import { panelAddresses } from './lan.ts';
+import { Favorites, toFavorite } from './favorites.ts';
 
 const PORT = Number(process.env.PORT ?? 8420);
 const HOST = process.env.HOST ?? '0.0.0.0';
@@ -40,6 +41,9 @@ const scanner = new MarketScanner(CACHE_DIR);
 await scanner.load();
 const history = new MarketHistory(CACHE_DIR);
 await history.load();
+const favorites = new Favorites(CACHE_DIR);
+await favorites.load();
+reader.state.favorites = favorites.list;
 mkdirSync(CACHE_DIR, { recursive: true });
 const prices = new PriceDb(join(CACHE_DIR, 'prices.db'));
 const trade = new TradeService(scanner, () => reader.state, () => history.markets, prices);
@@ -150,14 +154,18 @@ app.get('/ws', { websocket: true }, (socket) => {
     } catch {
       return;
     }
-    if (msg.type === 'command') {
-      controls.run(String(msg.command)).then(
+    if (msg.type === 'command' || msg.type === 'paste') {
+      const job = msg.type === 'paste'
+        ? setClipboard(clipText(msg.text)).then(() => controls.paste())
+        : controls.run(String(msg.command));
+      const command = msg.type === 'paste' ? 'paste' : msg.command;
+      job.then(
         () => {
-          app.log.info({ command: msg.command }, 'command sent');
+          app.log.info({ command }, 'command sent');
           socket.send(encode({ type: 'commandResult', id: msg.id, ok: true }));
         },
         (err: Error) => {
-          app.log.warn({ command: msg.command, error: err.message }, 'command failed');
+          app.log.warn({ command, error: err.message }, 'command failed');
           socket.send(encode({ type: 'commandResult', id: msg.id, ok: false, error: err.message }));
         },
       );
@@ -209,6 +217,21 @@ app.post('/api/clipboard', async (req, reply) => {
   } catch (err) {
     return reply.code(500).send({ error: (err as Error).message });
   }
+});
+
+app.post('/api/favorites', async (req, reply) => {
+  const f = toFavorite(req.body);
+  if (!f) return reply.code(400).send({ error: 'no system' });
+  await favorites.add(f);
+  reader.state.favorites = favorites.list;
+  scheduleBroadcast();
+  return favorites.list;
+});
+app.delete('/api/favorites/:id', async (req, reply) => {
+  if (!(await favorites.remove(String((req.params as { id: string }).id)))) return reply.code(404).send({ error: 'not found' });
+  reader.state.favorites = favorites.list;
+  scheduleBroadcast();
+  return favorites.list;
 });
 
 app.get('/api/trade/last', async (_req, reply) => trade.last ?? reply.code(204).send());

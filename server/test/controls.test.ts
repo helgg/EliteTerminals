@@ -98,8 +98,23 @@ function fakeSender(sent: string[], focus: () => string | null = () => null): Ke
       await new Promise((r) => setTimeout(r, 5));
       sent.push(chord.label);
     },
+    async holdClickCenter(ms: number) {
+      sent.push(`hold ${ms}`);
+    },
     async focusGame() {
       return focus();
     },
   };
 }
+
+test('typing keys: Enter and Ctrl+V go out without a bind', async () => {
+  const sent: string[] = [];
+  const controls = new Controls(FIXTURES, null, fakeSender(sent));
+  controls.reload();
+  await controls.run('TextEnter');
+  await controls.run('KeyUp');
+  await controls.run('KeyDown');
+  await controls.paste();
+  await controls.run('MouseHoldCenter');
+  assert.deepEqual(sent, ['Enter', 'Up', 'Down', 'Ctrl+V', 'hold 3000']);
+});

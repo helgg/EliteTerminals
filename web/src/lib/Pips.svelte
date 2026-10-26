@@ -4,7 +4,8 @@
 
   // Power distributor for touch: each channel is one tall button (tap = +1 pip there), plus one-tap presets.
   // Values are half-pips (0..8): the game moves power in half-pip steps.
-  let { sys, eng, wep }: { sys: number; eng: number; wep: number } = $props();
+  // `compact`: short horizontal bars, for a column that also holds the SYSTEM panel.
+  let { sys, eng, wep, compact = false }: { sys: number; eng: number; wep: number; compact?: boolean } = $props();
 
   const channels = $derived([
     { key: 'SYS', value: sys, cmd: CMDS[0] },
@@ -21,7 +22,7 @@
   const apply = (label: keyof typeof PRESETS) => runMacro(`Power${label}`);
 </script>
 
-<div class="power">
+<div class="power" class:compact>
   <div class="channels">
     {#each channels as ch (ch.key)}
       <button class="channel" disabled={!keyFor(ch.cmd)} onclick={() => sendCommand(ch.cmd)}
@@ -98,4 +99,17 @@
   .reset { background: var(--hud); border-color: var(--hud); color: var(--void); }
   .reset span { color: rgb(11 7 5 / 0.6); }
   .preset:active:not(:disabled), .reset:active:not(:disabled) { filter: brightness(1.3); transform: translateY(1px); }
+
+  /* compact: name and value on one line, the eight half-pips left to right underneath */
+  .compact { flex: none; gap: 4px; }
+  .compact .channel {
+    display: grid; grid-template-columns: auto 1fr; grid-template-areas: 'label value' 'bar bar';
+    align-items: baseline; gap: 4px 6px; padding: 5px 7px 6px;
+  }
+  .compact .label { grid-area: label; text-align: left; font-size: 11px; }
+  .compact .value { grid-area: value; text-align: right; font-size: 13px; margin-right: 10px; }
+  .compact .bar { grid-area: bar; flex-direction: row-reverse; min-height: 0; height: 9px; }
+  .compact .cell.half { margin-bottom: 0; margin-right: 2px; }
+  .compact .plus { top: 2px; right: 5px; font-size: 11px; }
+  .compact .preset, .compact .reset { padding: 4px 2px; font-size: 11px; }
 </style>

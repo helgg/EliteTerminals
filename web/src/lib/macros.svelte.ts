@@ -1,6 +1,6 @@
 // Macros: several key presses in a row, each step checked against what the game reports back
 // (Status.json flags and pips, ShipTargeted, fighter events) before the next one is sent.
-import { keyFor, link, runCommand } from './link.svelte.ts';
+import { keyFor, link, pasteText, runCommand } from './link.svelte.ts';
 
 export const macro = $state({
   /** Name of the macro running now; one at a time, a second tap is ignored. */
@@ -12,6 +12,8 @@ export const macro = $state({
   absent: [] as string[],
   /** Contact being locked from the list, for its row to show it. */
   locking: '',
+  /** The route being plotted from the favourites: where to, how far it got, and why it stopped. */
+  plot: { system: '', stage: '', error: '' },
 });
 
 class Stop extends Error {}
@@ -401,6 +403,71 @@ export const runMacro = (id: string) => run(id, MACROS[id].steps);
 /** A plain key that is a fighter order also lights its LED. */
 export function sendOrder(action: string) {
   return run(action, () => order(action));
+}
+
+// --- route: plot one to a system through the galaxy map ---
+
+/** Galaxy map, as Status.json's GuiFocus reports it. */
+const GALAXY_MAP = 6;
+const sameSystem = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+export const routeEndsAt = (system: string) => sameSystem(st().route.hops.at(-1)?.system ?? '', system);
+
+/**
+ * Keys pressed in the open galaxy map (calibrated in game, Odyssey): Up arrow + Space opens the search field,
+ * paste the name, Down + Space picks the first suggestion and the map flies there, then holding the left mouse
+ * button on it (middle of the screen) plots the route. Each entry is a bind, a plain key or 'paste', with the pause the map needs after it.
+ */
+export const PLOT_STEPS: [step: string, waitMs: number][] = [
+  ['KeyUp', 1000], // the search box gets the focus
+  ['UI_Select', 1000], // …and opens for typing
+  ['paste', 1500], // the suggestions come from Frontier's servers
+  ['KeyDown', 1000], // first suggestion
+  ['UI_Select', 3000], // the map flies to the system and centres it
+  ['MouseHoldCenter', 1000], // held 3 s on it: plot route
+];
+/** Never less than this between two steps: the map drops input that comes faster (seen in game). */
+const PLOT_MIN_GAP_MS = 1000;
+/** Keys the server always has (no bind needed). */
+const TEXT_KEYS = ['TextEnter', 'KeyUp', 'KeyDown', 'MouseHoldCenter'];
+const PLOT_KEYS = ['GalaxyMapOpen', ...new Set(PLOT_STEPS.map(([step]) => step).filter((x) => x !== 'paste'))];
+
+async function plotRoute(system: string) {
+  macro.plot = { system, stage: 'map', error: '' };
+  const fail = (error: string) => {
+    macro.plot.error = error;
+    throw new Stop(error);
+  };
+  if (routeEndsAt(system)) {
+    macro.plot.stage = 'done';
+    return;
+  }
+  if (st().status.guiFocus !== GALAXY_MAP) {
+    await press('GalaxyMapOpen');
+    if (!(await waitFor(() => st().status.guiFocus === GALAXY_MAP, 6000))) fail('galaxy map did not open');
+    await sleep(2000); // the map takes a moment to answer keys after it opens
+  }
+  macro.plot.stage = 'search';
+  for (const [step, waitMs] of PLOT_STEPS) {
+    if (step === 'paste') {
+      if (cancelled) throw new Stop('cancelled');
+      if (!(await pasteText(system))) fail('could not type the name');
+    } else await press(step);
+    await sleep(Math.max(waitMs, PLOT_MIN_GAP_MS));
+  }
+  macro.plot.stage = 'plot';
+  if (!(await waitFor(() => routeEndsAt(system), 6000))) fail('route not plotted: finish it in the map (the name is on the clipboard)');
+  macro.plot.stage = 'done';
+  await press('GalaxyMapOpen');
+  await waitFor(() => st().status.guiFocus !== GALAXY_MAP, 3000);
+}
+
+/** Keys the route macro needs that the player has not bound. */
+export const plotMissing = () => PLOT_KEYS.filter((k) => !TEXT_KEYS.includes(k) && !keyFor(k));
+
+/** Plots a route to `system`; tapping the same one while it runs stops it. */
+export async function plotTo(system: string) {
+  if (macro.running && macro.running !== 'Plot') await cancelMacro();
+  return run('Plot', () => plotRoute(system));
 }
 
 // --- AUTO NEXT: after each kill, lock the best target (a massacre ship, else the highest bounty) ---

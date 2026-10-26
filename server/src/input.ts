@@ -8,6 +8,9 @@ const INPUT_KEYBOARD = 1;
 const KEYEVENTF_EXTENDEDKEY = 0x0001;
 const KEYEVENTF_KEYUP = 0x0002;
 const KEYEVENTF_SCANCODE = 0x0008;
+const INPUT_MOUSE = 0;
+const MOUSEEVENTF_LEFTDOWN = 0x0002;
+const MOUSEEVENTF_LEFTUP = 0x0004;
 /** The game polls input per frame; shorter taps get dropped at low frame rates. */
 const HOLD_MS = 60;
 const GAP_MS = 15;
@@ -17,6 +20,8 @@ const FOCUS_SETTLE_MS = 150;
 export interface KeySender {
   /** Presses modifiers + key, holds, releases in reverse order. */
   tap(chord: ResolvedChord, holdMs?: number): Promise<void>;
+  /** Holds the left mouse button for `ms` in the middle of the game window (galaxy map: plot route). */
+  holdClickCenter(ms: number): Promise<void>;
   /** Makes sure keys will reach the game; returns an error message when they would not. */
   focusGame(): Promise<string | null>;
 }
@@ -43,12 +48,22 @@ export function createWin32Sender(): KeySender {
   const GetWindowThreadProcessId = user32.func('uint32 __stdcall GetWindowThreadProcessId(void *hwnd, void *pid)');
   const AttachThreadInput = user32.func('bool __stdcall AttachThreadInput(uint32 idAttach, uint32 idAttachTo, bool attach)');
   const GetCurrentThreadId = koffi.load('kernel32.dll').func('uint32 __stdcall GetCurrentThreadId()');
+  const RECT = koffi.struct('RECT', { left: 'int32', top: 'int32', right: 'int32', bottom: 'int32' });
+  const POINT = koffi.struct('POINT', { x: 'int32', y: 'int32' });
+  const GetClientRect = user32.func('bool __stdcall GetClientRect(void *hwnd, _Out_ RECT *rect)');
+  const ClientToScreen = user32.func('bool __stdcall ClientToScreen(void *hwnd, _Inout_ POINT *pt)');
+  const SetCursorPos = user32.func('bool __stdcall SetCursorPos(int x, int y)');
   const size = koffi.sizeof(INPUT);
   const ALT: ScanKey = { scan: 0x38, extended: false };
 
   const send = (k: ScanKey, up: boolean) => {
     const flags = KEYEVENTF_SCANCODE | (k.extended ? KEYEVENTF_EXTENDEDKEY : 0) | (up ? KEYEVENTF_KEYUP : 0);
     const input = { type: INPUT_KEYBOARD, u: { ki: { wVk: 0, wScan: k.scan, dwFlags: flags, time: 0, dwExtraInfo: 0 } } };
+    if (SendInput(1, [input], size) !== 1) throw new Error('SendInput was blocked (UIPI or secure desktop)');
+  };
+
+  const mouse = (flags: number) => {
+    const input = { type: INPUT_MOUSE, u: { mi: { dx: 0, dy: 0, mouseData: 0, dwFlags: flags, time: 0, dwExtraInfo: 0 } } };
     if (SendInput(1, [input], size) !== 1) throw new Error('SendInput was blocked (UIPI or secure desktop)');
   };
 
@@ -66,6 +81,23 @@ export function createWin32Sender(): KeySender {
       for (const m of [...chord.modifiers].reverse()) {
         await sleep(GAP_MS);
         send(m, true);
+      }
+    },
+
+    async holdClickCenter(ms) {
+      const hwnd = FindWindowW(null, GAME_WINDOW_TITLE);
+      if (!hwnd) throw new Error('Elite Dangerous is not running');
+      const rect = { left: 0, top: 0, right: 0, bottom: 0 };
+      GetClientRect(hwnd, rect);
+      const pt = { x: Math.round((rect.right - rect.left) / 2), y: Math.round((rect.bottom - rect.top) / 2) };
+      ClientToScreen(hwnd, pt);
+      SetCursorPos(pt.x, pt.y);
+      await sleep(120);
+      mouse(MOUSEEVENTF_LEFTDOWN);
+      try {
+        await sleep(ms);
+      } finally {
+        mouse(MOUSEEVENTF_LEFTUP);
       }
     },
 

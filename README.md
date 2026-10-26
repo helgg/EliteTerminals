@@ -6,7 +6,8 @@
 
 <p align="center">
   <b>A second-screen cockpit for Elite Dangerous.</b><br />
-  Live ship telemetry, one-tap ship controls, a combat console and a trade-route planner,<br />
+  Live ship telemetry, one-tap ship controls, favourite destinations with one-tap route plotting,<br />
+  a combat console and a trade-route planner,<br />
   on any tablet, phone or spare monitor, in the look of the in-game HUD.
 </p>
 
@@ -17,7 +18,7 @@
   <img alt="License GPL-3.0" src="https://img.shields.io/badge/license-GPL--3.0-37c6d4?style=flat-square" />
 </p>
 
-![FLIGHT screen on a 1080p monitor](docs/images/flight.jpg)
+![FLIGHT screen on a 1080p monitor: route, favourites with one-tap PLOT and every station of the system](docs/images/flight.jpg)
 
 EliteTerminals runs a small server on the PC where you play. It follows the game's journal files as they
 are written and serves a web panel to any device on your local network. There is nothing to install on the
@@ -27,14 +28,25 @@ a second.
 ## Features
 
 **FLIGHT**
+
+- **Favourites with one-tap route plotting.** Save the system you are in (★ HERE), find any system by name
+  (+ FIND), or star a station in the SYSTEM panel. Tap **PLOT** and the panel opens the galaxy map, searches the
+  system, picks it and plots the route, then closes the map once the game confirms a route that ends there.
+  Each favourite shows its distance and turns **ROUTED** when your route ends there; sort by distance with NEAR.
+  The game keeps its own bookmarks on Frontier's servers, out of reach, so the favourites live on your PC.
+- **Every station in the system** in the SYSTEM panel: type icon, largest pad, distance from the star and services,
+  filtered ALL / ORBITAL / SURFACE / CARRIER, with the station you are docked at on top.
 - Frame Shift Drive ring with live state: ready, charging, jumping, supercruise, mass locked, cooldown.
 - Hyperspace, supercruise, FSD auto and next-system buttons, plus a vertical throttle with boost.
 - Power distributor with tap-to-add pips and DEF / RUN / ATK presets that read the game's real pip
-  state and press keys until it matches.
+  state and press keys until it matches. On monitors the pips are compact bars, leaving the height to the system's
+  station list.
 - Ship systems in four groups (flight, combat, HUD & lights, nav), lit by the game's status flags.
 - Fuel, cargo, hull and laden jump range, plus legal state and warnings (heat, danger, interdiction, low fuel).
 - Target hologram and route list with star class, fuel stars, jump distance, security and powerplay,
   enriched from Spansh. Station targets show the landing pad and services; ringed planets show their rings.
+- Monitors split the right-hand column between the route and the favourites; tablets open the favourites from the
+  route strip (★ FAV), and phones switch between ROUTE and FAVORITES on the route page.
 
 **COMBAT**
 
@@ -125,6 +137,9 @@ a second.
 - **Your own bindings.** Commands come from your active `.binds` preset and are sent as scancodes to the game
   window. An action with no key bound shows `no bind` and stays disabled. If the game window can't be
   focused, the command is refused, so no key press goes to another program.
+- **Plotting a route** is a checked macro too: it waits for the galaxy map to open (Status.json), types the name by
+  pasting it from the PC's clipboard, and only reports success when the game writes a route that ends at that system.
+  If a step fails, the map stays open with the name on the clipboard, so you can finish by hand.
 - **Public data.** Galaxy and market data come from [Spansh](https://spansh.co.uk), one request at a time,
   cached on disk, and live market prices from the [EDDN](https://github.com/EDCD/EDDN) relay while the server runs.
 
@@ -133,6 +148,7 @@ a second.
 - Windows 10 or 11 with Elite Dangerous (Horizons or Odyssey).
 - [Node.js 24](https://nodejs.org/) or newer.
 - The tablet or phone on the same network as the PC.
+- To plot routes from the panel: a keyboard key for **Galaxy Map** in the game's controls.
 
 ## Getting started
 
@@ -160,7 +176,7 @@ All optional, set as environment variables before `npm start`:
 | `ED_JOURNAL_DIR` | `%USERPROFILE%\Saved Games\Frontier Developments\Elite Dangerous` | Journal folder |
 | `ED_BINDINGS_DIR` | `%LOCALAPPDATA%\Frontier Developments\Elite Dangerous\Options\Bindings` | Key bindings folder |
 | `ED_GAME_DIR` | found through Steam | Game install folder, used for the built-in control schemes |
-| `ET_CACHE_DIR` | `%LOCALAPPDATA%\EliteTerminals` | Spansh cache, market history and the price database (`prices.db`) |
+| `ET_CACHE_DIR` | `%LOCALAPPDATA%\EliteTerminals` | Spansh cache, market history, favourites (`favorites.json`) and the price database (`prices.db`) |
 | `ET_EDDN` | `1` | Set to `0` to stop listening to EDDN |
 
 ## Development
@@ -184,10 +200,11 @@ clipped text. Add `?tab=combat` (and `&page=survive` for a phone page) to open e
 | `server/src/combat.ts` | Contacts, massacre missions, bounties and bonds, fighter, consumables |
 | `server/src/trade/` | Market scan, route engine (loops, linear chains, mixed loads), reference search |
 | `server/src/prices/` | Local price database (SQLite), EDDN listener, route watch |
+| `server/src/favorites.ts` | Favourite destinations, kept on disk |
 | `server/src/galaxy.ts` | Spansh system lookups with a disk cache, and rings of the targeted body |
 | `web/src/hud.css` | Elite HUD design tokens |
 | `web/src/screens/` | FLIGHT, COMBAT and TRADE screens |
-| `web/src/lib/macros.svelte.ts` | Multi-key macros, each step checked against the game's state |
+| `web/src/lib/macros.svelte.ts` | Multi-key macros (combat, power, route plotting), each step checked against the game's state |
 | `web/src/lib/` | HUD components: FSD ring, pips, throttle, hologram, panels, icons |
 
 ## Roadmap
@@ -199,6 +216,7 @@ clipped text. Add `?tab=combat` (and `&page=survive` for a phone page) to open e
 - [x] Live prices from EDDN with a local database, routes from any system, route watch
 - [x] COMBAT: contacts by bounty, target picking, massacre missions, session, console of checked macros
 - [x] Icons and holograms: stations, pads, services, stars, planets with rings, signals
+- [x] FLIGHT favourites with one-tap route plotting, every station of the system with filters
 - [ ] SRV screen
 - [ ] EXPLORE and MINING screens
 - [ ] CARRIER screen

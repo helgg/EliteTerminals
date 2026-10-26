@@ -65,3 +65,13 @@ export function runCommand(command: string): Promise<boolean> {
   if (!id) return Promise.resolve(false);
   return new Promise((resolve) => waiting.set(id, resolve));
 }
+
+/** Puts `text` on the PC's clipboard and presses Ctrl+V in the game; resolves like `runCommand`. */
+export function pasteText(text: string): Promise<boolean> {
+  if (socket?.readyState !== WebSocket.OPEN) return Promise.resolve(false);
+  const id = String(++seq);
+  inFlight.set(id, 'paste');
+  const msg: ClientMessage = { type: 'paste', id, text };
+  socket.send(JSON.stringify(msg));
+  return new Promise((resolve) => waiting.set(id, resolve));
+}

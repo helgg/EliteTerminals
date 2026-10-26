@@ -132,7 +132,8 @@
   <aside class="side">
     <ShipPanel {s} />
     <Panel class="power" title="Power" aside="tap to add">
-      <Pips sys={s.pips.sys} eng={s.pips.eng} wep={s.pips.wep} />
+      <!-- short bars where SYSTEM shares the column: its station list needs the height -->
+      <Pips sys={s.pips.sys} eng={s.pips.eng} wep={s.pips.wep} compact={viewport.device !== 'tablet'} />
     </Panel>
     <!-- on a tablet the FSD target card already names the system: the column keeps the controls -->
     {#if viewport.device !== 'tablet'}<SystemPanel {s} />{/if}

@@ -13,6 +13,7 @@
   import ShipPanel from '../lib/ShipPanel.svelte';
   import Pips from '../lib/Pips.svelte';
   import SystemPanel from '../lib/SystemPanel.svelte';
+  import Favorites from '../lib/Favorites.svelte';
   import { viewport } from '../lib/viewport.svelte.ts';
   import { keyFor, link, sendCommand } from '../lib/link.svelte.ts';
   import { resolveTarget } from '../lib/target.ts';
@@ -79,6 +80,12 @@
     } catch {}
     return 'drive';
   }
+  // Favourites: half of the route column on monitors, a sheet over the screen on tablets, a switch on phones.
+  // `?favs=open` opens them, for layout tests.
+  const favsParam = new URLSearchParams(location.search).get('favs') === 'open';
+  let favOpen = $state(favsParam);
+  let routeView = $state<'route' | 'favs'>(favsParam ? 'favs' : 'route');
+
   function setPage(p: Page) {
     page = p;
     try { localStorage.setItem('et.flight.page', p); } catch {}
@@ -191,7 +198,21 @@
     {:else}
       <span class="dim">No route plotted.</span>
     {/if}
+    {#if !phone}<button class="fav-btn chamfer" onclick={() => (favOpen = true)} title="favourites: plot a route">★ FAV</button>{/if}
   </div>
+{/snippet}
+
+{#snippet routePanel()}
+  <Panel class="route" title="Route"
+    aside={hops.length ? `${hops.length - 1} jumps · ${totalLy.toFixed(0)}ly · ${fuelStars} fuel` : ''}>
+    {@render routeList()}
+  </Panel>
+{/snippet}
+
+{#snippet favPanel()}
+  <Panel class="favs" title="Favorites" aside={s.favorites.length ? `${s.favorites.length} saved` : 'tap plot'}>
+    <Favorites {s} />
+  </Panel>
 {/snippet}
 
 {#snippet act(b: (typeof drive)[number])}
@@ -322,10 +343,13 @@
         </Panel>
       {:else}
         {@render targetCard()}
-        <Panel class="route" title="Route"
-          aside={hops.length ? `${hops.length - 1} jumps · ${totalLy.toFixed(0)}ly · ${fuelStars} fuel` : ''}>
-          {@render routeList()}
-        </Panel>
+        <div class="navcol">
+          <div class="switch">
+            <button class:on={routeView === 'route'} onclick={() => (routeView = 'route')}>ROUTE</button>
+            <button class:on={routeView === 'favs'} onclick={() => (routeView = 'favs')}>★ FAVORITES</button>
+          </div>
+          {#if routeView === 'route'}{@render routePanel()}{:else}{@render favPanel()}{/if}
+        </div>
       {/if}
     </div>
   </div>
@@ -363,10 +387,15 @@
   </Panel>
 
   {#if routeColumn}
-  <Panel class="route" title="Route"
-    aside={hops.length ? `${hops.length - 1} jumps · ${totalLy.toFixed(0)}ly · ${fuelStars} fuel` : ''}>
-    {@render routeList()}
-  </Panel>
+  <div class="navcol">
+    {@render routePanel()}
+    {@render favPanel()}
+  </div>
+  {:else if favOpen}
+  <div class="fav-sheet">
+    {@render favPanel()}
+    <button class="fav-close chamfer" onclick={() => (favOpen = false)}>CLOSE</button>
+  </div>
   {/if}
 </div>
 {/if}
@@ -385,7 +414,23 @@
   .flight > :global(.systems .body) { flex: 1; display: flex; flex-direction: column; }
   .flight > :global(.throttle) { grid-column: 2; grid-row: 1 / span 2; }
   .flight > :global(.throttle .body) { flex: 1; display: flex; flex-direction: column; }
-  .flight > :global(.route) { grid-column: 3; grid-row: 1 / span 2; }
+  .flight { position: relative; }
+  .navcol { grid-column: 3; grid-row: 1 / span 2; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+  .navcol > :global(.panel) { flex: 1 1 0; min-height: 0; }
+  .navcol > :global(.favs .body), .fav-sheet > :global(.favs .body) { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  /* tablets: the favourites as a sheet over the right of the screen */
+  .fav-sheet {
+    position: absolute; z-index: 5; top: 0; right: 0; bottom: 0; width: min(380px, 70%);
+    display: flex; flex-direction: column; gap: 6px; padding: 0 0 0 8px;
+    background: var(--void); box-shadow: -12px 0 24px rgb(0 0 0 / 0.6);
+  }
+  .fav-sheet > :global(.favs) { flex: 1; min-height: 0; }
+  .fav-close, .fav-btn {
+    font: inherit; font-weight: 700; letter-spacing: 0.1em; cursor: pointer;
+    background: transparent; color: var(--hud-hi); border: 1px solid var(--hud-hi);
+  }
+  .fav-close { padding: 10px; font-size: 12px; }
+  .fav-btn { margin-left: auto; padding: 3px 8px; font-size: 10px; flex: none; }
 
   /* tablet landscape (iPad Air 3 1112×834): no route column, a narrow throttle */
   .flight.tablet-landscape { grid-template-columns: minmax(0, 1fr) 150px; }
@@ -507,17 +552,25 @@
   .landscape .page.p-power > :global(*) { flex: 1; min-width: 0; }
 
   /* ROUTE: the target, then the route (the list scrolls inside its panel) */
-  .page.p-route > :global(.route) { flex: 1; min-height: 0; }
+  .page.p-route > .navcol { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 4px; }
+  .page.p-route .navcol > :global(.panel) { flex: 1; min-height: 0; }
+  .page.p-route .navcol > :global(.favs .body) { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .switch { display: flex; gap: 4px; }
+  .switch button {
+    flex: 1; font: inherit; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; padding: 7px; cursor: pointer;
+    background: transparent; color: var(--muted); border: 1px solid var(--rule);
+  }
+  .switch button.on { color: var(--void); background: var(--hud); border-color: var(--hud); }
   .page.p-route .target :global(.holo) { max-width: 110px; }
   .landscape .page.p-route { flex-direction: row; }
   .landscape .page.p-route .target { flex: 1; min-width: 0; }
-  .landscape .page.p-route > :global(.route) { flex: 1.3; min-width: 0; }
+  .landscape .page.p-route > .navcol { flex: 1.3; min-width: 0; }
 
   /* portrait monitor (1080×1920 at 125% ≈ 864×1430): the iPad portrait layout plus a fourth row
      with the SYSTEM details and the full ROUTE, and bigger instruments */
   .flight.desktop-portrait { grid-template-rows: auto auto auto minmax(0, 1fr); --bar-min: 110px; }
   .flight.desktop-portrait > :global(.system) { grid-column: 1; grid-row: 4; }
-  .flight.desktop-portrait > :global(.route) { grid-column: 2 / -1; grid-row: 4; }
+  .flight.desktop-portrait > .navcol { grid-column: 2 / -1; grid-row: 4; }
   .flight.desktop-portrait .fsd-body { grid-template-columns: minmax(190px, 240px) minmax(150px, 0.8fr) minmax(0, 1.2fr); }
   .flight.desktop-portrait .target :global(.holo) { max-width: 130px; }
   .flight.desktop-portrait .group { grid-template-rows: auto repeat(3, 60px); }
