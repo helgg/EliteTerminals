@@ -3,25 +3,31 @@
 
   // The jump between two stops: a lane of chevrons, like the galaxy map's plotted route, with the
   // distance, jumps and time on a plate in the middle. With no distance it is just the way back.
-  let { ly, jumps, seconds, up = false, label = '' }: {
+  // `vertical` stands the lane up between two columns: out points right (A→B), the way back left.
+  let { ly, jumps, seconds, up = false, label = '', vertical = false }: {
     ly?: number;
     jumps?: number;
     seconds?: number;
     up?: boolean;
     label?: string;
+    vertical?: boolean;
   } = $props();
+
+  const arrow = $derived(vertical ? (up ? '◀' : '▶') : up ? '▲' : '▼');
 </script>
 
-<div class="hop" class:up>
+<div class="hop" class:up class:vertical>
   <span class="plate">
-    <span class="arrow">{up ? '▲' : '▼'}</span>
+    <span class="arrow">{arrow}</span>
     {#if ly !== undefined}
       <b class="num">{ly.toFixed(1)}ly</b>
       <span class="sep">·</span>
       <span class="num">{jumps} {jumps === 1 ? 'JUMP' : 'JUMPS'}</span>
       {#if seconds}<span class="sep">·</span><span class="num">≈{duration(seconds)}</span>{/if}
     {/if}
-    {#if label}<span>{label}</span>{/if}
+    {#each label ? label.split(' · ') : [] as part, i (i)}
+      {#if i > 0}<span class="sep">·</span>{/if}<span>{part}</span>
+    {/each}
   </span>
 </div>
 
@@ -64,4 +70,36 @@
       url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='9'%3E%3Cpath d='M1 7l6-5 6 5' fill='none' stroke='%2337c6d4' stroke-opacity='.3' stroke-width='1.5'/%3E%3C/svg%3E")
         center / 14px 9px;
   }
+
+  /* standing up: the lane runs top to bottom, the plate stacks its figures one per line */
+  .hop.vertical {
+    height: 100%;
+    margin: 0;
+    border: 0;
+    border-left: 1px dashed var(--rule);
+    border-right: 1px dashed var(--rule);
+    background:
+      linear-gradient(to bottom, var(--panel), transparent 12%, transparent 88%, var(--panel)),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='14'%3E%3Cpath d='M2 1l5 6-5 6' fill='none' stroke='%23ff7a18' stroke-opacity='.3' stroke-width='1.5'/%3E%3C/svg%3E")
+        center / 9px 14px;
+  }
+  .hop.vertical.up {
+    background:
+      linear-gradient(to bottom, var(--panel), transparent 12%, transparent 88%, var(--panel)),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='14'%3E%3Cpath d='M7 1l-5 6 5 6' fill='none' stroke='%2337c6d4' stroke-opacity='.3' stroke-width='1.5'/%3E%3C/svg%3E")
+        center / 9px 14px;
+  }
+  .vertical .plate {
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    max-width: calc(100% - 6px);
+    padding: 8px 4px;
+    letter-spacing: 0.02em;
+    text-align: center;
+    white-space: normal;
+    clip-path: polygon(50% 0, 100% 6px, 100% calc(100% - 6px), 50% 100%, 0 calc(100% - 6px), 0 6px);
+  }
+  .vertical .sep { display: none; }
+  .vertical .arrow { font-size: 12px; }
 </style>

@@ -263,6 +263,21 @@ async function hardpoints(deployed: boolean) {
   await waitFor(() => st().flags.hardpointsDeployed === deployed, 1500);
 }
 
+async function scoop(open: boolean) {
+  if (st().flags.cargoScoopDeployed === open) return;
+  await press('ToggleCargoScoop');
+  await waitFor(() => st().flags.cargoScoopDeployed === open, 1500);
+}
+
+/** Cycles the fire groups until the game reports group `n` (0 = A); one lap at most. */
+async function fireGroup(n: number) {
+  for (let i = 0; i < 8 && st().status.fireGroup !== n; i++) {
+    const before = st().status.fireGroup;
+    await press('CycleFireGroupNext');
+    if (!(await waitFor(() => st().status.fireGroup !== before, 1000))) return;
+  }
+}
+
 async function order(action: string) {
   await press(action);
   macro.order = action;
@@ -396,6 +411,17 @@ async function assist(n: number) {
   await sleep(300);
   await press('SelectTargetsTarget');
 }
+
+// MINING: ready at the rock (scoop open, hardpoints out, power to the lasers); leave (all in, power to engines)
+MACROS.MineReady = {
+  keys: ['ToggleCargoScoop', 'DeployHardpointToggle', ...PIP_KEYS],
+  steps: async () => { await scoop(true); await hardpoints(true); await setPips(PRESETS.ATK); },
+};
+MACROS.MineLeave = {
+  keys: ['ToggleCargoScoop', 'DeployHardpointToggle', ...PIP_KEYS],
+  steps: async () => { await scoop(false); await hardpoints(false); await setPips(PRESETS.RUN); },
+};
+for (let n = 0; n < 6; n++) MACROS[`FireGroup${n}`] = { keys: ['CycleFireGroupNext'], steps: () => fireGroup(n) };
 
 export const canRun = (id: string) => MACROS[id]?.keys.every((k) => keyFor(k)) ?? false;
 export const runMacro = (id: string) => run(id, MACROS[id].steps);

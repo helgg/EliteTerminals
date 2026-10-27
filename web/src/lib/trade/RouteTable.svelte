@@ -1,6 +1,8 @@
 <script lang="ts">
-  import type { TradeLeg, TradeRoute } from '@et/shared';
+  import type { TradeLeg, TradePin, TradeRoute } from '@et/shared';
   import Name from '../Name.svelte';
+  import PinButton from './PinButton.svelte';
+  import { missingPins } from './pins.ts';
   import Level from '../Level.svelte';
   import { ageLabel, ageTone, cr, short } from '../format.ts';
 
@@ -8,8 +10,10 @@
   // Every figure covers the whole loop (out + back); supply and demand show both loads, one line each,
   // lined up with the cargo lines.
   // `compact`: one card per route (narrow screens), sorting by a row of chips instead of column headers.
-  let { routes, selected = $bindable(), compact = false, onpick }:
-    { routes: TradeRoute[]; selected: string; compact?: boolean; onpick?: () => void } = $props();
+  // Pinned routes stand out; `pinnedOnly` lists just them, with those this scan left out at their last figures.
+  let { routes, selected = $bindable(), compact = false, onpick, pins = [], pinnedOnly = false }: {
+    routes: TradeRoute[]; selected: string; compact?: boolean; onpick?: () => void; pins?: TradePin[]; pinnedOnly?: boolean;
+  } = $props();
   const CHIPS: [Key, string][] = [['loopPerHour', 'CR/H'], ['total', 'TOTAL'], ['profit', 'CR/T'], ['pct', '%'], ['hopLy', 'LY'], ['fromMe', '⌖LY'], ['age', 'AGE']];
   function pick(id: string) {
     selected = id;
@@ -65,7 +69,14 @@
     : k === 'age' ? Math.max(r.src.ageH, r.dst.ageH)
     : r[k];
 
-  const sorted = $derived([...routes].sort((a, b) => (sortDesc ? -1 : 1) * (value(a, sortKey) - value(b, sortKey))));
+  const pinned = $derived(new Set(pins.filter((p) => p.kind === 'loop').map((p) => p.id)));
+  const gone = $derived(new Map(missingPins(pins, 'loop', new Set(routes.map((r) => r.id))).map((p) => [p.id, p])));
+  const shown = $derived(pinnedOnly
+    ? [...routes.filter((r) => pinned.has(r.id)), ...[...gone.values()].flatMap((p) => (p.route ? [p.route] : []))]
+    : routes);
+  const seen = (id: string) => ageLabel((Date.now() - Date.parse(gone.get(id)?.seenAt ?? '')) / 3.6e6);
+
+  const sorted = $derived([...shown].sort((a, b) => (sortDesc ? -1 : 1) * (value(a, sortKey) - value(b, sortKey))));
 
   function sortBy(k: Key) {
     if (sortKey === k) sortDesc = !sortDesc;
@@ -109,7 +120,8 @@
   <div class="scroll cards">
     {#each sorted as r (r.id)}
       {@const age = Math.max(r.src.ageH, r.dst.ageH)}
-      <button class="card {ageTone(age)}" class:sel={selected === r.id} onclick={() => pick(r.id)}>
+      <div class="card {ageTone(age)}" class:sel={selected === r.id} class:pinned={pinned.has(r.id)} class:gone={gone.has(r.id)}
+        role="button" tabindex="0" onclick={() => pick(r.id)} onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && pick(r.id)}>
         <span class="ends">
           {#each [r.src, r.dst] as e, k (k)}
             <span class="end">
@@ -119,6 +131,7 @@
               {#if tag(e.state)}<span class="state">{tag(e.state)}</span>{/if}
             </span>
           {/each}
+          {#if gone.has(r.id)}<span class="gonetag">NOT IN THIS SCAN · seen {seen(r.id)} ago</span>{/if}
         </span>
         <span class="figs num">
           <b class:hl={sortKey === 'loopPerHour'}>{cell(r, 'loopPerHour')}/h</b>
@@ -130,11 +143,12 @@
           <span class="back"><span class="arrow">◂</span> {r.back ? load(r.back) : 'empty way back'}</span>
         </span>
         <span class="meta num">
+          <PinButton pin={{ kind: 'loop', item: r }} />
           <span class:hl={sortKey === 'hopLy'}>{cell(r, 'hopLy')}ly</span>
           <span class:hl={sortKey === 'fromMe'}>⌖{cell(r, 'fromMe')}</span>
           <span class="age" class:hl={sortKey === 'age'}>{ageLabel(age)}</span>
         </span>
-      </button>
+      </div>
     {/each}
   </div>
 {:else}
@@ -142,6 +156,7 @@
   <table>
     <thead>
       <tr>
+        <th class="pincol"></th>
         <th>Route</th>
         <th>Cargo</th>
         {#each GROUPS as g (g.top[0])}
@@ -158,7 +173,9 @@
     <tbody>
       {#each sorted as r (r.id)}
         {@const age = Math.max(r.src.ageH, r.dst.ageH)}
-        <tr class:sel={selected === r.id} class={ageTone(age)} onclick={() => (selected = r.id)}>
+        <tr class:sel={selected === r.id} class:pinned={pinned.has(r.id)} class:gone={gone.has(r.id)} class={ageTone(age)}
+          onclick={() => (selected = r.id)}>
+          <td class="pincol"><PinButton pin={{ kind: 'loop', item: r }} /></td>
           <td class="route">
             {#each [r.src, r.dst] as e, k (k)}
               <div class="end">
@@ -168,6 +185,7 @@
                 {#if tag(e.state)}<span class="state">{tag(e.state)}</span>{/if}
               </div>
             {/each}
+            {#if gone.has(r.id)}<div class="gonetag">NOT IN THIS SCAN · seen {seen(r.id)} ago</div>{/if}
           </td>
           <td class="cargo">
             <div title={load(r.leg)}><span class="arrow">▸</span> {load(r.leg)}</div>
@@ -201,8 +219,10 @@
     font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; text-align: left;
     border-bottom: 1px solid var(--hud); white-space: nowrap; vertical-align: bottom;
   }
-  th:nth-child(1) { width: 31%; }
-  th:nth-child(2) { width: 22%; }
+  th:nth-child(1) { width: 24px; }
+  th:nth-child(2) { width: 31%; }
+  th:nth-child(3) { width: 22%; }
+  td.pincol { padding: 2px 0; text-align: center; vertical-align: middle; }
   .sort {
     background: none; border: 0; padding: 0; color: inherit; font: inherit; letter-spacing: inherit;
     text-transform: inherit; cursor: pointer;
@@ -226,6 +246,12 @@
   .state { color: var(--telemetry); font-size: 9px; font-weight: 700; letter-spacing: 0.06em; }
   .back { color: var(--muted); }
   .hl, .hl .sub, td.hl div { color: var(--telemetry); }
+  /* pinned: a cyan rail and tint that later scans keep; one this scan left out is dashed */
+  tr.pinned td { background: rgb(55 198 212 / 0.07); }
+  tr.pinned td:first-child { box-shadow: inset 3px 0 var(--telemetry); }
+  tr.pinned.sel td { background: rgb(255 122 24 / 0.14); }
+  tr.gone td { border-bottom: 1px dashed var(--telemetry); }
+  .gonetag { display: block; color: var(--telemetry); font-size: 9px; font-weight: 700; letter-spacing: 0.08em; }
   /* price freshness: stale rows fade */
   tr.fresh .age div { color: var(--ok); }
   tr.ok .age div { color: var(--hud-hi); }
@@ -257,6 +283,10 @@
   }
   .card.sel { background: rgb(255 122 24 / 0.14); border-color: var(--hud); box-shadow: inset 2px 0 var(--hud); }
   .card.stale { opacity: 0.55; }
+  .card { cursor: pointer; }
+  .card.pinned { border-color: var(--telemetry); background: rgb(55 198 212 / 0.07); box-shadow: inset 3px 0 var(--telemetry); }
+  .card.pinned.sel { background: rgb(255 122 24 / 0.14); }
+  .card.gone { border-style: dashed; }
   .card .figs, .card .meta { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
   .card .figs b { color: var(--ok); font-size: 13px; }
   .card .meta { color: var(--muted); }

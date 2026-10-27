@@ -7,7 +7,7 @@
 <p align="center">
   <b>A second-screen cockpit for Elite Dangerous.</b><br />
   Live ship telemetry, one-tap ship controls, favourite destinations with one-tap route plotting,<br />
-  a combat console and a trade-route planner,<br />
+  a combat console and a trade-route planner with pinned routes,<br />
   on any tablet, phone or spare monitor, in the look of the in-game HUD.
 </p>
 
@@ -70,7 +70,7 @@ a second.
 
 **TRADE**
 
-![TRADE screen: loop routes, live EDDN prices and a watched route](docs/images/trade.jpg)
+![TRADE screen: loop routes with two pinned, live EDDN prices and a watched route](docs/images/trade.jpg)
 
 - Scans the markets around you, or around **any system you pick** (FROM, with name search), 10 to 80 ly out,
   and ranks **loop routes** (A → B → A) and **linear routes** (up to five stops) by Cr/t, total profit, Cr/h or profit %.
@@ -80,6 +80,11 @@ a second.
 - **Route watch**: the route you pick is priced again whenever one of its markets gets new prices, and a warning
   shows what changed (profit per ton, stock, demand, commodity gone). Prices of visited and watched markets are kept
   for 7 days.
+- **Pinned routes**: tap ◇ on a route to pin it. Pinned routes keep a cyan rail in every later scan, and
+  **PINNED** lists only them, including the ones a new scan left out (marked *not in this scan*, with the figures
+  they had when last seen). Pins are kept on the PC, so every device sees the same ones.
+- **Favourites from a route**: the ☆ beside each station and system of a route saves it to the FLIGHT favourites,
+  ready for one-tap plotting.
 - Mixed cargo loads that fill your hold within your stock, demand and credit limits.
 - Filters for price age, landing pad, distance from the star, minimum supply/demand, faction state
   (Boom, Expansion…), planetary stations and carriers.
@@ -87,7 +92,8 @@ a second.
   visited-market history and session profit.
 - Tap a station or system name to copy it to the **PC's** clipboard, ready to paste into the galaxy map.
 - On tablets the filters open in a drawer and routes show as cards, with the route detail beside them (landscape)
-  or underneath in two columns (portrait). Phones get four pages: SCAN, ROUTES, ROUTE and MARKET.
+  or underneath (portrait). Standing up, a loop reads side by side: A, the jump lane, B, filling the panel.
+  Phones get four pages: SCAN, ROUTES, ROUTE and MARKET.
 
 ![TRADE on an iPad standing up and on an iPhone](docs/images/trade-devices.jpg)
 
@@ -113,7 +119,7 @@ a second.
   and other signals.
 - Open `http://localhost:8420/?sheet=icons` to see the whole set.
 
-> EXPLORE, MINING, SRV and CARRIER tabs are planned. See the [roadmap](#roadmap).
+> EXPLORE, MINING and CARRIER show a *coming soon* screen for now. See the [roadmap](#roadmap).
 
 ## How it works
 
@@ -176,7 +182,7 @@ All optional, set as environment variables before `npm start`:
 | `ED_JOURNAL_DIR` | `%USERPROFILE%\Saved Games\Frontier Developments\Elite Dangerous` | Journal folder |
 | `ED_BINDINGS_DIR` | `%LOCALAPPDATA%\Frontier Developments\Elite Dangerous\Options\Bindings` | Key bindings folder |
 | `ED_GAME_DIR` | found through Steam | Game install folder, used for the built-in control schemes |
-| `ET_CACHE_DIR` | `%LOCALAPPDATA%\EliteTerminals` | Spansh cache, market history, favourites (`favorites.json`) and the price database (`prices.db`) |
+| `ET_CACHE_DIR` | `%LOCALAPPDATA%\EliteTerminals` | Spansh cache, market history, favourites (`favorites.json`), pinned routes (`trade-pins.json`) and the price database (`prices.db`) |
 | `ET_EDDN` | `1` | Set to `0` to stop listening to EDDN |
 
 ## Development
@@ -200,7 +206,7 @@ clipped text. Add `?tab=combat` (and `&page=survive` for a phone page) to open e
 | `server/src/combat.ts` | Contacts, massacre missions, bounties and bonds, fighter, consumables |
 | `server/src/trade/` | Market scan, route engine (loops, linear chains, mixed loads), reference search |
 | `server/src/prices/` | Local price database (SQLite), EDDN listener, route watch |
-| `server/src/favorites.ts` | Favourite destinations, kept on disk |
+| `server/src/favorites.ts`, `tradePins.ts` | Favourite destinations and pinned trade routes, kept on disk |
 | `server/src/galaxy.ts` | Spansh system lookups with a disk cache, and rings of the targeted body |
 | `web/src/hud.css` | Elite HUD design tokens |
 | `web/src/screens/` | FLIGHT, COMBAT and TRADE screens |
@@ -217,8 +223,9 @@ clipped text. Add `?tab=combat` (and `&page=survive` for a phone page) to open e
 - [x] COMBAT: contacts by bounty, target picking, massacre missions, session, console of checked macros
 - [x] Icons and holograms: stations, pads, services, stars, planets with rings, signals
 - [x] FLIGHT favourites with one-tap route plotting, every station of the system with filters
-- [ ] SRV screen
-- [ ] EXPLORE and MINING screens
+- [x] TRADE pinned routes, favourites from a route, side-by-side loop on portrait screens
+- [ ] MINING screen (ship first, then surface vehicles)
+- [ ] EXPLORE screen
 - [ ] CARRIER screen
 
 ## Disclaimer

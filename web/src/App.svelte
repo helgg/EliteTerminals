@@ -8,6 +8,7 @@
   import Flight from './screens/Flight.svelte';
   import Trade from './screens/Trade.svelte';
   import Combat from './screens/Combat.svelte';
+  import ComingSoon from './lib/ComingSoon.svelte';
   import Name from './lib/Name.svelte';
   import { copied } from './lib/copy.svelte.ts';
   import ConnectQr from './lib/ConnectQr.svelte';
@@ -15,8 +16,14 @@
   import { viewport } from './lib/viewport.svelte.ts';
   import { short } from './lib/format.ts';
 
-  const TABS = ['FLIGHT', 'COMBAT', 'EXPLORE', 'MINING', 'TRADE', 'SRV', 'CARRIER'] as const;
+  const TABS = ['FLIGHT', 'COMBAT', 'EXPLORE', 'MINING', 'TRADE', 'CARRIER'] as const;
   type Tab = (typeof TABS)[number];
+  // Screens still being built: what each one will bring.
+  const SOON: Partial<Record<Tab, string[]>> = {
+    EXPLORE: ['bodies of the system and their scan value', 'first discoveries and mapping', 'exobiology signals'],
+    MINING: ['prospector readout and asteroid history', 'ring hotspots and finder', 'refined tons, limpets and where to sell'],
+    CARRIER: ['finances, tritium and upkeep', 'jump planning', 'carrier market'],
+  };
 
   let tab = $state<Tab>(readTab());
   let now = $state(Date.now());
@@ -148,9 +155,7 @@
     {:else if tab === 'COMBAT'}
       <Combat {s} {now} />
     {:else}
-      <Panel title={tab} aside="under construction">
-        <p class="dim">The {tab} screen arrives in a later milestone (see docs/PLAN.md).</p>
-      </Panel>
+      <ComingSoon title={tab} plans={SOON[tab] ?? []} />
     {/if}
   </main>
 

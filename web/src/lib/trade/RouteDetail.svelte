@@ -1,15 +1,19 @@
 <script lang="ts">
   import type { TradeEnd, TradeLeg, TradeRoute } from '@et/shared';
+  import FavStar from '../FavStar.svelte';
   import Hologram from '../Hologram.svelte';
   import Name from '../Name.svelte';
   import PadBadge from '../PadBadge.svelte';
   import Hop from './Hop.svelte';
   import LoadList from './LoadList.svelte';
+  import PinButton from './PinButton.svelte';
   import StartDistance from './StartDistance.svelte';
   import { ageLabel, ageTone, cr, short } from '../format.ts';
 
   // The selected loop, cockpit style: buy at A, sell at B, buy the way-back load at B, sell it at A.
-  let { route, jumpRange }: { route: TradeRoute | null; jumpRange: number } = $props();
+  // `split` (portrait screens) sets A and B side by side with the jump lane standing between them,
+  // filling the panel's height.
+  let { route, jumpRange, split = false }: { route: TradeRoute | null; jumpRange: number; split?: boolean } = $props();
   // Return on what the cargo cost: the same figure as the table's % column.
   const pct = (gain: number, cost: number) => (cost > 0 ? `${((gain / cost) * 100).toFixed(0)}%` : '—');
 </script>
@@ -19,8 +23,8 @@
     <div class="holo"><Hologram target={{ kind: 'station', stationType: e.type }} /></div>
     <div class="info">
       <div class="role">{step}</div>
-      <div class="name"><Name value={e.station} stationType={e.type} icon /></div>
-      <div class="sys"><Name value={e.system} system icon /></div>
+      <div class="name"><Name value={e.station} stationType={e.type} icon /><FavStar system={e.system} station={e.station} stationType={e.type} /></div>
+      <div class="sys"><Name value={e.system} system icon /><FavStar system={e.system} /></div>
       <div class="meta">
         <span>{cr(e.ls)}ls</span>
         <PadBadge pad={e.pad} />
@@ -41,14 +45,18 @@
   {@const total = route.leg.total + (route.back?.total ?? 0)}
   {@const tons = route.leg.amount + (route.back?.amount ?? 0)}
   {@const cost = route.leg.cost + (route.back?.cost ?? 0)}
-  <div class="detail">
-    <StartDistance start={route.src} {jumpRange} />
-    {@render station(route.src, 'A · BUY')}
-    <LoadList leg={route.leg} title="OUT A→B" />
-    <Hop ly={route.hopLy} jumps={route.jumps} seconds={route.legSeconds} />
-    {@render station(route.dst, 'B · SELL ALL, BUY')}
-    <LoadList leg={route.back} title="BACK B→A" />
-    <Hop up label="BACK TO A · SELL ALL" />
+  <div class="detail" class:split>
+    <div class="start"><StartDistance start={route.src} {jumpRange} /><PinButton pin={{ kind: 'loop', item: route }} label={split} /></div>
+    <div class="side a">
+      {@render station(route.src, 'A · BUY')}
+      <LoadList leg={route.leg} title="OUT A→B" />
+    </div>
+    <div class="lane out"><Hop ly={route.hopLy} jumps={route.jumps} seconds={route.legSeconds} vertical={split} /></div>
+    <div class="side b">
+      {@render station(route.dst, 'B · SELL ALL, BUY')}
+      <LoadList leg={route.back} title="BACK B→A" />
+    </div>
+    <div class="lane back"><Hop up label="BACK TO A · SELL ALL" vertical={split} /></div>
 
     <dl class="facts">
       <dt>LOOP</dt><dd><b class="gain">+{short(total)} Cr</b> · {short(total / tons)} Cr/t · {pct(total, cost)}</dd>
@@ -63,12 +71,30 @@
 
 <style>
   .detail { display: flex; flex-direction: column; gap: 5px; }
+  .side { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+  /* A | lane | B, the lane split in the way out (top) and the way back (bottom) */
+  .split {
+    display: grid; height: 100%; gap: 6px 8px;
+    grid-template-columns: minmax(0, 1fr) 84px minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) minmax(0, 1fr) auto;
+  }
+  .split .start { grid-column: 1 / -1; grid-row: 1; }
+  .split .a { grid-column: 1; grid-row: 2 / 4; }
+  .split .b { grid-column: 3; grid-row: 2 / 4; }
+  .split .out { grid-column: 2; grid-row: 2; }
+  .split .back { grid-column: 2; grid-row: 3; }
+  .split .side > :global(.load) { flex: 1; min-height: 0; overflow: hidden; }
+  .split .facts { grid-column: 1 / -1; grid-row: 4; grid-template-columns: auto 1fr auto 1fr; }
   .end { display: grid; grid-template-columns: 56px 1fr; gap: 8px; align-items: center; }
   .holo :global(.holo) { max-width: 56px; }
   .info { min-width: 0; }
   .role { color: var(--hud-hi); font-size: 10px; font-weight: 700; letter-spacing: 0.12em; }
-  .name { font-weight: 700; white-space: nowrap; overflow: hidden; }
-  .sys { color: var(--telemetry); font-size: 11px; white-space: nowrap; overflow: hidden; }
+  .name, .sys { display: flex; align-items: baseline; gap: 2px; min-width: 0; white-space: nowrap; overflow: hidden; }
+  .name { font-weight: 700; }
+  .sys { color: var(--telemetry); font-size: 11px; }
+  .name > :global(:first-child), .sys > :global(:first-child) { min-width: 0; overflow: hidden; }
+  .start { display: flex; gap: 6px; align-items: stretch; }
+  .start > :global(:first-child) { flex: 1; min-width: 0; }
   .meta { display: flex; gap: 8px; font-size: 10px; color: var(--muted); }
   .fresh { color: var(--ok); }
   .ok { color: var(--hud-hi); }

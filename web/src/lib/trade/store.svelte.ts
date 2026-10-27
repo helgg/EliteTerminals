@@ -6,6 +6,8 @@ export const tradeStore = $state({
   selected: '',
   selectedChain: '',
   tab: 'loop' as 'loop' | 'linear' | 'finder' | 'local',
+  /** List only the pinned routes (and those a scan left out). */
+  pinnedOnly: false,
   loaded: false,
 });
 

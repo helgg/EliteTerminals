@@ -1,12 +1,16 @@
 <script lang="ts">
-  import type { TradeChain } from '@et/shared';
+  import type { TradeChain, TradePin } from '@et/shared';
   import Name from '../Name.svelte';
+  import PinButton from './PinButton.svelte';
+  import { missingPins } from './pins.ts';
   import { ageLabel, ageTone, duration, short } from '../format.ts';
 
   // Sortable list of linear routes (A→B→C…, no return); the selected row drives the detail panel.
   // `compact`: one card per route (narrow screens), sorting by a row of chips.
-  let { chains, selected = $bindable(), compact = false, onpick }:
-    { chains: TradeChain[]; selected: string; compact?: boolean; onpick?: () => void } = $props();
+  // Pinned routes stand out; `pinnedOnly` lists just them, with those this scan left out at their last figures.
+  let { chains, selected = $bindable(), compact = false, onpick, pins = [], pinnedOnly = false }: {
+    chains: TradeChain[]; selected: string; compact?: boolean; onpick?: () => void; pins?: TradePin[]; pinnedOnly?: boolean;
+  } = $props();
   function pick(id: string) {
     selected = id;
     onpick?.();
@@ -33,7 +37,14 @@
     : k === 'age' ? Math.max(...c.legs.flatMap((l) => [l.src.ageH, l.dst.ageH]))
     : c[k];
 
-  const sorted = $derived([...chains].sort((a, b) => (sortDesc ? -1 : 1) * (value(a, sortKey) - value(b, sortKey))));
+  const pinned = $derived(new Set(pins.filter((p) => p.kind === 'linear').map((p) => p.id)));
+  const gone = $derived(new Map(missingPins(pins, 'linear', new Set(chains.map((c) => c.id))).map((p) => [p.id, p])));
+  const shown = $derived(pinnedOnly
+    ? [...chains.filter((c) => pinned.has(c.id)), ...[...gone.values()].flatMap((p) => (p.chain ? [p.chain] : []))]
+    : chains);
+  const seen = (id: string) => ageLabel((Date.now() - Date.parse(gone.get(id)?.seenAt ?? '')) / 3.6e6);
+
+  const sorted = $derived([...shown].sort((a, b) => (sortDesc ? -1 : 1) * (value(a, sortKey) - value(b, sortKey))));
 
   function sortBy(k: Key) {
     if (sortKey === k) sortDesc = !sortDesc;
@@ -61,9 +72,11 @@
   <div class="scroll cards">
     {#each sorted as c (c.id)}
       {@const age = value(c, 'age')}
-      <button class="card {ageTone(age)}" class:sel={selected === c.id} onclick={() => pick(c.id)}>
+      <div class="card {ageTone(age)}" class:sel={selected === c.id} class:pinned={pinned.has(c.id)} class:gone={gone.has(c.id)}
+        role="button" tabindex="0" onclick={() => pick(c.id)} onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && pick(c.id)}>
         <span class="stops">
           {#each stops(c) as e, k (k)}{#if k}<span class="arrow"> → </span>{/if}<span class="st"><Name value={e.station} stationType={e.type} icon /></span>{/each}
+          {#if gone.has(c.id)}<span class="gonetag">NOT IN THIS SCAN · seen {seen(c.id)} ago</span>{/if}
         </span>
         <span class="figs num">
           <b class:hl={sortKey === 'perHour'}>{cell(c, 'perHour')}/h</b>
@@ -73,11 +86,12 @@
           {#each c.legs as l, k (k)}{#if k}<span class="sep"> · </span>{/if}{l.leg.commodity}{#if (l.leg.items?.length ?? 1) > 1}<span class="plus">+{l.leg.items.length - 1}</span>{/if}{/each}
         </span>
         <span class="meta num">
+          <PinButton pin={{ kind: 'linear', item: c }} />
           <span class:hl={sortKey === 'seconds'}>{cell(c, 'seconds')}</span>
           <span><span class:hl={sortKey === 'ly'}>{cell(c, 'ly')}ly</span> · <span class:hl={sortKey === 'fromMe'}>⌖{cell(c, 'fromMe')}</span></span>
           <span class="age" class:hl={sortKey === 'age'}>{cell(c, 'age')}</span>
         </span>
-      </button>
+      </div>
     {/each}
   </div>
 {:else}
@@ -85,6 +99,7 @@
   <table>
     <thead>
       <tr>
+        <th class="pincol"></th>
         <th>Stops</th>
         {#each COLS as [k, label] (k)}
           <th class="r">
@@ -98,7 +113,9 @@
     <tbody>
       {#each sorted as c (c.id)}
         {@const age = value(c, 'age')}
-        <tr class:sel={selected === c.id} class={ageTone(age)} onclick={() => (selected = c.id)}>
+        <tr class:sel={selected === c.id} class:pinned={pinned.has(c.id)} class:gone={gone.has(c.id)} class={ageTone(age)}
+          onclick={() => (selected = c.id)}>
+          <td class="pincol"><PinButton pin={{ kind: 'linear', item: c }} /></td>
           <td class="route">
             <div title={stops(c).map((e) => `${e.station} (${e.system})`).join(' → ')}>
               {#each stops(c) as e, k (k)}{#if k}<span class="arrow">&nbsp;→&nbsp;</span>{/if}<span class="st"><Name value={e.station} stationType={e.type} icon /></span>{/each}
@@ -106,6 +123,7 @@
             <div class="dim" title={c.legs.map((l) => l.leg.commodity).join(' → ')}>
               {#each c.legs as l, k (k)}{#if k}<span class="sep">&nbsp;·&nbsp;</span>{/if}{l.leg.commodity}{#if (l.leg.items?.length ?? 1) > 1}<span class="plus">+{l.leg.items.length - 1}</span>{/if}{/each}
             </div>
+            {#if gone.has(c.id)}<div class="gonetag">NOT IN THIS SCAN · seen {seen(c.id)} ago</div>{/if}
           </td>
           {#each COLS as [k] (k)}
             <td class="r num {k}" class:hl={sortKey === k}>{cell(c, k)}</td>
@@ -125,7 +143,9 @@
     font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; text-align: left;
     border-bottom: 1px solid var(--hud); white-space: nowrap;
   }
-  th:nth-child(1) { width: 52%; }
+  th:nth-child(1) { width: 24px; }
+  th:nth-child(2) { width: 52%; }
+  td.pincol { padding: 2px 0; text-align: center; vertical-align: middle; }
   .sort {
     background: none; border: 0; padding: 0; color: inherit; font: inherit; letter-spacing: inherit;
     text-transform: inherit; cursor: pointer;
@@ -145,6 +165,12 @@
   .hl { color: var(--telemetry); }
   tr.fresh td.age { color: var(--ok); }
   tr.stale td { opacity: 0.55; }
+  /* pinned: a cyan rail and tint that later scans keep; one this scan left out is dashed */
+  tr.pinned td { background: rgb(55 198 212 / 0.07); }
+  tr.pinned td:first-child { box-shadow: inset 3px 0 var(--telemetry); }
+  tr.pinned.sel td { background: rgb(255 122 24 / 0.14); }
+  tr.gone td { border-bottom: 1px dashed var(--telemetry); }
+  .gonetag { display: block; color: var(--telemetry); font-size: 9px; font-weight: 700; letter-spacing: 0.08em; }
 
   /* compact: cards, nothing cut; names wrap */
   .sortbar { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; margin-bottom: 4px; }
@@ -172,6 +198,10 @@
   }
   .card.sel { background: rgb(255 122 24 / 0.14); border-color: var(--hud); box-shadow: inset 2px 0 var(--hud); }
   .card.stale { opacity: 0.55; }
+  .card { cursor: pointer; }
+  .card.pinned { border-color: var(--telemetry); background: rgb(55 198 212 / 0.07); box-shadow: inset 3px 0 var(--telemetry); }
+  .card.pinned.sel { background: rgb(255 122 24 / 0.14); }
+  .card.gone { border-style: dashed; }
   .card .figs, .card .meta { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
   .card .figs b { color: var(--ok); font-size: 13px; }
   .card .meta { color: var(--muted); }

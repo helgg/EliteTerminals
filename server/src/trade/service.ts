@@ -1,5 +1,5 @@
 // Glue between the HTTP API, the market scanner and the engine; merges the player's own Market.json.
-import type { EdState, MarketSnapshot, TradeMarket, TradeQuery, TradeResult } from '@et/shared';
+import type { CommodityQuote, EdState, MarketSnapshot, MiningSellQuery, TradeMarket, TradeQuery, TradeResult } from '@et/shared';
 import { commodityKey, commodityQuotes, computeTrade } from './engine.ts';
 import type { MarketScanner } from './markets.ts';
 import type { NearQuery, PriceDb } from '../prices/db.ts';
@@ -69,6 +69,19 @@ export class TradeService {
     const from = ref.remote ? { pos: s.location.pos, systemId64: ref.id64, marketId: 0 } : me(s);
     this.last = computeTrade(this.markets, q, from, ref.name);
     return this.last;
+  }
+
+  /** Best places to sell each commodity mined, around the current system (the same markets as a scan). */
+  async sells(m: MiningSellQuery): Promise<Record<string, CommodityQuote[]>> {
+    const s = this.state();
+    if (!s.location.system) throw new Error('current system unknown (start the game)');
+    const q: TradeQuery = {
+      radius: m.radius, maxAgeH: m.maxAgeH, pad: m.pad, planetary: m.planetary, carriers: m.carriers,
+      exportHere: false, importHere: false, states: [], hops: 1, maxLs: 0, minSupply: 0, minDemand: 0,
+      cargo: 0, capital: 0, jumpRange: 0,
+    };
+    const markets = this.local(await this.around({ name: s.location.system, pos: s.location.pos }, q, false));
+    return Object.fromEntries(m.names.map((name) => [name, commodityQuotes(markets, name, q, s.location.pos).sell]));
   }
 
   quotes(name: string, q: TradeQuery) {

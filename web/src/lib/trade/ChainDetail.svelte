@@ -1,6 +1,8 @@
 <script lang="ts">
   import type { TradeChain, TradeEnd } from '@et/shared';
   import Hop from './Hop.svelte';
+  import PinButton from './PinButton.svelte';
+  import FavStar from '../FavStar.svelte';
   import LoadList from './LoadList.svelte';
   import StartDistance from './StartDistance.svelte';
   import Name from '../Name.svelte';
@@ -16,9 +18,9 @@
   <div class="stop">
     <span class="badge">{letter(k)}</span>
     <div class="info">
-      <div class="name"><Name value={e.station} stationType={e.type} icon /> <span class="role">{what}</span></div>
+      <div class="name"><Name value={e.station} stationType={e.type} icon /><FavStar system={e.system} station={e.station} stationType={e.type} /> <span class="role">{what}</span></div>
       <div class="meta">
-        <span class="sys"><Name value={e.system} system icon /></span>
+        <span class="sys"><Name value={e.system} system icon /><FavStar system={e.system} /></span>
         <span>{cr(e.ls)}ls</span>
         <PadBadge pad={e.pad} />
         <span class={ageTone(e.ageH)}>{ageLabel(e.ageH)}</span>
@@ -31,7 +33,7 @@
 
 {#if chain}
   <div class="detail">
-    <StartDistance start={chain.legs[0].src} {jumpRange} />
+    <div class="start"><StartDistance start={chain.legs[0].src} {jumpRange} /><PinButton pin={{ kind: 'linear', item: chain }} /></div>
     <div class="totals">
       <span class="ok">+{short(chain.total)} Cr</span>
       <span class="tele">{short(chain.perHour)} Cr/h</span>
@@ -61,7 +63,9 @@
   .name { display: flex; gap: 6px; align-items: baseline; font-weight: 700; white-space: nowrap; overflow: hidden; }
   .role { color: var(--hud-hi); font-size: 9px; letter-spacing: 0.1em; }
   .meta { display: flex; gap: 7px; font-size: 10px; color: var(--muted); white-space: nowrap; overflow: hidden; }
-  .sys { color: var(--telemetry); overflow: hidden; min-width: 0; }
+  .sys { display: inline-flex; align-items: baseline; color: var(--telemetry); overflow: hidden; min-width: 0; }
+  .start { display: flex; gap: 6px; align-items: stretch; }
+  .start > :global(:first-child) { flex: 1; min-width: 0; }
   .fresh { color: var(--ok); }
   .ok { color: var(--ok); }
   .stale { color: var(--danger); }

@@ -2,6 +2,7 @@
 // Pure apart from mutating the `state` it is given; no I/O here.
 import { STATUS_FLAGS, STATUS_FLAGS2, shipLabel, type EdState, type Flags } from '@et/shared';
 import { applyCombat } from './combat.ts';
+import { applyMining } from './mining.ts';
 
 export type JournalEvent = { event: string; timestamp?: string; [key: string]: any };
 
@@ -159,6 +160,7 @@ export function applyEvent(state: EdState, e: JournalEvent): void {
       break;
   }
   applyCombat(state, e);
+  applyMining(state, e);
 }
 
 function setSystem(state: EdState, e: JournalEvent) {
@@ -234,6 +236,8 @@ export function applyStatus(state: EdState, e: JournalEvent) {
   s.latitude = e.Latitude ?? null;
   s.longitude = e.Longitude ?? null;
   s.altitude = e.Altitude ?? null;
+  s.planetRadius = typeof e.PlanetRadius === 'number' ? e.PlanetRadius : null;
+  s.bodyName = str(e.BodyName);
   s.destination = str(e.Destination?.Name_Localised) || str(e.Destination?.Name);
   state.destination = e.Destination
     ? { system: e.Destination.System ?? 0, body: e.Destination.Body ?? 0, name: s.destination }

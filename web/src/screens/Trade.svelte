@@ -133,8 +133,13 @@
     if (phone) setPage(page);
   });
   const result = $derived(ts.result);
-  const route = $derived(result?.routes.find((r) => r.id === ts.selected) ?? null);
-  const chain = $derived(result?.chains?.find((c) => c.id === ts.selectedChain) ?? null);
+  // a pinned route the last scan left out still opens, at the figures it had when last seen
+  const pins = $derived(s.tradePins ?? []);
+  const pinCount = $derived(pins.filter((p) => p.kind === (ts.tab === 'linear' ? 'linear' : 'loop')).length);
+  const route = $derived(result?.routes.find((r) => r.id === ts.selected)
+    ?? pins.find((p) => p.kind === 'loop' && p.id === ts.selected)?.route ?? null);
+  const chain = $derived(result?.chains?.find((c) => c.id === ts.selectedChain)
+    ?? pins.find((p) => p.kind === 'linear' && p.id === ts.selectedChain)?.chain ?? null);
   const progress = $derived(link.tradeProgress);
   // the picked route goes to the server, which warns when new prices make it pay less
   const watchJson = $derived(JSON.stringify(toWatch(ts.tab === 'linear' ? null : route, ts.tab === 'linear' ? chain : null)));
@@ -268,10 +273,16 @@
     {#each ids as t (t)}
       <button class:on={ts.tab === t} onclick={() => (ts.tab = t)}>{TAB_LABELS[t]}</button>
     {/each}
-    {#if ts.tab === 'linear'}
-      <span class="stops">
-        <span class="k">STOPS</span>
-        {@render chips(STOPS, f.hops, setStops)}
+    {#if ts.tab === 'loop' || ts.tab === 'linear'}
+      <span class="tools">
+        {#if ts.tab === 'linear'}
+          <span class="stops">
+            <span class="k">STOPS</span>
+            {@render chips(STOPS, f.hops, setStops)}
+          </span>
+        {/if}
+        <button class="pinf" class:on={ts.pinnedOnly} onclick={() => (ts.pinnedOnly = !ts.pinnedOnly)}
+          title="List only the pinned routes">{ts.pinnedOnly ? '◆' : '◇'} PINNED <b class="num">{pinCount}</b></button>
       </span>
     {/if}
   </nav>
@@ -280,10 +291,13 @@
 {#snippet pane(compact: boolean, onpick?: () => void)}
   <div class="pane">
     {#if ts.tab === 'loop' || ts.tab === 'linear'}
-      {#if ts.tab === 'loop' && result?.routes.length}
-        <RouteTable routes={result.routes} bind:selected={ts.selected} {compact} {onpick} />
-      {:else if ts.tab === 'linear' && result?.chains?.length}
-        <ChainTable chains={result.chains} bind:selected={ts.selectedChain} {compact} {onpick} />
+      {#if ts.pinnedOnly && !pinCount}
+        <p class="dim">No pinned {ts.tab === 'linear' ? 'linear' : 'loop'} routes. Tap ◇ on a route to pin it: later
+          scans keep it marked, and this list keeps it even when a scan leaves it out.</p>
+      {:else if ts.tab === 'loop' && (result?.routes.length || ts.pinnedOnly)}
+        <RouteTable routes={result?.routes ?? []} bind:selected={ts.selected} {compact} {onpick} {pins} pinnedOnly={ts.pinnedOnly} />
+      {:else if ts.tab === 'linear' && (result?.chains?.length || ts.pinnedOnly)}
+        <ChainTable chains={result?.chains ?? []} bind:selected={ts.selectedChain} {compact} {onpick} {pins} pinnedOnly={ts.pinnedOnly} />
       {:else if result}
         <p class="dim">No route with these filters. Widen the radius or the max price age, or tap SCAN to apply
           the current filters.</p>
@@ -315,7 +329,7 @@
     {#if ts.tab === 'linear'}
       <ChainDetail {chain} jumpRange={query.jumpRange} />
     {:else}
-      <RouteDetail {route} jumpRange={query.jumpRange} />
+      <RouteDetail {route} jumpRange={query.jumpRange} split={vp === 'tablet-portrait' || vp === 'desktop-portrait'} />
     {/if}
   </Panel>
 {/snippet}
@@ -437,7 +451,14 @@
     font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
   }
   .tabs > button.on { background: var(--hud); border-color: var(--hud); color: var(--void); }
-  .stops { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+  .tools { margin-left: auto; display: flex; gap: 10px; align-items: center; }
+  .stops { display: flex; gap: 6px; align-items: center; }
+  .pinf {
+    padding: 5px 10px; background: var(--steel); border: 1px solid var(--rule); color: var(--muted);
+    font-size: 10px; font-weight: 700; letter-spacing: 0.08em; white-space: nowrap;
+  }
+  .pinf b { color: var(--text); }
+  .pinf.on { border-color: var(--telemetry); background: rgb(55 198 212 / 0.14); color: var(--telemetry); box-shadow: inset 0 2px var(--telemetry); }
   .stops .k { margin: 0; }
   .stops .chips button { padding: 5px 10px; }
   .pane { flex: 1; min-height: 0; display: flex; flex-direction: column; }
@@ -456,8 +477,11 @@
   .topscan .scan { flex: 1; }
   .tophint { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
   /* a portrait detail reads in two columns: A and the way out, B and the way back */
-  .mid.portrait :global(.right .detail) { display: block; column-count: 2; column-gap: 14px; }
-  .mid.portrait :global(.right .detail > *) { break-inside: avoid; margin-bottom: 6px; }
+  .mid.portrait :global(.right .detail:not(.split)) { display: block; column-count: 2; column-gap: 14px; }
+  .mid.portrait :global(.right .detail:not(.split) > *) { break-inside: avoid; margin-bottom: 6px; }
+  /* the loop stands A | jump lane | B side by side and fills the panel top to bottom */
+  .mid.portrait :global(.right > .body:has(.split)) { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+  .mid.portrait :global(.right .split) { flex: 1; min-height: 0; height: auto; }
   .shade { position: absolute; inset: 0; z-index: 30; background: rgb(0 0 0 / 0.55); border: 0; }
   .drawer {
     position: absolute; z-index: 31; top: 0; left: 0; bottom: 0; width: min(380px, 92%);

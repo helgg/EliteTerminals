@@ -138,6 +138,10 @@ export interface EdState {
     latitude: number | null;
     longitude: number | null;
     altitude: number | null;
+    /** Radius of the body under the ship, in metres (Status.json, Odyssey); null away from a body. */
+    planetRadius: number | null;
+    /** Body the latitude/longitude refer to (Status.json BodyName). */
+    bodyName: string;
     destination: string;
   };
   /** Half-pips, 0..8 each. */
@@ -178,6 +182,8 @@ export interface EdState {
   tradeWatch: WatchState | null;
   /** Systems (or stations) the player saved here, newest first: the game keeps its own bookmarks on Frontier's servers. */
   favorites: Favorite[];
+  /** Routes pinned on the TRADE screen, newest first. */
+  tradePins: TradePin[];
   galaxy: {
     systems: Record<string, SystemInfo>;
     current: SystemDetail | null;
@@ -205,6 +211,7 @@ export interface EdState {
     seq: number;
   };
   combat: CombatState;
+  mining: MiningState;
   cargo: { items: CargoItem[]; count: number };
   market: MarketSnapshot;
   /** Player's active control presets and the keyboard key behind each bindable action. */
@@ -264,6 +271,102 @@ export interface CombatState {
   };
 }
 
+/** One asteroid read by a prospector limpet (ProspectedAsteroid). */
+export interface Prospect {
+  at: string;
+  /** Proportions in %, biggest first. `name` is the game's internal name ("LowTemperatureDiamond"). */
+  materials: { name: string; label: string; pct: number }[];
+  /** Material content: 'High' | 'Medium' | 'Low', '' when the game gave none. */
+  content: string;
+  /** % of the asteroid left to mine (100 = untouched). */
+  remaining: number;
+  /** Core of a motherlode asteroid (crack it with seismic charges), '' when none. */
+  motherlode: string;
+  /** Where the ship was when the limpet reported, when the game gave a position (near a body). */
+  pos: GeoPoint | null;
+}
+
+/** A place on (or above) a body: degrees, metres above the surface. */
+export interface GeoPoint {
+  lat: number;
+  lon: number;
+  alt: number;
+}
+
+export interface RingSignal {
+  name: string;
+  count: number;
+}
+
+/** A planetary ring of the current system, with its hotspots. */
+export interface RingInfo {
+  /** "Borann A 2 A Ring". */
+  name: string;
+  /** Parent body, "Borann A 2". */
+  body: string;
+  /** "Icy", "Metal Rich", "Metallic", "Rocky". */
+  type: string;
+  /** "Pristine", "Major", "Common", "Low", "Depleted"; '' when unknown. */
+  reserve: string;
+  /** Distance of the parent body from the arrival star, in ls. */
+  ls: number;
+  signals: RingSignal[];
+  /** Hotspots from the player's own surface scan (SAASignalsFound), not from Spansh. */
+  own: boolean;
+}
+
+/** A ring with hotspots of one commodity near the player (Spansh's body search). */
+export interface HotspotMatch {
+  system: string;
+  body: string;
+  ring: string;
+  type: string;
+  reserve: string;
+  /** From the player, in ly. */
+  distance: number;
+  ls: number;
+  /** Hotspots of the commodity asked for in that ring. */
+  count: number;
+  /** Every hotspot of the ring. */
+  signals: RingSignal[];
+}
+
+/** Mining tools fitted (Loadout); the journal does not report when they fire. */
+export interface MiningTools {
+  lasers: number;
+  abrasion: number;
+  seismic: number;
+  subsurface: number;
+  /** Pulse wave analyser. */
+  pulseWave: boolean;
+  prospector: boolean;
+  collector: boolean;
+  refinery: boolean;
+}
+
+export interface MiningState {
+  /** Newest first, at most 30. */
+  prospects: Prospect[];
+  tools: MiningTools;
+  /** The current system's rings (Spansh, overridden by the player's own scans); null while unknown. */
+  rings: RingInfo[] | null;
+  /** Hotspots the player's own scans found, by ring name. */
+  scanned: Record<string, RingSignal[]>;
+  /** Where the ship (or SRV) has been around the current body, for the radar; live only (Status.json). */
+  trail: { body: string; radius: number; points: GeoPoint[] };
+  session: {
+    prospected: number;
+    /** Tons refined per commodity, most first. */
+    refined: { name: string; label: string; count: number }[];
+    cracked: number;
+    /** Limpets launched, by type. */
+    prospectors: number;
+    collectors: number;
+    firstRefinedAt: string;
+    lastRefinedAt: string;
+  };
+}
+
 /** Display names for ship ids whose journal events often come without a `_Localised` name. */
 const SHIP_NAMES: Record<string, string> = {
   adder: 'Adder', anaconda: 'Anaconda', asp: 'Asp Explorer', asp_scout: 'Asp Scout', belugaliner: 'Beluga Liner',
@@ -293,6 +396,17 @@ export function initialCombat(): CombatState {
   };
 }
 
+export function initialMining(): MiningState {
+  return {
+    prospects: [],
+    tools: { lasers: 0, abrasion: 0, seismic: 0, subsurface: 0, pulseWave: false, prospector: false, collector: false, refinery: false },
+    rings: null,
+    scanned: {},
+    trail: { body: '', radius: 0, points: [] },
+    session: { prospected: 0, refined: [], cracked: 0, prospectors: 0, collectors: 0, firstRefinedAt: '', lastRefinedAt: '' },
+  };
+}
+
 export function emptyFlags(): Flags {
   const flags = {} as Flags;
   for (const name of STATUS_FLAGS) flags[name] = false;
@@ -308,7 +422,7 @@ export function initialState(): EdState {
     flags: emptyFlags(),
     status: {
       guiFocus: 0, fireGroup: 0, legalState: '', fuelMain: 0, fuelReservoir: 0, cargo: 0,
-      heading: null, latitude: null, longitude: null, altitude: null, destination: '',
+      heading: null, latitude: null, longitude: null, altitude: null, planetRadius: null, bodyName: '', destination: '',
     },
     pips: { sys: 4, eng: 4, wep: 4 },
     location: {
@@ -321,12 +435,14 @@ export function initialState(): EdState {
     prices: { live: false, heard: 0, lastAt: '', stored: 0 },
     tradeWatch: null,
     favorites: [],
+    tradePins: [],
     galaxy: { systems: {}, current: null, target: null, targetBody: null },
     target: {
       locked: false, ship: '', pilot: '', rank: '', faction: '', legalStatus: '', bounty: 0,
       shield: null, hull: null, subsystem: '', subsystemId: '', subsystemHealth: null, scanStage: 0, seq: 0,
     },
     combat: initialCombat(),
+    mining: initialMining(),
     cargo: { items: [], count: 0 },
     market: { marketId: 0, station: '', stationType: '', system: '', updatedAt: '', items: [] },
     controls: { presets: [], keys: {} },
@@ -495,6 +611,20 @@ export interface TradeChain {
   perHour: number;
 }
 
+/**
+ * A route pinned on the TRADE screen, followed across scans: it keeps the figures of the last scan that found it
+ * (`seenAt`), so it still shows when a new scan leaves it out.
+ */
+export interface TradePin {
+  /** The route or chain id (market ids joined): the same route gets the same id in every scan. */
+  id: string;
+  kind: 'loop' | 'linear';
+  pinnedAt: string;
+  seenAt: string;
+  route?: TradeRoute;
+  chain?: TradeChain;
+}
+
 /** The route the player picked, sent by the panel so the server can watch its markets. */
 export interface TradeWatch {
   /** The route or chain id. */
@@ -530,6 +660,16 @@ export interface WatchState {
   alerts: WatchAlert[];
   /** Time of the newest prices the check used. */
   checkedAt: string;
+}
+
+/** Where to sell what the player mined: the best stations near the player, per commodity in the hold. */
+export interface MiningSellQuery {
+  names: string[];
+  radius: number;
+  maxAgeH: number;
+  pad: 'S' | 'M' | 'L';
+  planetary: boolean;
+  carriers: boolean;
 }
 
 export interface CommodityQuote {

@@ -5,7 +5,7 @@ import { join, resolve } from 'node:path';
 import Fastify from 'fastify';
 import fastifyStatic from '@fastify/static';
 import fastifyWebsocket from '@fastify/websocket';
-import type { ClientMessage, ServerMessage, TradeQuery, TradeWatch } from '@et/shared';
+import type { ClientMessage, MiningSellQuery, ServerMessage, TradeQuery, TradeWatch } from '@et/shared';
 import { JournalReader } from './reader.ts';
 import { Controls } from './controls.ts';
 import { findGameDir } from './binds.ts';
@@ -22,6 +22,9 @@ import { MarketHistory } from './marketHistory.ts';
 import { clipText, setClipboard } from './clipboard.ts';
 import { panelAddresses } from './lan.ts';
 import { Favorites, toFavorite } from './favorites.ts';
+import { TradePins, toPin } from './tradePins.ts';
+import { HOTSPOT_COMMODITIES, Rings, type HotspotQuery } from './rings.ts';
+import { systemRings } from './mining.ts';
 
 const PORT = Number(process.env.PORT ?? 8420);
 const HOST = process.env.HOST ?? '0.0.0.0';
@@ -37,6 +40,7 @@ const reader = new JournalReader(JOURNAL_DIR);
 const controls = new Controls(BINDINGS_DIR, findGameDir(), process.platform === 'win32' ? createWin32Sender() : null);
 const galaxy = new Galaxy(CACHE_DIR);
 await galaxy.load();
+const rings = new Rings();
 const scanner = new MarketScanner(CACHE_DIR);
 await scanner.load();
 const history = new MarketHistory(CACHE_DIR);
@@ -44,6 +48,9 @@ await history.load();
 const favorites = new Favorites(CACHE_DIR);
 await favorites.load();
 reader.state.favorites = favorites.list;
+const pins = new TradePins(CACHE_DIR);
+await pins.load();
+reader.state.tradePins = pins.list;
 mkdirSync(CACHE_DIR, { recursive: true });
 const prices = new PriceDb(join(CACHE_DIR, 'prices.db'));
 const trade = new TradeService(scanner, () => reader.state, () => history.markets, prices);
@@ -102,6 +109,8 @@ function refreshGalaxy() {
     if (rings) targetBody = { system: d.system, body: d.body, rings };
   }
   s.galaxy = { systems, current: here, target: target ? galaxy.get(target) : null, targetBody };
+  // the MINING screen's rings of this system (Spansh, once per system and TTL) with the player's own ring scans
+  s.mining.rings = systemRings(s.location.system, rings.of(s.location.system), s.mining.scanned);
 }
 
 let lastMarketAt = '';
@@ -135,6 +144,10 @@ eddn.on('stats', () => {
   scheduleBroadcast();
 });
 eddn.on('stats', (st) => st.error && app.log.warn({ error: st.error }, 'EDDN feed down, retrying'));
+rings.on('change', () => {
+  refreshGalaxy();
+  scheduleBroadcast();
+});
 galaxy.on('change', () => {
   refreshGalaxy();
   scheduleBroadcast();
@@ -184,7 +197,12 @@ scanner.on('progress', (p) => {
 app.post('/api/trade/routes', async (req, reply) => {
   const { query, force } = req.body as { query: TradeQuery; force?: boolean };
   try {
-    return await trade.routes(query, force === true);
+    const result = await trade.routes(query, force === true);
+    if (await pins.refresh(result)) {
+      reader.state.tradePins = pins.list;
+      scheduleBroadcast();
+    }
+    return result;
   } catch (err) {
     app.log.warn({ error: (err as Error).message }, 'trade scan failed');
     return reply.code(502).send({ error: (err as Error).message });
@@ -222,6 +240,7 @@ app.post('/api/clipboard', async (req, reply) => {
 app.post('/api/favorites', async (req, reply) => {
   const f = toFavorite(req.body);
   if (!f) return reply.code(400).send({ error: 'no system' });
+  f.pos ??= prices.systemPos(f.system); // saved from a trade route: the database knows where it is
   await favorites.add(f);
   reader.state.favorites = favorites.list;
   scheduleBroadcast();
@@ -234,11 +253,48 @@ app.delete('/api/favorites/:id', async (req, reply) => {
   return favorites.list;
 });
 
+app.post('/api/trade/pins', async (req, reply) => {
+  const p = toPin(req.body);
+  if (!p) return reply.code(400).send({ error: 'not a route' });
+  await pins.add(p);
+  reader.state.tradePins = pins.list;
+  scheduleBroadcast();
+  return pins.list;
+});
+app.delete('/api/trade/pins/:id', async (req, reply) => {
+  if (!(await pins.remove(String((req.params as { id: string }).id)))) return reply.code(404).send({ error: 'not found' });
+  reader.state.tradePins = pins.list;
+  scheduleBroadcast();
+  return pins.list;
+});
 app.get('/api/trade/last', async (_req, reply) => trade.last ?? reply.code(204).send());
 
 app.post('/api/trade/commodity', async (req) => {
   const { name, query } = req.body as { name: string; query: TradeQuery };
   return trade.quotes(String(name), query);
+});
+
+app.post('/api/mining/sell', async (req, reply) => {
+  try {
+    return await trade.sells(req.body as MiningSellQuery);
+  } catch (err) {
+    app.log.warn({ error: (err as Error).message }, 'mining sell scan failed');
+    return reply.code(502).send({ error: (err as Error).message });
+  }
+});
+
+app.get('/api/mining/commodities', async () => HOTSPOT_COMMODITIES);
+app.post('/api/mining/hotspots', async (req, reply) => {
+  const q = req.body as Partial<HotspotQuery>;
+  try {
+    return await rings.hotspots({
+      commodity: String(q.commodity ?? ''), reference: String(q.reference || reader.state.location.system || 'Sol'),
+      radius: Math.min(Math.max(Number(q.radius) || 50, 5), 500), minCount: Number(q.minCount) || 1, pristine: q.pristine === true,
+    });
+  } catch (err) {
+    app.log.warn({ error: (err as Error).message }, 'hotspot search failed');
+    return reply.code(502).send({ error: (err as Error).message });
+  }
 });
 
 if (existsSync(WEB_DIST)) {
