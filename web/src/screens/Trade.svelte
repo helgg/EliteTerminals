@@ -103,6 +103,8 @@
 
   // --- layout (docs/design/RESPONSIVE-TRADE.md) ---
   const vp = $derived(viewport.vp);
+  /** Where the route detail has room for its stops side by side, with the jump lanes standing between them. */
+  const split = $derived(vp === 'tablet-portrait' || vp === 'desktop-portrait' || vp === 'phone-landscape');
   const phone = $derived(viewport.device === 'phone');
   /** Tablets and portrait monitors: the filters live in a drawer. */
   let drawer = $state(new URLSearchParams(location.search).get('filters') === 'open');
@@ -327,9 +329,9 @@
   <Panel class="right" title={ts.tab === 'linear' ? 'Linear route' : 'Loop route'}>
     <WatchBanner watch={s.tradeWatch} id={(ts.tab === 'linear' ? chain?.id : route?.id) ?? ''} {now} />
     {#if ts.tab === 'linear'}
-      <ChainDetail {chain} jumpRange={query.jumpRange} />
+      <ChainDetail {chain} jumpRange={query.jumpRange} {split} />
     {:else}
-      <RouteDetail {route} jumpRange={query.jumpRange} split={vp === 'tablet-portrait' || vp === 'desktop-portrait'} />
+      <RouteDetail {route} jumpRange={query.jumpRange} {split} />
     {/if}
   </Panel>
 {/snippet}
@@ -476,12 +478,11 @@
   .topscan { flex: 0 1 360px; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
   .topscan .scan { flex: 1; }
   .tophint { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
-  /* a portrait detail reads in two columns: A and the way out, B and the way back */
-  .mid.portrait :global(.right .detail:not(.split)) { display: block; column-count: 2; column-gap: 14px; }
-  .mid.portrait :global(.right .detail:not(.split) > *) { break-inside: avoid; margin-bottom: 6px; }
-  /* the loop stands A | jump lane | B side by side and fills the panel top to bottom */
-  .mid.portrait :global(.right > .body:has(.split)) { flex: 1; display: flex; flex-direction: column; gap: 6px; }
-  .mid.portrait :global(.right .split) { flex: 1; min-height: 0; height: auto; }
+  /* standing up, the route detail sets its stops side by side (A | jump lane | B) and fills the panel */
+  .mid.portrait :global(.right > .body:has(.split)), .phone.landscape :global(.right > .body:has(.split)) {
+    flex: 1; display: flex; flex-direction: column; gap: 6px;
+  }
+  .mid.portrait :global(.right .split), .phone.landscape :global(.right .split) { flex: 1 0 auto; min-height: 0; }
   .shade { position: absolute; inset: 0; z-index: 30; background: rgb(0 0 0 / 0.55); border: 0; }
   .drawer {
     position: absolute; z-index: 31; top: 0; left: 0; bottom: 0; width: min(380px, 92%);
@@ -511,9 +512,6 @@
   .phone.landscape .p-scan .go { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 2px 10px; align-items: center; }
   .phone.landscape .p-scan .go .scan { grid-row: span 2; padding: 8px; }
   .phone.landscape .p-scan .chips button, .phone.landscape .p-scan .toggles button { padding: 6px 2px; }
-  /* and the route reads in two columns, like a portrait tablet */
-  .phone.landscape :global(.right .detail) { display: block; column-count: 2; column-gap: 12px; }
-  .phone.landscape :global(.right .detail > *) { break-inside: avoid; margin-bottom: 6px; }
   .strip {
     display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 10px; padding: 6px 8px; font-size: 11px;
     background: var(--panel); border: 1px solid var(--rule);

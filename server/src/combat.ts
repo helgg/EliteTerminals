@@ -57,8 +57,12 @@ export function applyCombat(state: EdState, e: JournalEvent): void {
       const reward = num(e.TotalReward) || num(e.Reward);
       earn(state, e, reward);
       c.session.bounties += reward;
+      // One contact goes: the locked one when it is the victim (twins like "Federal Security Service" stay).
       const pilot = str(e.PilotName_Localised) || str(e.PilotName);
-      if (pilot) c.contacts = c.contacts.filter((k) => k.pilot !== pilot);
+      const t = state.target;
+      const i = c.contacts.findIndex((k) => k.pilot === pilot && k.ship === t.ship && k.rank === t.rank);
+      const j = i >= 0 ? i : c.contacts.findIndex((k) => k.pilot === pilot);
+      if (pilot && j >= 0) c.contacts.splice(j, 1);
       countKill(c.missions, str(e.VictimFaction));
       break;
     }
@@ -143,9 +147,12 @@ function noteContact(state: EdState, e: JournalEvent) {
   const ship = shipLabel(str(e.Ship), str(e.Ship_Localised));
   const pilot = str(e.PilotName_Localised) || str(e.PilotName);
   if (!pilot) return;
+  const rank = str(e.PilotRank);
   const list = state.combat.contacts;
+  // The game gives NPCs no id: ships of one type and pilot name ("Federal Security Service") are told apart
+  // by their rank, which comes with the name. Twins of the same rank stay one row.
   // Most recently seen first: the ship you just looked at is at the top.
-  const i = list.findIndex((x) => x.ship === ship && x.pilot === pilot);
+  const i = list.findIndex((x) => x.ship === ship && x.pilot === pilot && (x.rank === rank || !x.rank || !rank));
   const k = i >= 0 ? list.splice(i, 1)[0] : { ship, pilot, rank: '', legalStatus: '', bounty: 0, faction: '', seenAt: '' };
   list.unshift(k);
   k.seenAt = str(e.timestamp);

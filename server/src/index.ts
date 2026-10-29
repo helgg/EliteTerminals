@@ -113,9 +113,29 @@ function refreshGalaxy() {
   s.mining.rings = systemRings(s.location.system, rings.of(s.location.system), s.mining.scanned);
 }
 
+// --- macros: they run on the screens; the server keeps one shared view of them ---
+type Screen = { send(data: string): void };
+/** The screen last used (a key, a macro): the one AUTO NEXT runs on. */
+let lastScreen: Screen | null = null;
+/** The screen running a macro now, to stop it from any other. */
+let macroScreen: Screen | null = null;
+let kills = -1;
+function watchKills() {
+  const now = reader.state.combat.session.kills;
+  const more = kills >= 0 && now > kills;
+  kills = now;
+  if (!more || !reader.state.macros.autoNext) return;
+  // Let the wreck clear the target first; then one screen only, or they fight over the target.
+  setTimeout(() => {
+    const screen = lastScreen && clients.has(lastScreen) ? lastScreen : [...clients][0];
+    screen?.send(encode({ type: 'runMacro', macro: 'NextBest' }));
+  }, 1200);
+}
+
 let lastMarketAt = '';
 reader.on('change', () => {
   refreshGalaxy();
+  watchKills();
   scheduleBroadcast();
   const m = reader.state.market;
   if (m.updatedAt && m.updatedAt !== lastMarketAt) {
@@ -167,7 +187,34 @@ app.get('/ws', { websocket: true }, (socket) => {
     } catch {
       return;
     }
-    if (msg.type === 'command' || msg.type === 'paste') {
+    const macros = reader.state.macros;
+    if (msg.type === 'autoNext') {
+      lastScreen = socket;
+      macros.autoNext = msg.on === true;
+      if (!macros.autoNext && macros.running === 'NextBest') macroScreen?.send(encode({ type: 'stopMacro' }));
+      scheduleBroadcast();
+    } else if (msg.type === 'macro') {
+      lastScreen = socket;
+      macroScreen = msg.running ? socket : null;
+      macros.running = String(msg.running ?? '');
+      if (msg.running) macros.note = '';
+      else if (msg.note !== undefined) {
+        macros.note = String(msg.note);
+        macros.noteFor = String(msg.noteFor ?? '');
+      }
+      scheduleBroadcast();
+    } else if (msg.type === 'stopMacro') {
+      macroScreen?.send(encode({ type: 'stopMacro' }));
+    } else if (msg.type === 'share') {
+      const p = msg.patch ?? {};
+      if (Array.isArray(p.absent)) macros.absent = p.absent.map(String);
+      if (typeof p.locking === 'string') macros.locking = p.locking;
+      if (p.plot && typeof p.plot === 'object') {
+        macros.plot = { system: String(p.plot.system ?? ''), stage: String(p.plot.stage ?? ''), error: String(p.plot.error ?? '') };
+      }
+      scheduleBroadcast();
+    } else if (msg.type === 'command' || msg.type === 'paste') {
+      lastScreen = socket;
       const job = msg.type === 'paste'
         ? setClipboard(clipText(msg.text)).then(() => controls.paste())
         : controls.run(String(msg.command));
@@ -175,6 +222,11 @@ app.get('/ws', { websocket: true }, (socket) => {
       job.then(
         () => {
           app.log.info({ command }, 'command sent');
+          // What the journal never reports, kept for every screen: the last fighter order and throttle detent.
+          if (command.startsWith('Order') || command.startsWith('SetSpeed')) {
+            macros[command.startsWith('Order') ? 'order' : 'throttle'] = command;
+            scheduleBroadcast();
+          }
           socket.send(encode({ type: 'commandResult', id: msg.id, ok: true }));
         },
         (err: Error) => {
@@ -184,7 +236,16 @@ app.get('/ws', { websocket: true }, (socket) => {
       );
     }
   });
-  socket.on('close', () => clients.delete(socket));
+  socket.on('close', () => {
+    clients.delete(socket);
+    // A screen closed mid-macro: its macro is gone with it.
+    if (macroScreen === socket) {
+      macroScreen = null;
+      reader.state.macros.running = '';
+      reader.state.macros.locking = '';
+      scheduleBroadcast();
+    }
+  });
 });
 
 app.get('/api/state', async () => reader.state);

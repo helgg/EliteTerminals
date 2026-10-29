@@ -15,7 +15,7 @@
   import SystemPanel from '../lib/SystemPanel.svelte';
   import Favorites from '../lib/Favorites.svelte';
   import { viewport } from '../lib/viewport.svelte.ts';
-  import { keyFor, link, sendCommand } from '../lib/link.svelte.ts';
+  import { keyFor, sendCommand } from '../lib/link.svelte.ts';
   import { resolveTarget } from '../lib/target.ts';
   import { currentJumpRange } from '../lib/jump.ts';
   import {
@@ -287,7 +287,7 @@
   <!-- phones: the forward detents only, in a row (the throttle column needs height a phone lacks) -->
   <div class="trow">
     {#each QUICK as d (d.cmd)}
-      <button class:set={link.throttleCmd === d.cmd} class:zero={d.pct === 0} disabled={!keyFor(d.cmd)}
+      <button class:set={s.macros.throttle === d.cmd} class:zero={d.pct === 0} disabled={!keyFor(d.cmd)}
         onclick={() => sendCommand(d.cmd)} title={keyFor(d.cmd) ?? 'no bind'}>{d.pct || 'ZERO'}</button>
     {/each}
   </div>

@@ -57,14 +57,17 @@ a second.
   in the game.
 - **NEXT WANTED**, **NEXT MASSACRE** and **AUTO NEXT** (after every kill): one quick lap of the targets in range,
   then straight to the best one (a ship of your massacre target faction, else the highest bounty). The next
-  pick is marked ★, and ships that left sensor range are dimmed.
+  pick is marked ★, and ships that left sensor range are dimmed. A search gives up after 30 s, when nothing
+  locks, or as soon as you pick a target yourself, and says why ("no wanted ship in range").
+- Ships with the same type and pilot name (security patrols) are told apart by their rank; on phones the pilot
+  shows under the ship.
 - **Session**: bounties, unredeemed vouchers, Cr/h, kills, combat bonds, stacked massacre progress per giving
   faction (missions taken in earlier sessions included) and how many rebuys your credits cover.
 - **Console** in colour-coded groups: power presets, one-tap subsystem lock (power plant, drives, FSD, shield
   generator, distributor, cargo hatch), fighter orders without a numpad, escape (emergency jump, submit & run,
   recall & jump), defence (heat sink, shield cell, chaff, ECM, silent running, combos) and wing assist.
 - Macros press one key at a time and wait for the game to confirm each step (status flags, pips, the targeted
-  ship and subsystem) before the next. Tap a running macro again to stop it.
+  ship and subsystem) before the next. Tap a running macro again to stop it, from any screen.
 - Phones get four pages (TARGETS, ATTACK, FIGHTER, SURVIVE); the iPad keeps a narrow targets column beside
   the whole console.
 
@@ -94,6 +97,8 @@ a second.
 - On tablets the filters open in a drawer and routes show as cards, with the route detail beside them (landscape)
   or underneath (portrait). Standing up, a loop reads side by side: A, the jump lane, B, filling the panel.
   Phones get four pages: SCAN, ROUTES, ROUTE and MARKET.
+- Route detail side by side wherever it fits: linear routes two stops a row with the jump lanes between them,
+  and the trip to the first stop drawn as an amber INITIAL TRIP lane.
 
 ![TRADE on an iPad standing up and on an iPhone](docs/images/trade-devices.jpg)
 
@@ -107,6 +112,9 @@ a second.
 - Installable as a full-screen web app (Android, iPadOS and iOS "Add to Home Screen"), with a reload button
   since home-screen apps have no browser bar.
 - Haptic feedback on touch devices.
+- Several screens at once (PC, tablet, phone) stay in step: AUTO NEXT, running macros, fighter order and
+  throttle LEDs, the contact being locked and the route being plotted. After a kill only one screen (the last
+  one used) picks the next target.
 
 **Icons and holograms**
 
@@ -224,6 +232,8 @@ clipped text. Add `?tab=combat` (and `&page=survive` for a phone page) to open e
 - [x] Icons and holograms: stations, pads, services, stars, planets with rings, signals
 - [x] FLIGHT favourites with one-tap route plotting, every station of the system with filters
 - [x] TRADE pinned routes, favourites from a route, side-by-side loop on portrait screens
+- [x] Screens in sync, bounded target searches, TRADE route detail side by side everywhere
+- [ ] PVP: commanders flagged in the contacts, encounter history, a direct-keys console page
 - [ ] MINING screen (ship first, then surface vehicles)
 - [ ] EXPLORE screen
 - [ ] CARRIER screen

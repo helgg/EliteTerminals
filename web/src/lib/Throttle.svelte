@@ -14,7 +14,7 @@
     { pct: -100, cmd: 'SetSpeedMinus100' },
   ];
 
-  const set = $derived(DETENTS.find((d) => d.cmd === link.throttleCmd)?.pct ?? null);
+  const set = $derived(DETENTS.find((d) => d.cmd === link.state.macros.throttle)?.pct ?? null);
 </script>
 
 <div class="throttle">

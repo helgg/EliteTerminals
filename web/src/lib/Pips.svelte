@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { keyFor, sendCommand } from './link.svelte.ts';
+  import { keyFor, link, sendCommand } from './link.svelte.ts';
   import { canRun, macro, PIPS_CMDS as CMDS, PRESETS, runMacro } from './macros.svelte.ts';
 
   // Power distributor for touch: each channel is one tall button (tap = +1 pip there), plus one-tap presets.
@@ -18,7 +18,10 @@
   const pipsLabel = (t: readonly number[]) => t.map((h) => h / 2).join('·');
   const isAt = (t: readonly number[]) => t[0] === sys && t[1] === eng && t[2] === wep;
   const canPreset = $derived(canRun('PowerDEF'));
-  const running = $derived(macro.running.startsWith('Power') ? macro.running.slice(5) : macro.running ? '-' : '');
+  const running = $derived.by(() => {
+    const r = macro.running || link.state.macros.running; // here or on another screen
+    return r.startsWith('Power') ? r.slice(5) : r ? '-' : '';
+  });
   const apply = (label: keyof typeof PRESETS) => runMacro(`Power${label}`);
 </script>
 

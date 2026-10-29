@@ -5,7 +5,7 @@
   import type { EdState, Favorite, SystemMatch } from '@et/shared';
   import PlaceIcon, { placeKind } from './PlaceIcon.svelte';
   import { distanceLy } from './astro.ts';
-  import { macro, plotMissing, plotTo, routeEndsAt } from './macros.svelte.ts';
+  import { busy, plotMissing, plotTo, routeEndsAt } from './macros.svelte.ts';
   import { addFavorite, removeFavorite } from './favorites.ts';
 
   let { s }: { s: EdState } = $props();
@@ -26,7 +26,7 @@
       : s.favorites,
   );
   const missing = $derived(plotMissing());
-  const plotting = $derived(macro.running === 'Plot' ? macro.plot.system : '');
+  const plotting = $derived(busy('Plot') ? s.macros.plot.system : '');
   const saved = $derived(s.favorites.some((f) => !f.station && f.system.toLowerCase() === here.toLowerCase()));
   const LABELS: Record<string, string> = { GalaxyMapOpen: 'GALAXY MAP (Open galaxy map)' };
   const fmt = (ly: number) => (ly < 10 ? ly.toFixed(2) : ly < 1000 ? ly.toFixed(1) : Math.round(ly).toLocaleString('en-US'));
@@ -120,9 +120,9 @@
     <p class="note warn">To plot routes from here, give {missing.map((k) => LABELS[k] ?? k).join(', ')} a keyboard key in the
       game's controls.</p>
   {:else if plotting}
-    <p class="note tele">{macro.plot.stage === 'map' ? 'Opening the galaxy map…' : macro.plot.stage === 'search' ? `Searching ${plotting.toUpperCase()}…` : 'Plotting…'}</p>
-  {:else if macro.plot.error}
-    <p class="note warn">{macro.plot.system.toUpperCase()}: {macro.plot.error}</p>
+    <p class="note tele">{s.macros.plot.stage === 'map' ? 'Opening the galaxy map…' : s.macros.plot.stage === 'search' ? `Searching ${plotting.toUpperCase()}…` : 'Plotting…'}</p>
+  {:else if s.macros.plot.error}
+    <p class="note warn">{s.macros.plot.system.toUpperCase()}: {s.macros.plot.error}</p>
   {/if}
 </div>
 

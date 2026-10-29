@@ -4,7 +4,7 @@
   import Name from '../lib/Name.svelte';
   import MiningRadar from '../lib/MiningRadar.svelte';
   import { keyFor, sendCommand } from '../lib/link.svelte.ts';
-  import { canRun, macro, plotTo, runMacro } from '../lib/macros.svelte.ts';
+  import { busy, canRun, plotTo, runMacro } from '../lib/macros.svelte.ts';
   import { ageLabel, ageTone, cr, short } from '../lib/format.ts';
 
   // MINING (ship), big monitor on its side: docs/design/MINING.md.
@@ -167,7 +167,7 @@
       finding = false;
     }
   }
-  const plotting = $derived(macro.running === 'Plot' ? macro.plot.system : '');
+  const plotting = $derived(busy('Plot') ? s.macros.plot.system : '');
 
   // --- where to sell ---
   type SellOpts = { radius: number; pad: 'S' | 'M' | 'L'; maxAgeH: number; planetary: boolean; carriers: boolean; sort: 'price' | 'distance' | 'demand' };
@@ -250,7 +250,7 @@
 
 {#snippet macroTile(id: string, title: string, sub = '', cls = '', live: boolean | null = null)}
   {@const ok = canRun(id)}
-  <button class="act macro {cls}" class:disabled={!ok} class:busy={macro.running === id} class:live={live === true}
+  <button class="act macro {cls}" class:disabled={!ok} class:busy={busy(id)} class:live={live === true}
     disabled={!ok} onclick={() => runMacro(id)}>
     {#if live !== null}<span class="led"></span>{/if}
     <b>{title}</b>{#if sub}<small>{sub}</small>{/if}
@@ -260,7 +260,7 @@
 
 {#snippet power(id: string, label: string, bars: number[])}
   {@const ok = canRun(id)}
-  <button class="act macro" class:disabled={!ok} class:busy={macro.running === id} disabled={!ok} onclick={() => runMacro(id)}>
+  <button class="act macro" class:disabled={!ok} class:busy={busy(id)} disabled={!ok} onclick={() => runMacro(id)}>
     <b>{label}</b>
     <span class="pips">{#each bars as h, i (i)}<i style:height="{h}px"></i>{/each}</span>
   </button>
@@ -461,7 +461,7 @@
           {:else}
             <p class="none">Pick a commodity and FIND: rings around {s.location.system.toUpperCase() || 'you'}, nearest first. PLOT sets the route.</p>
           {/if}
-          {#if macro.plot.error && macro.plot.system}<p class="none warn">{macro.plot.system.toUpperCase()}: {macro.plot.error}</p>{/if}
+          {#if s.macros.plot.error && s.macros.plot.system}<p class="none warn">{s.macros.plot.system.toUpperCase()}: {s.macros.plot.error}</p>{/if}
         {:else}
           <div class="frow">
             <span class="seg">{#each [20, 40, 80] as r (r)}<button class:on={sellOpts.radius === r} onclick={() => setSell({ radius: r })}>{r}</button>{/each}</span><em>ly</em>

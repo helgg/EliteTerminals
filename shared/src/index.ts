@@ -211,6 +211,8 @@ export interface EdState {
     seq: number;
   };
   combat: CombatState;
+  /** The console's macros, shared by every screen open on the panel. */
+  macros: MacroState;
   mining: MiningState;
   cargo: { items: CargoItem[]; count: number };
   market: MarketSnapshot;
@@ -250,6 +252,30 @@ export interface MassacreMission {
   /** MissionRedirected: every kill is in, go back to the giver. */
   done: boolean;
 }
+
+export interface MacroState {
+  /** AUTO NEXT: after each kill, one screen locks the best target. */
+  autoNext: boolean;
+  /** Macro running on some screen now, '' when none. */
+  running: string;
+  /** How the last target search ended ("nothing in range"…), '' when it found one. */
+  note: string;
+  /** The macro that note is about. */
+  noteFor: string;
+  /** Last fighter order the game accepted, from any screen: the journal never reports orders. */
+  order: string;
+  /** Last throttle detent the game accepted (SetSpeed…); the journal never reports throttle position. */
+  throttle: string;
+  /** Contacts (keyOf) the last lap of the targets did not find: out of sensor range, or dead. */
+  absent: string[];
+  /** Contact being locked from the list, for its row to show it. */
+  locking: string;
+  /** The route being plotted from the favourites: where to, how far it got, and why it stopped. */
+  plot: { system: string; stage: string; error: string };
+}
+
+/** What a screen may change in MacroState for every other one. */
+export type SharedMacros = Partial<Pick<MacroState, 'absent' | 'locking' | 'plot'>>;
 
 export interface CombatState {
   contacts: Contact[];
@@ -442,6 +468,10 @@ export function initialState(): EdState {
       shield: null, hull: null, subsystem: '', subsystemId: '', subsystemHealth: null, scanStage: 0, seq: 0,
     },
     combat: initialCombat(),
+    macros: {
+      autoNext: false, running: '', note: '', noteFor: '', order: '', throttle: '', absent: [], locking: '',
+      plot: { system: '', stage: '', error: '' },
+    },
     mining: initialMining(),
     cargo: { items: [], count: 0 },
     market: { marketId: 0, station: '', stationType: '', system: '', updatedAt: '', items: [] },
@@ -700,9 +730,20 @@ export interface TradeResult {
 export type ServerMessage =
   | { type: 'state'; state: EdState }
   | { type: 'commandResult'; id: string; ok: boolean; error?: string }
-  | { type: 'tradeProgress'; loaded: number; total: number; done: boolean; error?: string };
+  | { type: 'tradeProgress'; loaded: number; total: number; done: boolean; error?: string }
+  /** Runs a macro on this screen (AUTO NEXT after a kill goes to one screen only). */
+  | { type: 'runMacro'; macro: string }
+  /** Stops the macro running on this screen: another one asked. */
+  | { type: 'stopMacro' };
 
 export type ClientMessage =
   | { type: 'command'; id: string; command: string }
   /** Puts the text on the PC's clipboard and presses Ctrl+V in the game (galaxy map search). */
-  | { type: 'paste'; id: string; text: string };
+  | { type: 'paste'; id: string; text: string }
+  | { type: 'autoNext'; on: boolean }
+  /** This screen started or ended a macro. */
+  | { type: 'macro'; running: string; note?: string; noteFor?: string }
+  /** Stop the macro running on whichever screen runs it. */
+  | { type: 'stopMacro' }
+  /** Macro progress every screen shows (contacts gone, the one being locked, the route being plotted). */
+  | { type: 'share'; patch: SharedMacros };

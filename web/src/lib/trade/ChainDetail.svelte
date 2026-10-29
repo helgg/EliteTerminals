@@ -10,8 +10,15 @@
   import { ageLabel, ageTone, cr, duration, short } from '../format.ts';
 
   // The selected linear route as a checklist: at each stop sell everything, then buy the listed load.
-  let { chain, jumpRange }: { chain: TradeChain | null; jumpRange: number } = $props();
+  // `split` (portrait screens, phones on their side) reads like text: two stops a row with the jump lane standing
+  // between them (A ▶ B), a full-width jump down to the next row (▼ TO C), then C ▶ D, filling the panel.
+  let { chain, jumpRange, split = false }: { chain: TradeChain | null; jumpRange: number; split?: boolean } = $props();
   const letter = (k: number) => String.fromCharCode(65 + k);
+  const role = (k: number, last: number) => (k === 0 ? 'BUY' : k === last ? 'SELL ALL · END' : 'SELL ALL · BUY');
+  // rows: start, totals, then a row of two stops and a turn row between each pair
+  // (a last stop alone on its row takes only its height, so the rows with loads get the room)
+  const rows = (stops: number) =>
+    `auto auto ${Array.from({ length: Math.ceil(stops / 2) }, (_, p) => (2 * p + 1 < stops ? 'minmax(min-content, 1fr)' : 'auto')).join(' auto ')}`;
 </script>
 
 {#snippet stop(e: TradeEnd, k: number, what: string)}
@@ -31,7 +38,30 @@
   </div>
 {/snippet}
 
-{#if chain}
+{#if chain && split}
+  {@const stops = [chain.legs[0].src, ...chain.legs.map((l) => l.dst)]}
+  <div class="detail split" style:grid-template-rows={rows(stops.length)}>
+    <div class="start wide"><StartDistance start={chain.legs[0].src} {jumpRange} /><PinButton pin={{ kind: 'linear', item: chain }} label /></div>
+    <div class="totals wide">
+      <span class="ok">+{short(chain.total)} Cr</span>
+      <span class="tele">{short(chain.perHour)} Cr/h</span>
+      <span class="dim">≈{duration(chain.seconds)} · {stops.length} stops</span>
+    </div>
+    {#each stops as e, k (k)}
+      {@const row = 3 + 2 * Math.floor(k / 2)}
+      {@const l = chain.legs[k]}
+      <div class="cell" style:grid-row={row} style:grid-column={k % 2 ? 3 : 1}>
+        {@render stop(e, k, role(k, stops.length - 1))}
+        {#if l}<LoadList leg={l.leg} title="{letter(k)}→{letter(k + 1)}" />{/if}
+      </div>
+      {#if l && k % 2 === 0}
+        <div class="lane" style:grid-row={row} style:grid-column="2"><Hop ly={l.hopLy} jumps={l.jumps} seconds={l.legSeconds} vertical /></div>
+      {:else if l}
+        <div class="wide" style:grid-row={row + 1}><Hop ly={l.hopLy} jumps={l.jumps} seconds={l.legSeconds} label="TO {letter(k + 1)}" /></div>
+      {/if}
+    {/each}
+  </div>
+{:else if chain}
   <div class="detail">
     <div class="start"><StartDistance start={chain.legs[0].src} {jumpRange} /><PinButton pin={{ kind: 'linear', item: chain }} /></div>
     <div class="totals">
@@ -40,11 +70,11 @@
       <span class="dim">≈{duration(chain.seconds)} · {chain.legs.length + 1} stops</span>
     </div>
     {#each chain.legs as l, k (k)}
-      {@render stop(l.src, k, k ? 'SELL ALL · BUY' : 'BUY')}
+      {@render stop(l.src, k, role(k, chain.legs.length))}
       <LoadList leg={l.leg} title="{letter(k)}→{letter(k + 1)}" />
       <Hop ly={l.hopLy} jumps={l.jumps} seconds={l.legSeconds} />
     {/each}
-    {@render stop(chain.legs[chain.legs.length - 1].dst, chain.legs.length, 'SELL ALL · END')}
+    {@render stop(chain.legs[chain.legs.length - 1].dst, chain.legs.length, role(chain.legs.length, chain.legs.length))}
   </div>
 {:else}
   <p class="dim">Select a route in the table.</p>
@@ -52,6 +82,12 @@
 
 <style>
   .detail { display: flex; flex-direction: column; gap: 5px; }
+  .split { display: grid; min-height: 100%; gap: 6px 8px; grid-template-columns: minmax(0, 1fr) 84px minmax(0, 1fr); }
+  .split .wide { grid-column: 1 / -1; }
+  .cell { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+  .cell > :global(.load) { flex: 1; }
+  .split .name, .split .meta { flex-wrap: wrap; white-space: normal; }
+  .split .name :global(.text), .split .sys :global(.text) { white-space: normal; overflow-wrap: anywhere; }
   .totals { display: flex; gap: 10px; align-items: baseline; font-weight: 700; white-space: nowrap; }
   .totals .dim { font-size: 10px; font-weight: 400; margin-left: auto; }
   .stop { display: grid; grid-template-columns: 22px 1fr; gap: 6px; align-items: center; }

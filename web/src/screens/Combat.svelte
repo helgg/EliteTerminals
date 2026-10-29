@@ -3,8 +3,8 @@
   import Panel from '../lib/Panel.svelte';
   import { keyFor, sendCommand } from '../lib/link.svelte.ts';
   import {
-    bestScore, canRun, keyOf, lockContact, macro, massacreFactions, onSubsystem, runMacro, sendOrder, toggleAutoNext,
-    watchKills, type Subsystem,
+    autoNext, bestScore, busy, canRun, keyOf, lockContact, macro, massacreFactions, noteOf, onSubsystem, runMacro,
+    sendOrder, toggleAutoNext, type Subsystem,
   } from '../lib/macros.svelte.ts';
   import { short } from '../lib/format.ts';
   import { viewport } from '../lib/viewport.svelte.ts';
@@ -43,10 +43,6 @@
   }
 
   const c = $derived(s.combat);
-  $effect(() => {
-    void c.session.kills;
-    watchKills();
-  });
 
   // --- contacts ---
   type Filter = { wanted: boolean; massacre: boolean; clean: boolean };
@@ -111,8 +107,8 @@
     clean: c.contacts.filter(isClean).length,
   });
   const allOn = $derived(filt.wanted && filt.massacre && filt.clean);
-  const locked = (k: Contact) => s.target.locked && s.target.ship === k.ship && s.target.pilot === k.pilot;
-  const absent = (k: Contact) => macro.absent.includes(keyOf(k));
+  const locked = (k: Contact) => s.target.locked && keyOf(s.target) === keyOf(k);
+  const absent = (k: Contact) => s.macros.absent.includes(keyOf(k));
   /** The ship AUTO NEXT would go for: a massacre ship, else the highest bounty, among those still in range. */
   const best = $derived.by(() => {
     void targets;
@@ -170,7 +166,7 @@
 {#snippet keyTile(action: string, title: string, sub = '', cls = '', opts: { count?: number; order?: boolean } = {})}
   {@const bound = keyFor(action)}
   {@const off = !bound || (opts.order && noBay)}
-  <button class="act {cls}" class:disabled={off} class:live={opts.order && macro.order === action} disabled={off}
+  <button class="act {cls}" class:disabled={off} class:live={opts.order && s.macros.order === action} disabled={off}
     onclick={() => (opts.order ? sendOrder(action) : sendCommand(action))}>
     {#if opts.order}<span class="led"></span>{/if}
     {#if opts.count !== undefined}<span class="count">{opts.count}</span>{/if}
@@ -181,18 +177,19 @@
 
 {#snippet macroTile(id: string, title: string, sub = '', cls = '', opts: { live?: boolean; led?: boolean; count?: string; fighter?: boolean } = {})}
   {@const ok = canRun(id) && !(opts.fighter && noBay)}
-  <button class="act macro {cls}" class:disabled={!ok} class:busy={macro.running === id} class:live={opts.live}
+  {@const note = noteOf(id)}
+  <button class="act macro {cls}" class:disabled={!ok} class:busy={busy(id)} class:live={opts.live}
     disabled={!ok} onclick={() => runMacro(id)}>
     {#if opts.led}<span class="led"></span>{/if}
     {#if opts.count}<span class="count">{opts.count}</span>{/if}
-    <b>{title}</b><small>{sub || ' '}</small>
+    <b>{title}</b><small class:note>{busy(id) ? 'searching… tap to stop' : note || sub || ' '}</small>
     {#if !canRun(id)}<span class="key nobind">NO BIND</span>{/if}
   </button>
 {/snippet}
 
 {#snippet power(label: 'DEF' | 'RUN' | 'ATK', bars: number[])}
   {@const ok = canRun(`Power${label}`)}
-  <button class="act macro" class:disabled={!ok} class:busy={macro.running === `Power${label}`} disabled={!ok}
+  <button class="act macro" class:disabled={!ok} class:busy={busy(`Power${label}`)} disabled={!ok}
     onclick={() => runMacro(`Power${label}`)}>
     <b>{label}</b>
     <span class="pips">{#each bars as h, i (i)}<i style:height="{h}px"></i>{/each}</span>
@@ -201,11 +198,12 @@
 
 <!-- the pieces; each layout below arranges them -->
 {#snippet picker()}
+  {@const note = noteOf('NextBest')}
   <div class="pick">
-    <button class="act toggle auto" class:live={macro.autoNext} class:busy={macro.running === 'NextBest'}
+    <button class="act toggle auto" class:live={autoNext()} class:busy={busy('NextBest')}
       disabled={!canRun('NextBest')} class:disabled={!canRun('NextBest')} onclick={toggleAutoNext}>
-      <span class="state">{macro.autoNext ? 'ON' : 'OFF'}</span>
-      <b>AUTO NEXT</b><small>on each kill → <span class="star">★</span></small>
+      <span class="state">{autoNext() ? 'ON' : 'OFF'}</span>
+      <b>AUTO NEXT</b><small class:note>{#if busy('NextBest')}searching… tap to stop{:else if note}{note}{:else}on each kill → <span class="star">★</span>{/if}</small>
     </button>
     {@render macroTile('NextWanted', 'NEXT WANTED', 'top bounty in range')}
     {@render macroTile('NextMassacre', 'NEXT MASSACRE', 'mission faction')}
@@ -229,7 +227,7 @@
 
 {#snippet cell(k: Contact, col: Col)}
   {#if col === 'ship'}
-    <td>{#if locked(k)}<span class="lock">◉</span> {:else if best === keyOf(k)}<span class="star">★</span> {/if}{k.ship}{#if !cols.includes('faction') && isMassacre(k)}<span class="mtag">M</span>{/if}</td>
+    <td><span class="mark">{#if locked(k)}<span class="lock">◉</span>{:else if best === keyOf(k)}<span class="star">★</span>{/if}</span>{k.ship}{#if !cols.includes('faction') && isMassacre(k)}<span class="mtag">M</span>{/if}{#if !cols.includes('pilot')}<span class="pl">{k.pilot}</span>{/if}</td>
   {:else if col === 'pilot'}
     <td class="muted">{k.pilot}</td>
   {:else if col === 'rank'}
@@ -241,7 +239,7 @@
   {:else if col === 'faction'}
     <td class="muted fac">{k.faction}{#if isMassacre(k)}<span class="mtag">M</span>{/if}</td>
   {:else}
-    <td class="dim">{macro.locking === keyOf(k) ? 'locking…' : absent(k) ? 'gone' : ago(k.seenAt)}</td>
+    <td class="dim seen">{s.macros.locking === keyOf(k) ? 'locking…' : absent(k) ? 'gone' : ago(k.seenAt)}</td>
   {/if}
 {/snippet}
 
@@ -264,9 +262,9 @@
               {/each}
             </tr></thead>
             <tbody>
-              {#each shown as k (k.ship + k.pilot)}
+              {#each shown as k (keyOf(k))}
                 <tr class:sel={locked(k)} class:clean={isClean(k)} class:gone={absent(k)}
-                  class:locking={macro.locking === keyOf(k)} onclick={() => lockContact(k)}>
+                  class:locking={s.macros.locking === keyOf(k)} onclick={() => lockContact(k)}>
                   {#each cols as col (col)}{@render cell(k, col)}{/each}
                 </tr>
               {/each}
@@ -400,7 +398,7 @@
       {#each PAGES as p (p.id)}
         <button class:on={page === p.id} onclick={() => setPage(p.id)}>
           <span class="pi">{p.icon}</span>{p.label}
-          {#if p.id === 'targets' && macro.autoNext}<span class="dot"></span>{/if}
+          {#if p.id === 'targets' && autoNext()}<span class="dot"></span>{/if}
         </button>
       {/each}
     </nav>
@@ -496,6 +494,9 @@
   .narrow td { padding: 7px 4px; }
   /* long faction names take a second line instead of pushing SEEN off the table */
   td.fac { white-space: normal; line-height: 1.25; }
+  /* the pilot under the ship, where the list has no PILOT column */
+  td .pl { display: block; font-size: .82em; color: var(--muted); white-space: normal; line-height: 1.2; }
+  small.note { color: var(--hud-hi); }
 
   /* phones: pages; tabs at the bottom standing up, down the left on its side */
   .combat.phone { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; gap: 6px; }
@@ -562,6 +563,9 @@
   .lc { color: var(--ok); font-size: 10px; letter-spacing: .08em; border: 1px solid var(--ok); padding: 0 4px; }
   .mtag { color: #140b04; background: var(--hud-hi); font-size: 10px; font-weight: 700; padding: 0 4px; margin-left: 4px; }
   .lock { color: var(--hud); font-weight: 700; }
+  /* lock / best mark and "locking…" take the same room whether shown or not: rows do not jump while a search runs */
+  .mark { display: inline-block; width: 1.3em; }
+  td.seen { min-width: 8.5ch; }
   .tot { display: flex; gap: 18px; margin-top: 8px; font-size: 12px; color: var(--dim); }
   .tot b { color: var(--text); }
   .none { padding: 12px 4px; color: var(--dim); margin: 0; }

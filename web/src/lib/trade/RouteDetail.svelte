@@ -6,12 +6,11 @@
   import PadBadge from '../PadBadge.svelte';
   import Hop from './Hop.svelte';
   import LoadList from './LoadList.svelte';
-  import PinButton from './PinButton.svelte';
   import StartDistance from './StartDistance.svelte';
   import { ageLabel, ageTone, cr, short } from '../format.ts';
 
   // The selected loop, cockpit style: buy at A, sell at B, buy the way-back load at B, sell it at A.
-  // `split` (portrait screens) sets A and B side by side with the jump lane standing between them,
+  // `split` (portrait screens, phones on their side) sets A and B side by side with the jump lane standing between them,
   // filling the panel's height.
   let { route, jumpRange, split = false }: { route: TradeRoute | null; jumpRange: number; split?: boolean } = $props();
   // Return on what the cargo cost: the same figure as the table's % column.
@@ -46,7 +45,7 @@
   {@const tons = route.leg.amount + (route.back?.amount ?? 0)}
   {@const cost = route.leg.cost + (route.back?.cost ?? 0)}
   <div class="detail" class:split>
-    <div class="start"><StartDistance start={route.src} {jumpRange} /><PinButton pin={{ kind: 'loop', item: route }} label={split} /></div>
+    <div class="start"><StartDistance start={route.src} {jumpRange} /></div>
     <div class="side a">
       {@render station(route.src, 'A · BUY')}
       <LoadList leg={route.leg} title="OUT A→B" />
@@ -74,17 +73,25 @@
   .side { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
   /* A | lane | B, the lane split in the way out (top) and the way back (bottom) */
   .split {
-    display: grid; height: 100%; gap: 6px 8px;
+    display: grid; min-height: 100%; gap: 6px 8px;
     grid-template-columns: minmax(0, 1fr) 84px minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr) minmax(0, 1fr) auto;
+    grid-template-rows: auto 1fr 1fr auto;
   }
   .split .start { grid-column: 1 / -1; grid-row: 1; }
   .split .a { grid-column: 1; grid-row: 2 / 4; }
   .split .b { grid-column: 3; grid-row: 2 / 4; }
   .split .out { grid-column: 2; grid-row: 2; }
   .split .back { grid-column: 2; grid-row: 3; }
-  .split .side > :global(.load) { flex: 1; min-height: 0; overflow: hidden; }
+  .split .side > :global(.load) { flex: 1; }
   .split .facts { grid-column: 1 / -1; grid-row: 4; grid-template-columns: auto 1fr auto 1fr; }
+  /* names wrap instead of being cut; on a narrow panel (phones on their side) the holograms make way */
+  .split { container-type: inline-size; }
+  .split .name, .split .sys { flex-wrap: wrap; white-space: normal; }
+  .split .name :global(.text), .split .sys :global(.text) { white-space: normal; overflow-wrap: anywhere; }
+  @container (max-width: 700px) {
+    .split .holo { display: none; }
+    .split .end { grid-template-columns: 1fr; }
+  }
   .end { display: grid; grid-template-columns: 56px 1fr; gap: 8px; align-items: center; }
   .holo :global(.holo) { max-width: 56px; }
   .info { min-width: 0; }

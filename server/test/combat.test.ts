@@ -34,6 +34,14 @@ test('scanned ships become contacts, updated in place and newest first', () => {
   ]);
 });
 
+test('ships with the same type and pilot name are told apart by rank, and a kill takes only the locked one', () => {
+  const fss = (rank: string) => scan('Viper Mk III', 'Federal Security Service', { PilotRank: rank, LegalStatus: 'Clean', Bounty: 0 });
+  const s = run([fss('Master'), fss('Expert'), fss('Master'), fss('Competent')]);
+  assert.deepEqual(s.combat.contacts.map((c) => c.rank), ['Competent', 'Master', 'Expert']);
+  run([fss('Master'), { event: 'Bounty', Target: 'viper_mkiii', PilotName_Localised: 'Federal Security Service', TotalReward: 1, VictimFaction: 'X' }], s);
+  assert.deepEqual(s.combat.contacts.map((c) => c.rank), ['Competent', 'Expert']);
+});
+
 test('contacts are cleared on every instance change', () => {
   for (const event of ['SupercruiseEntry', 'SupercruiseExit', 'FSDJump', 'Location', 'Died']) {
     const s = run([scan('Python', 'Kara Voss'), { event }]);

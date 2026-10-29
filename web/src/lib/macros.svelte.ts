@@ -1,22 +1,24 @@
 // Macros: several key presses in a row, each step checked against what the game reports back
 // (Status.json flags and pips, ShipTargeted, fighter events) before the next one is sent.
-import { keyFor, link, pasteText, runCommand } from './link.svelte.ts';
+import type { SharedMacros } from '@et/shared';
+import { keyFor, link, onMacroMessage, pasteText, runCommand, send } from './link.svelte.ts';
 
 export const macro = $state({
-  /** Name of the macro running now; one at a time, a second tap is ignored. */
+  /** Name of the macro running on this screen; one at a time, a second tap is ignored. */
   running: '',
-  /** Last fighter order the game accepted: the journal never reports orders. */
-  order: '',
-  autoNext: readAutoNext(),
-  /** Contacts ("ship|pilot") the last lap of the targets did not find: out of sensor range, or dead. */
-  absent: [] as string[],
-  /** Contact being locked from the list, for its row to show it. */
-  locking: '',
-  /** The route being plotted from the favourites: where to, how far it got, and why it stopped. */
-  plot: { system: '', stage: '', error: '' },
 });
 
+/** Progress every screen shows (link.state.macros); set here at once, and on the others through the server. */
+const shared = () => link.state.macros;
+function share(patch: SharedMacros) {
+  Object.assign(link.state.macros, patch);
+  send({ type: 'share', patch });
+}
+const setPlot = (p: Partial<SharedMacros['plot'] & object>) => share({ plot: { ...shared().plot, ...p } });
+
 class Stop extends Error {}
+/** A search that ends without a target; its message is shown on every screen. */
+class GiveUp extends Stop {}
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const st = () => link.state;
@@ -40,33 +42,62 @@ async function press(action: string) {
   if (!(await runCommand(action))) throw new Stop(action);
 }
 
-/** Runs `body` as the named macro unless another one is running. Tapping the running one again stops it. */
+/** Macro running on another screen of the panel, '' when none. */
+const elsewhere = () => (macro.running ? '' : link.state.macros.running);
+/** True while the macro runs here or on any other screen. */
+export const busy = (name: string) => macro.running === name || link.state.macros.running === name;
+/** How the last search of this macro ended, when it found nothing. */
+export const noteOf = (name: string) =>
+  !busy(name) && link.state.macros.noteFor === name ? link.state.macros.note : '';
+
+/**
+ * Runs `body` as the named macro unless another one is running, here or on another screen.
+ * Tapping the running one again stops it, wherever it runs.
+ */
 export async function run(name: string, body: () => Promise<void>) {
   if (macro.running) {
     if (macro.running === name) cancelled = true;
     return;
   }
+  if (elsewhere()) {
+    if (elsewhere() === name) send({ type: 'stopMacro' });
+    return;
+  }
   macro.running = name;
   cancelled = false;
+  send({ type: 'macro', running: name });
+  let note = '';
   let done = () => {};
   finished = new Promise((r) => (done = r));
   try {
     await body();
   } catch (err) {
     if (!(err instanceof Stop)) throw err;
+    if (err instanceof GiveUp) note = err.message;
   } finally {
     macro.running = '';
-    macro.locking = '';
+    if (shared().locking) share({ locking: '' });
+    send({ type: 'macro', running: '', note, noteFor: name });
     done();
   }
 }
 
-/** Stops whatever macro is running and waits for it to let go. */
+/** Stops whatever macro is running, here or on another screen, and waits for it to let go. */
 export async function cancelMacro() {
-  if (!macro.running) return;
-  cancelled = true;
-  await finished;
+  if (macro.running) {
+    cancelled = true;
+    await finished;
+  } else if (elsewhere()) {
+    send({ type: 'stopMacro' });
+    for (const end = Date.now() + 3000; elsewhere() && Date.now() < end;) await sleep(50);
+  }
 }
+
+onMacroMessage((msg) => {
+  if (msg.type === 'stopMacro') {
+    if (macro.running) cancelled = true;
+  } else if (MACROS[msg.macro] && canRun(msg.macro)) void runMacro(msg.macro);
+});
 
 // --- power ---
 
@@ -136,17 +167,18 @@ async function lockSubsystem(which: Subsystem) {
 
 // --- targets ---
 
-type Info = { ship: string; pilot: string; legalStatus: string; faction: string; bounty: number };
-export const keyOf = (a: { ship: string; pilot: string }) => `${a.ship}|${a.pilot}`;
-const sameShip = (a: { ship: string; pilot: string }, b: { ship: string; pilot: string }) =>
-  a.ship === b.ship && a.pilot === b.pilot;
+type Info = { ship: string; pilot: string; rank: string; legalStatus: string; faction: string; bounty: number };
+/** A ship as the game tells them apart: type, pilot name and rank (NPCs have no id). */
+type Who = { ship: string; pilot: string; rank: string };
+export const keyOf = (a: Who) => `${a.ship}|${a.pilot}|${a.rank}`;
+const sameShip = (a: Who, b: Who) => a.ship === b.ship && a.pilot === b.pilot && a.rank === b.rank;
 
 /** What we know about the locked ship: from its own scan, or from the contact list when we met it before. */
 function lockedInfo(): Info {
   const t = st().target;
   const known = t.pilot ? st().combat.contacts.find((c) => sameShip(c, t)) : undefined;
   return {
-    ship: t.ship, pilot: t.pilot,
+    ship: t.ship, pilot: t.pilot, rank: t.rank,
     legalStatus: t.legalStatus || known?.legalStatus || '',
     faction: t.faction || known?.faction || '',
     bounty: t.bounty || known?.bounty || 0,
@@ -182,15 +214,44 @@ async function nextTarget(): Promise<boolean> {
   return false;
 }
 
+/** You picked another ship in the game (or let go of it) while a macro waited on this one. */
+const takenOver = (ship: string) => !st().target.locked || st().target.ship !== ship;
+
+/** Waits for the locked ship's scan; stops the macro when you lock another one yourself. */
+function waitScan(ms: number) {
+  const ship = st().target.ship;
+  return waitFor(() => {
+    if (takenOver(ship)) throw new GiveUp('stopped: you picked a target');
+    return st().target.scanStage >= 3;
+  }, ms);
+}
+
+/**
+ * "Next target" with bounds, for one search: it gives up after `ms`, or when presses in a row lock nothing
+ * (no ship in range), instead of cycling on and on.
+ */
+function bounded(ms = 30000) {
+  const until = Date.now() + ms;
+  let empty = 0;
+  return async (): Promise<boolean> => {
+    if (Date.now() > until) throw new GiveUp(`gave up after ${ms / 1000} s`);
+    const ok = await nextTarget();
+    if (ok) empty = 0;
+    else if (++empty >= 3) throw new GiveUp('no ship in range');
+    return ok;
+  };
+}
+
 /**
  * Locks the best target by `score`. One quick lap of the targets in range (no waiting for scans) finds which
  * known ships are still here, then it cycles to the best of them. When none is worth it, it waits for the
  * scans of the new ships and stops at the first good one.
  */
-async function cycleToBest(score: Score) {
+async function cycleToBest(score: Score, what: string) {
+  const next = bounded();
   const contacts = () => st().combat.contacts;
   const cap = Math.min(40, contacts().length + 16);
-  const top = () => Math.max(-1, ...contacts().filter((k) => !macro.absent.includes(keyOf(k))).map((k) => score(k)));
+  const top = () => Math.max(-1, ...contacts().filter((k) => !shared().absent.includes(keyOf(k))).map((k) => score(k)));
   const good = (i: Info) => score(i) >= 0 && score(i) >= top();
 
   // The ship locked now may already be the best.
@@ -200,7 +261,7 @@ async function cycleToBest(score: Score) {
   let fresh = 0;
   let mark = '';
   for (let n = 0; n < cap; n++) {
-    if (!(await nextTarget())) continue;
+    if (!(await next())) continue;
     const info = lockedInfo();
     if (!info.pilot) { fresh++; continue; }
     const key = keyOf(info);
@@ -210,29 +271,30 @@ async function cycleToBest(score: Score) {
     // Nothing known is worth more than this one: no need to finish the lap.
     if (good(info)) return;
   }
-  if (mark) macro.absent = contacts().map(keyOf).filter((k) => !seen.has(k));
+  if (mark) share({ absent: contacts().map(keyOf).filter((k) => !seen.has(k)) });
 
   const best = [...seen.values()].filter((i) => score(i) >= 0).sort((a, b) => score(b) - score(a))[0];
   if (best) {
-    await cycleToShip(best);
+    if (!(await cycleToShip(best, next))) throw new GiveUp(`${what} ship lost`);
     return;
   }
   // No known ship is worth it: scan the new ones, a few at most, and stop at the first good one.
-  for (let n = 0, scans = 0; n < cap && scans < Math.max(fresh, 4); n++) {
-    if (!(await nextTarget())) continue;
+  for (let n = 0, scans = 0; n < cap && scans < Math.min(Math.max(fresh, 4), 8); n++) {
+    if (!(await next())) continue;
     if (st().target.scanStage >= 3) continue; // scanned before, and not good
     scans++;
-    if (!(await waitFor(() => st().target.scanStage >= 3, 8000))) continue;
+    if (!(await waitScan(8000))) continue;
     if (score(lockedInfo()) >= 0) return;
   }
+  throw new GiveUp(`no ${what} ship in range`);
 }
 
 /** Cycles until the given ship is locked; one lap at most. */
-async function cycleToShip(want: { ship: string; pilot: string }): Promise<boolean> {
+async function cycleToShip(want: Who, next = bounded()): Promise<boolean> {
   if (sameShip(st().target, want)) return true;
   const cap = Math.min(40, st().combat.contacts.length + 16);
   for (let n = 0; n < cap; n++) {
-    if (!(await nextTarget())) continue;
+    if (!(await next())) continue;
     // Same type but no pilot yet: the scan may have been forgotten, give it a moment.
     if (st().target.ship === want.ship && !st().target.pilot) await waitFor(() => st().target.pilot !== '', 3000);
     if (sameShip(st().target, want)) return true;
@@ -240,18 +302,24 @@ async function cycleToShip(want: { ship: string; pilot: string }): Promise<boole
   return false;
 }
 
-const nextWanted = () => cycleToBest(wantedScore);
-const nextMassacre = () => cycleToBest(massacreScore);
-const nextBest = () => cycleToBest(bestScore);
+const nextWanted = () => cycleToBest(wantedScore, 'wanted');
+const nextMassacre = () => cycleToBest(massacreScore, 'massacre');
+const nextBest = () => cycleToBest(bestScore, 'wanted or massacre');
 
 /** Locks a ship from the contact list; stops any macro running first (AUTO NEXT, a NEXT…). */
-export async function lockContact(c: { ship: string; pilot: string }) {
+export async function lockContact(c: Who) {
   await cancelMacro();
   const key = keyOf(c);
   return run('LOCK', async () => {
-    macro.locking = key;
-    const found = await cycleToShip(c);
-    macro.absent = found ? macro.absent.filter((k) => k !== key) : [...new Set([...macro.absent, key])];
+    share({ locking: key });
+    let found = false;
+    try {
+      found = await cycleToShip(c);
+    } finally {
+      const absent = shared().absent;
+      share({ absent: found ? absent.filter((k) => k !== key) : [...new Set([...absent, key])] });
+    }
+    if (!found) throw new GiveUp('not in range');
   });
 }
 
@@ -279,8 +347,7 @@ async function fireGroup(n: number) {
 }
 
 async function order(action: string) {
-  await press(action);
-  macro.order = action;
+  await press(action); // the server keeps it as the last order, for every screen
 }
 
 const focus = () => order('OrderFocusTarget');
@@ -458,13 +525,13 @@ const TEXT_KEYS = ['TextEnter', 'KeyUp', 'KeyDown', 'MouseHoldCenter'];
 const PLOT_KEYS = ['GalaxyMapOpen', ...new Set(PLOT_STEPS.map(([step]) => step).filter((x) => x !== 'paste'))];
 
 async function plotRoute(system: string) {
-  macro.plot = { system, stage: 'map', error: '' };
+  setPlot({ system, stage: 'map', error: '' });
   const fail = (error: string) => {
-    macro.plot.error = error;
+    setPlot({ error });
     throw new Stop(error);
   };
   if (routeEndsAt(system)) {
-    macro.plot.stage = 'done';
+    setPlot({ stage: 'done' });
     return;
   }
   if (st().status.guiFocus !== GALAXY_MAP) {
@@ -472,7 +539,7 @@ async function plotRoute(system: string) {
     if (!(await waitFor(() => st().status.guiFocus === GALAXY_MAP, 6000))) fail('galaxy map did not open');
     await sleep(2000); // the map takes a moment to answer keys after it opens
   }
-  macro.plot.stage = 'search';
+  setPlot({ stage: 'search' });
   for (const [step, waitMs] of PLOT_STEPS) {
     if (step === 'paste') {
       if (cancelled) throw new Stop('cancelled');
@@ -480,9 +547,9 @@ async function plotRoute(system: string) {
     } else await press(step);
     await sleep(Math.max(waitMs, PLOT_MIN_GAP_MS));
   }
-  macro.plot.stage = 'plot';
+  setPlot({ stage: 'plot' });
   if (!(await waitFor(() => routeEndsAt(system), 6000))) fail('route not plotted: finish it in the map (the name is on the clipboard)');
-  macro.plot.stage = 'done';
+  setPlot({ stage: 'done' });
   await press('GalaxyMapOpen');
   await waitFor(() => st().status.guiFocus !== GALAXY_MAP, 3000);
 }
@@ -497,24 +564,11 @@ export async function plotTo(system: string) {
 }
 
 // --- AUTO NEXT: after each kill, lock the best target (a massacre ship, else the highest bounty) ---
+// The server keeps it on or off for every screen, and after a kill asks one of them (the last used) to run NextBest.
 
-function readAutoNext(): boolean {
-  try { return localStorage.getItem('et.autoNext') === '1'; } catch { return false; }
-}
+export const autoNext = () => link.state.macros.autoNext;
 export function toggleAutoNext() {
-  macro.autoNext = !macro.autoNext;
-  if (!macro.autoNext && macro.running === 'NextBest') void cancelMacro();
-  try { localStorage.setItem('et.autoNext', macro.autoNext ? '1' : '0'); } catch {}
-}
-
-let kills = -1;
-/** Called on every state update; picks the next target when the kill count goes up. */
-export function watchKills() {
-  const now = st().combat.session.kills;
-  const more = kills >= 0 && now > kills;
-  kills = now;
-  if (more && macro.autoNext && canRun('NextBest')) {
-    // Let the wreck clear the target first.
-    setTimeout(() => void runMacro('NextBest'), 1200);
-  }
+  const on = !autoNext();
+  send({ type: 'autoNext', on });
+  if (!on && busy('NextBest')) void cancelMacro();
 }

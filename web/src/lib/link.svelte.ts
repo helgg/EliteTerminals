@@ -6,8 +6,6 @@ export const link = $state({
   state: initialState() as EdState,
   /** Last command outcome, shown in the status strip. */
   last: null as { command: string; ok: boolean; error?: string; at: number } | null,
-  /** Last throttle detent the game accepted; the journal never reports throttle position. */
-  throttleCmd: '' as string,
   /** Spansh market scan progress for the TRADE screen. */
   tradeProgress: null as { loaded: number; total: number; done: boolean } | null,
 });
@@ -32,15 +30,29 @@ export function connect() {
     const msg = JSON.parse(ev.data) as ServerMessage;
     if (msg.type === 'state') link.state = msg.state;
     else if (msg.type === 'tradeProgress') link.tradeProgress = msg;
+    else if (msg.type === 'runMacro' || msg.type === 'stopMacro') macroHandler?.(msg);
     else if (msg.type === 'commandResult') {
       const command = inFlight.get(msg.id) ?? '?';
       inFlight.delete(msg.id);
       link.last = { command, ok: msg.ok, error: msg.error, at: Date.now() };
       waiting.get(msg.id)?.(msg.ok);
       waiting.delete(msg.id);
-      if (msg.ok && command.startsWith('SetSpeed')) link.throttleCmd = command;
     }
   };
+}
+
+type MacroMessage = Extract<ServerMessage, { type: 'runMacro' | 'stopMacro' }>;
+let macroHandler: ((msg: MacroMessage) => void) | null = null;
+/** Who answers the server's "run this macro" / "stop yours" (the macro engine). */
+export function onMacroMessage(handler: (msg: MacroMessage) => void) {
+  macroHandler = handler;
+}
+
+/** Sends a message that needs no answer; false when the link is down. */
+export function send(msg: ClientMessage): boolean {
+  if (socket?.readyState !== WebSocket.OPEN) return false;
+  socket.send(JSON.stringify(msg));
+  return true;
 }
 
 /** Keyboard key bound to an action in the player's presets, or undefined if it cannot be sent. */
