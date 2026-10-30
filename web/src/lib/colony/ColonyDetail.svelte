@@ -3,6 +3,7 @@
   import Name from '../Name.svelte';
   import FavStar from '../FavStar.svelte';
   import PlotButton from '../trade/PlotButton.svelte';
+  import ExpButton from '../explore/ExpButton.svelte';
   import PlaceIcon, { placeKind } from '../PlaceIcon.svelte';
   import { ageLabel, cr } from '../format.ts';
 
@@ -52,6 +53,7 @@
         <span class="sys"><Name value={sys.name} system /></span><FavStar system={sys.name} />
       </div>
       <div class="acts">
+        <ExpButton system={sys.name} id64={sys.id64} />
         <PlotButton system={sys.name} />
         <a class="raven" href="https://ravencolonial.com/#sys={encodeURIComponent(sys.name)}" target="_blank" rel="noopener"
           title="Plan this system in RavenColonial">PLAN ↗</a>

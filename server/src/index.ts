@@ -6,7 +6,7 @@ import { join, resolve } from 'node:path';
 import Fastify from 'fastify';
 import fastifyStatic from '@fastify/static';
 import fastifyWebsocket from '@fastify/websocket';
-import type { CarrierRoute, CarrierRouteQuery, ClientMessage, ColonyQuery, MiningSellQuery, ServerMessage, TradePathQuery, TradeQuery, TradeWatch } from '@et/shared';
+import type { CarrierRoute, CarrierRouteQuery, ClientMessage, ColonyQuery, ExploreFindQuery, ExplorePreset, MiningSellQuery, ServerMessage, TradePathQuery, TradeQuery, TradeWatch } from '@et/shared';
 import { JournalReader } from './reader.ts';
 import { Controls } from './controls.ts';
 import { findGameDir } from './binds.ts';
@@ -27,6 +27,7 @@ import { panelAddresses } from './lan.ts';
 import { Favorites, toFavorite } from './favorites.ts';
 import { TradePins, toPin } from './tradePins.ts';
 import { HOTSPOT_COMMODITIES, Rings, type HotspotQuery } from './rings.ts';
+import { ExploreService } from './explore/service.ts';
 import { systemRings } from './mining.ts';
 import { mergeCarrier } from './carrier/state.ts';
 import { carrierRoute } from './carrier/route.ts';
@@ -46,6 +47,7 @@ const controls = new Controls(BINDINGS_DIR, findGameDir(), process.platform === 
 const galaxy = new Galaxy(CACHE_DIR);
 await galaxy.load();
 const rings = new Rings();
+const explore = new ExploreService();
 const scanner = new MarketScanner(CACHE_DIR);
 await scanner.load();
 const history = new MarketHistory(CACHE_DIR);
@@ -495,6 +497,40 @@ app.post('/api/mining/hotspots', async (req, reply) => {
     });
   } catch (err) {
     app.log.warn({ error: (err as Error).message }, 'hotspot search failed');
+    return reply.code(502).send({ error: (err as Error).message });
+  }
+});
+
+// EXPLORE: a system's bodies (Spansh) and the search for places to explore
+app.post('/api/explore/system', async (req, reply) => {
+  const q = req.body as { id64?: number; name?: string; fresh?: boolean };
+  try {
+    const name = String(q?.name ?? '').trim();
+    // a name wins over the address: it is what was typed or pasted
+    const id64 = Number(q?.id64) || (name ? await explore.resolve(name) : reader.state.location.address);
+    if (!id64) {
+      return reply.code(name ? 404 : 400).send({ error: name ? `Spansh knows no system called "${name}"` : 'No system: the game has not told where the ship is' });
+    }
+    return await explore.system(id64, q?.fresh === true);
+  } catch (err) {
+    app.log.warn({ error: (err as Error).message }, 'explore system failed');
+    return reply.code(502).send({ error: (err as Error).message });
+  }
+});
+app.post('/api/explore/find', async (req, reply) => {
+  const q = req.body as Partial<ExploreFindQuery>;
+  const presets = ['bio', 'elw', 'ww', 'aw', 'terra', 'geo', 'value'];
+  if (!presets.includes(String(q?.preset))) return reply.code(400).send({ error: 'Unknown search' });
+  try {
+    return await explore.find({
+      preset: q.preset as ExplorePreset,
+      reference: String(q.reference || reader.state.location.system || 'Sol'),
+      radius: Math.min(Math.max(Number(q.radius) || 50, 5), 1000),
+      minBio: Math.min(Math.max(Number(q.minBio) || 3, 1), 12),
+      landableOnly: q.landableOnly === true,
+    });
+  } catch (err) {
+    app.log.warn({ error: (err as Error).message }, 'explore search failed');
     return reply.code(502).send({ error: (err as Error).message });
   }
 });

@@ -8,7 +8,8 @@
   <b>A second-screen cockpit for Elite Dangerous.</b><br />
   Live ship telemetry, one-tap ship controls, favourite destinations with one-tap route plotting,<br />
   a combat console, a trade-route planner with pinned routes and A → B paths,<br />
-  a colonisation finder and build tracker, and a fleet carrier jump planner,<br />
+  a colonisation finder and build tracker, a fleet carrier jump planner,<br />
+  a system explorer with exobiology and a materials and engineers sheet,<br />
   on any tablet, phone or spare monitor, in the look of the in-game HUD.
 </p>
 
@@ -155,12 +156,33 @@ a second.
   REFUEL (move tritium from the cargo into the tank before that jump), and which systems have icy rings with
   tritium to mine (pristine ones in green). It also says how much to buy before leaving.
 
+**EXPLORE**
+
+- A **system map** of the orbits, drawn from [Spansh](https://spansh.co.uk) and overlaid with your own journal scans:
+  stars, planets and moons in the game's own numbering (A 17 before A 18), rings and **asteroid belts** at their real
+  distance, planets coloured by type, and marks for scanned, first discovery and mapped. Drag or scroll sideways to
+  follow a long system. Type or paste any system name to open it, or use HERE / TARGET.
+- A **highlight** (LAND, BIO, GEO, WORLDS, RINGS) dims everything else, and **WORTH A STOP** ranks the bodies that
+  pay most for a first scan and mapping.
+- A **body sheet**: size, gravity, atmosphere mix, signals and genera, the organic samples you have taken (1 to 3),
+  rings with hotspots, and its materials next to what you hold.
+- **FIND**: places worth a trip around any system, from Spansh's body search: exobiology with the species other
+  commanders logged and what a sample pays, the most valuable bodies, Earth-like, water and ammonia worlds,
+  terraformable bodies and geology. **MAP** opens the system, **PLOT** routes to it.
+- An **EXP** button next to PLOT in FLIGHT and COLONY opens the system you are looking at in EXPLORE.
+
+**ENGINEERING**
+
+- Your **materials** (raw, manufactured, encoded) by grade with the storage limit of each grade, read from the game
+  and kept up to date as you collect, trade, craft and synthesise; search, and sort by grade, name or count.
+- The **engineers** with their state (known, invited, unlocked) and the grade reached.
+
 **Everywhere**
 
 ![The same panel on an iPad and an iPhone](docs/images/devices.jpg)
 
-- Six layout classes (phone, tablet and monitor, each in landscape and portrait) with no scrolling and
-  no cut-off text.
+- Six layout classes (phone, tablet and monitor, each in landscape and portrait) with no cut-off text. Phones
+  show one page at a time, picked from a bar at the bottom (or down the left on its side).
 - Tap the logo for a QR code of the PC's LAN address, so any device can connect without typing an IP.
 - Installable as a full-screen web app (Android, iPadOS and iOS "Add to Home Screen"), with a reload button
   since home-screen apps have no browser bar.
@@ -294,7 +316,9 @@ clipped text. Add `?tab=combat` (and `&page=survive` for a phone page) to open e
 - [x] CARRIER: stop cards, sectioned status sheet, weekly upkeep with coverage, balance history and income goal
 - [ ] PVP: commanders flagged in the contacts, encounter history, a direct-keys console page
 - [ ] MINING screen (ship first, then surface vehicles)
-- [ ] EXPLORE screen
+- [x] EXPLORE: system map with belts, body sheet, FIND for exobiology and worlds; ENGINEERING: materials and engineers
+- [x] Phone pages for ENGINEERING, EXPLORE and CARRIER
+- [ ] Review of every screen on every viewport
 - [ ] CARRIER: carrier market and orders, where to park and what to stock
 - [ ] COLONY: a light build planner (tier points, build queue)
 

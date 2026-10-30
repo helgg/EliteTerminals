@@ -4,6 +4,7 @@
   import Name from '../lib/Name.svelte';
   import Hop from '../lib/trade/Hop.svelte';
   import ReferencePicker from '../lib/trade/ReferencePicker.svelte';
+  import PhonePages from '../lib/PhonePages.svelte';
   import { viewport } from '../lib/viewport.svelte.ts';
   import { ageLabel, cr, short } from '../lib/format.ts';
 
@@ -128,6 +129,13 @@
     return m >= 12 ? `${Math.floor(m / 12)}y ${m % 12}m` : m >= 1 ? `${m} mo` : `${Math.floor(weeks)} wk`;
   };
 
+  // phones: the carrier's status and the jump planner are two pages, picked from the bar
+  type Page = 'status' | 'planner';
+  const PAGES: { id: Page; label: string; icon: string }[] = [
+    { id: 'status', label: 'STATUS', icon: '▣' }, { id: 'planner', label: 'JUMP PLANNER', icon: '➤' },
+  ];
+  let page = $state<Page>('status');
+  const phone = $derived(viewport.device === 'phone');
   const wide = $derived(viewport.vp === 'desktop-landscape' || viewport.vp === 'tablet-landscape');
   const tracked = $derived(c.cargo.reduce((t, x) => t + x.count, 0));
   const seg = (n: number) => `${c.space.total ? (n / c.space.total) * 100 : 0}%`;
@@ -314,14 +322,26 @@
   </Panel>
 {/snippet}
 
+{#if phone}
+  <PhonePages pages={PAGES} bind:page>
+    <div class="carrier phone">
+      {#if page === 'status'}{@render status()}{:else}{@render planner()}{/if}
+    </div>
+  </PhonePages>
+{:else}
 <div class="carrier" class:wide>
   {@render status()}
   {@render planner()}
 </div>
+{/if}
 
 <style>
   .carrier { display: grid; gap: 8px; height: 100%; min-height: 0; grid-template-rows: auto minmax(0, 1fr); }
   .carrier.wide { grid-template-columns: 300px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+  /* a phone: one panel per page, the page scrolls as a whole */
+  .carrier.phone { display: block; height: auto; }
+  .carrier.phone :global(.cstat .body) { overflow: visible; }
+  .carrier.phone .scroll { overflow: visible; flex: none; }
   .carrier :global(.cplan .body) { flex: 1; display: flex; flex-direction: column; min-height: 0; }
   .k { color: var(--dim); font-size: 10px; letter-spacing: 0.1em; }
   .ident { padding-bottom: 2px; }

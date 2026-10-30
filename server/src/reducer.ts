@@ -3,6 +3,8 @@
 import { STATUS_FLAGS, STATUS_FLAGS2, shipLabel, type EdState, type Flags } from '@et/shared';
 import { applyCombat } from './combat.ts';
 import { applyMining } from './mining.ts';
+import { applyEngineering } from './engineering.ts';
+import { applyExplore } from './explore/journal.ts';
 import { applyColony } from './colony/depots.ts';
 import { applyCarrier } from './carrier/state.ts';
 
@@ -186,6 +188,8 @@ export function applyEvent(state: EdState, e: JournalEvent): void {
   }
   applyCombat(state, e);
   applyMining(state, e);
+  applyEngineering(state, e);
+  applyExplore(state, e);
 }
 
 function setSystem(state: EdState, e: JournalEvent) {

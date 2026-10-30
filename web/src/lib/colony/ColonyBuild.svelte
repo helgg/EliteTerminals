@@ -4,6 +4,7 @@
   import Name from '../Name.svelte';
   import PadBadge from '../PadBadge.svelte';
   import PlotButton from '../trade/PlotButton.svelte';
+  import ExpButton from '../explore/ExpButton.svelte';
   import PlaceIcon, { placeKind } from '../PlaceIcon.svelte';
   import { viewport } from '../viewport.svelte.ts';
   import { ageLabel, ageTone, cr, short } from '../format.ts';
@@ -165,6 +166,7 @@
         <span class="sys"><Name value={depot.system} system /></span>
         <span class="dim">{depot.station}</span>
         <span class="dim">{depot.body.replace(depot.system, '').trim()}</span>
+        <ExpButton system={depot.system} />
         <PlotButton system={depot.system} />
         <a class="raven" href="https://ravencolonial.com/#sys={encodeURIComponent(depot.system)}" target="_blank" rel="noopener"
           title="Plan this system in RavenColonial">PLAN ↗</a>
@@ -414,6 +416,8 @@
   .cn { font-weight: 700; color: var(--text); white-space: normal; }
   .left { color: var(--hud); font-weight: 800; }
   td.bar, th.bar { width: 22%; }
+  /* a phone standing up: the progress bar gives way so Need and Cr/t are not cut off */
+  @media (max-width: 520px) { td.bar, th.bar { display: none; } td { padding: 5px 3px; } }
   .mini { display: block; height: 6px; background: var(--steel); }
   .mini span { display: block; height: 100%; background: var(--ok); }
 
@@ -427,6 +431,12 @@
   .row.three { grid-template-columns: minmax(max-content, 3fr) minmax(max-content, 2fr) minmax(max-content, 3fr); gap: 6px 10px; }
   .row.three .chips { flex-wrap: nowrap; }
   .row.three button { white-space: nowrap; }
+  /* a phone: each filter takes its own line and its buttons are big enough for a thumb (PAD M / L were tiny in the 3-column row) */
+  .phone .row.three { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .phone .row.three .chips { flex-wrap: wrap; }
+  .phone .chips button, .phone .toggles button { min-height: 44px; padding: 10px 6px; font-size: 12px; }
+  .phone.landscape .row.three { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 10px; }
+  .phone.landscape .chips button, .phone.landscape .toggles button { min-height: 36px; }
   .row.find { grid-template-columns: minmax(0, 1fr) auto; }
   .row.find .scan { padding: 8px 22px; }
   .chips { display: flex; flex-wrap: wrap; gap: 3px; }

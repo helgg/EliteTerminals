@@ -214,6 +214,8 @@ export interface EdState {
   /** The console's macros, shared by every screen open on the panel. */
   macros: MacroState;
   mining: MiningState;
+  engineering: EngineeringState;
+  explore: ExploreState;
   cargo: { items: CargoItem[]; count: number };
   /** Construction sites the player docked at (COLONY v2), newest first; kept on disk across sessions. */
   colony: { depots: ColonyDepot[] };
@@ -444,6 +446,215 @@ export function emptyFlags(): Flags {
   return flags;
 }
 
+
+// ---------------------------------------------------------------------------------------------------------------------
+// EXPLORE: a system's bodies (Spansh) with what the commander has scanned (journal), and the search for places to go.
+// ---------------------------------------------------------------------------------------------------------------------
+
+/** An asteroid belt around a star (a planet's rings are `rings` on the planet). */
+export interface ExploreBelt {
+  name: string;
+  /** Rocky, Icy, Metallic, Metal Rich. */
+  type: string;
+  /** Distances from the star in light-seconds. */
+  innerLs: number;
+  outerLs: number;
+}
+
+/** One body of a system, as the map and its inspector show it. */
+export interface ExploreBody {
+  id: number;
+  name: string;
+  /** 'Star' | 'Planet'. */
+  type: string;
+  subType: string;
+  ls: number;
+  /** Body id of the nearest parent body (barycentres skipped); -1 = the system's centre. */
+  parent: number;
+  depth: number;
+  mainStar: boolean;
+  landable: boolean;
+  atmosphere: string;
+  atmosphereMix: { name: string; share: number }[];
+  terraformable: boolean;
+  gravity: number | null;
+  /** km. */
+  radius: number;
+  earthMasses: number;
+  /** Stars: solar masses and radii are in `earthMasses`/`radius` too, so a star's size is `radius` in km as well. */
+  temperature: number;
+  pressure: number | null;
+  volcanism: string;
+  reserve: string;
+  rings: ColonyRing[];
+  /** Asteroid belts around a star. */
+  belts: ExploreBelt[];
+  bio: number;
+  geo: number;
+  human: number;
+  thargoid: number;
+  guardian: number;
+  /** Biological genera Spansh knows on the body ("Bacterial", "Fungoids"…). */
+  genuses: string[];
+  /** Surface materials by share, for landable bodies. */
+  materials: { name: string; pct: number; grade: number }[];
+  /** What a first scan and a first map are worth (Spansh's estimate), in Cr. */
+  scanValue: number;
+  mapValue: number;
+  stations: { name: string; type: string }[];
+}
+
+export interface ExploreSystem {
+  id64: number;
+  name: string;
+  pos: [number, number, number];
+  bodies: ExploreBody[];
+  /** Spansh's own count of the system's bodies and how many it has data for. */
+  bodyCount: number;
+  fetchedAt: string;
+}
+
+/** What the commander's own scans have found in the current system (journal). */
+export interface OwnBody {
+  id: number;
+  name: string;
+  /** '' = not scanned; 'auto' = by proximity; 'detailed' = by FSS or a direct scan. */
+  scan: '' | 'auto' | 'detailed';
+  mapped: boolean;
+  /** Someone had scanned it before (WasDiscovered) / mapped it (WasMapped). */
+  wasDiscovered: boolean;
+  wasMapped: boolean;
+  bio: number | null;
+  geo: number | null;
+  genuses: string[];
+}
+
+export interface OrganicScan {
+  body: number;
+  genus: string;
+  species: string;
+  variant: string;
+  /** 1 = first sample, 2 = second, 3 = analysed. */
+  stage: number;
+  at: string;
+}
+
+export interface ExploreState {
+  address: number;
+  system: string;
+  /** From the discovery scan: how many bodies the system has, and the other signal sources. */
+  bodyCount: number;
+  nonBodyCount: number;
+  allFound: boolean;
+  bodies: OwnBody[];
+  organics: OrganicScan[];
+}
+
+export function initialExplore(): ExploreState {
+  return { address: 0, system: '', bodyCount: 0, nonBodyCount: 0, allFound: false, bodies: [], organics: [] };
+}
+
+export type ExplorePreset = 'bio' | 'elw' | 'ww' | 'aw' | 'terra' | 'geo' | 'value';
+
+/** A place worth a trip, from Spansh's body search. */
+export interface ExploreTarget {
+  system: string;
+  id64: number;
+  body: string;
+  subType: string;
+  /** From the reference system, ly. */
+  ly: number;
+  ls: number;
+  landable: boolean;
+  atmosphere: string;
+  gravity: number | null;
+  scanValue: number;
+  mapValue: number;
+  bio: number;
+  geo: number;
+  genuses: string[];
+  /** Species other commanders logged on it: how many times each was seen, and what one sample of it pays. */
+  species: { name: string; count: number; value: number }[];
+  /** What one of each of those species pays (each pays once on a body). */
+  bioValue: number;
+  terraformable: boolean;
+  rings: string[];
+}
+
+export interface ExploreFindQuery {
+  preset: ExplorePreset;
+  reference: string;
+  radius: number;
+  /** Biology: fewest signals on the body. */
+  minBio?: number;
+  landableOnly?: boolean;
+}
+
+export interface ExploreFindResult {
+  query: ExploreFindQuery;
+  total: number;
+  targets: ExploreTarget[];
+  fetchedAt: string;
+}
+
+/**
+ * The game's own designation of a body ("A 17", "A 9 a") from its name, or null for a named body ("Earth", "Moon").
+ * The game numbers bodies by their orbit, so the designation is the safe order for bodies that share a parent: the
+ * distance to arrival is a snapshot, and bodies around a barycentre can swap places in it.
+ */
+export function designation(name: string, system: string): string | null {
+  const rest = system && name.startsWith(system + ' ') ? name.slice(system.length + 1) : '';
+  return /^[A-Z]{1,2}( \d+)?( [a-z])*$/.test(rest) ? rest : null;
+}
+
+/** Orbit order of two bodies around the same parent: by designation when both have one, else by distance. */
+export function compareOrbit(a: { name: string; ls: number; id: number }, b: { name: string; ls: number; id: number }, system: string): number {
+  const x = designation(a.name, system);
+  const y = designation(b.name, system);
+  if (x !== null && y !== null && x !== y) return x.localeCompare(y, 'en', { numeric: true });
+  return a.ls - b.ls || a.id - b.id;
+}
+
+export type MaterialCategory = 'Raw' | 'Manufactured' | 'Encoded';
+
+/** One engineering material the commander holds (or knows of). */
+export interface MaterialStock {
+  /** The journal's lower-case name. */
+  name: string;
+  label: string;
+  category: MaterialCategory;
+  /** 1 (very common) … 5 (very rare); 0 when the material is not in the table. */
+  grade: number;
+  count: number;
+  /** What the game lets you carry of this grade. */
+  max: number;
+}
+
+export interface EngineerInfo {
+  id: number;
+  name: string;
+  /** Known → Invited → Unlocked in the game; the journal's own word. */
+  progress: string;
+  /** Grade reached with this engineer (1..5), null until unlocked. */
+  rank: number | null;
+  /** Progress to the next grade, 0..100. */
+  rankProgress: number | null;
+}
+
+export interface EngineeringState {
+  materials: MaterialStock[];
+  engineers: EngineerInfo[];
+  /** When the materials were last read from the game. */
+  updatedAt: string;
+}
+
+/** Storage limit by grade: raw materials stop at grade 4, the others at 5. */
+export const MATERIAL_CAPS = [0, 300, 250, 200, 150, 100];
+
+export function initialEngineering(): EngineeringState {
+  return { materials: [], engineers: [], updatedAt: '' };
+}
+
 export function initialState(): EdState {
   return {
     meta: { online: false, journal: '', gameVersion: '', odyssey: false, lastEventAt: '', parseErrors: 0 },
@@ -477,6 +688,8 @@ export function initialState(): EdState {
       plot: { system: '', stage: '', error: '' },
     },
     mining: initialMining(),
+    engineering: initialEngineering(),
+    explore: initialExplore(),
     cargo: { items: [], count: 0 },
     colony: { depots: [] },
     carrier: {

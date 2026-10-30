@@ -6,6 +6,7 @@
   import ServiceIcon, { serviceKinds } from './ServiceIcon.svelte';
   import PlaceIcon, { placeKind } from './PlaceIcon.svelte';
   import Name from './Name.svelte';
+  import ExpButton from './explore/ExpButton.svelte';
   import { addFavorite, removeFavorite } from './favorites.ts';
   import { ALLEGIANCE, norm, securityTone, starClass, starColor } from './astro.ts';
 
@@ -90,8 +91,9 @@
       {/if}
     </div>
     <dl>
-      <dt>SEC</dt><dd><span style:color={securityTone(security)}>{security || '—'}</span>
-        <span class="dim">· POP</span> <span class="num">{loc.population ? pop(loc.population) : 'none'}</span></dd>
+      <dt>SEC</dt><dd class="secrow"><span><span style:color={securityTone(security)}>{security || '—'}</span>
+        <span class="dim">· POP</span> <span class="num">{loc.population ? pop(loc.population) : 'none'}</span></span>
+        {#if loc.system}<ExpButton system={loc.system} id64={loc.address} />{/if}</dd>
       <dt>ALLEG</dt><dd>{ALLEGIANCE[loc.allegiance] ?? (loc.allegiance || '—')} <span class="dim">{loc.government}</span></dd>
       <dt>ECON</dt><dd>{loc.economy || '—'}{loc.secondEconomy ? ` / ${loc.secondEconomy}` : ''}</dd>
       <dt>POWER</dt>
@@ -181,4 +183,5 @@
   .ls small { color: var(--dim); }
   .svcs { display: flex; flex-wrap: wrap; gap: 2px; padding-left: 18px; }
   .none { border: 0 !important; }
+  .secrow { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 </style>

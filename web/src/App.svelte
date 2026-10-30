@@ -10,6 +10,9 @@
   import Combat from './screens/Combat.svelte';
   import Colony from './screens/Colony.svelte';
   import Carrier from './screens/Carrier.svelte';
+  import Engineering from './screens/Engineering.svelte';
+  import Explore from './screens/Explore.svelte';
+  import { exploreRequest } from './lib/explore/nav.svelte.ts';
   import ComingSoon from './lib/ComingSoon.svelte';
   import Name from './lib/Name.svelte';
   import { copied } from './lib/copy.svelte.ts';
@@ -18,11 +21,10 @@
   import { viewport } from './lib/viewport.svelte.ts';
   import { short } from './lib/format.ts';
 
-  const TABS = ['FLIGHT', 'COMBAT', 'EXPLORE', 'MINING', 'TRADE', 'COLONY', 'CARRIER'] as const;
+  const TABS = ['FLIGHT', 'COMBAT', 'EXPLORE', 'MINING', 'TRADE', 'COLONY', 'CARRIER', 'ENGINEERING'] as const;
   type Tab = (typeof TABS)[number];
   // Screens still being built: what each one will bring.
   const SOON: Partial<Record<Tab, string[]>> = {
-    EXPLORE: ['bodies of the system and their scan value', 'first discoveries and mapping', 'exobiology signals'],
     MINING: ['prospector readout and asteroid history', 'ring hotspots and finder', 'refined tons, limpets and where to sell'],
   };
 
@@ -36,8 +38,13 @@
   // Portrait screens bring SHIP and POWER into their own grid instead (RESPONSIVE-FLIGHT.md).
   // TRADE needs the width for its tables, COMBAT for its console (it has its own POWER bay).
   const side = $derived(
-    tab !== 'TRADE' && tab !== 'COMBAT' && tab !== 'COLONY' && tab !== 'CARRIER' && (viewport.vp === 'desktop-landscape' || viewport.vp === 'tablet-landscape'),
+    tab !== 'TRADE' && tab !== 'COMBAT' && tab !== 'COLONY' && tab !== 'CARRIER' && tab !== 'ENGINEERING' && tab !== 'EXPLORE' && (viewport.vp === 'desktop-landscape' || viewport.vp === 'tablet-landscape'),
   );
+
+  // an EXP button on another screen asks for EXPLORE
+  $effect(() => {
+    if (exploreRequest.seq > 0) pick('EXPLORE');
+  });
 
   onMount(() => {
     connect();
@@ -164,6 +171,10 @@
       <Colony {s} {now} />
     {:else if tab === 'CARRIER'}
       <Carrier {s} {now} />
+    {:else if tab === 'EXPLORE'}
+      <Explore {s} />
+    {:else if tab === 'ENGINEERING'}
+      <Engineering {s} />
     {:else}
       <ComingSoon title={tab} plans={SOON[tab] ?? []} />
     {/if}
