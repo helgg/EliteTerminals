@@ -8,6 +8,8 @@ export const link = $state({
   last: null as { command: string; ok: boolean; error?: string; at: number } | null,
   /** Spansh market scan progress for the TRADE screen. */
   tradeProgress: null as { loaded: number; total: number; done: boolean } | null,
+  /** Colony finder progress: systems whose bodies are loaded. */
+  colonyProgress: null as { loaded: number; total: number } | null,
 });
 
 let socket: WebSocket | null = null;
@@ -30,6 +32,7 @@ export function connect() {
     const msg = JSON.parse(ev.data) as ServerMessage;
     if (msg.type === 'state') link.state = msg.state;
     else if (msg.type === 'tradeProgress') link.tradeProgress = msg;
+    else if (msg.type === 'colonyProgress') link.colonyProgress = msg;
     else if (msg.type === 'runMacro' || msg.type === 'stopMacro') macroHandler?.(msg);
     else if (msg.type === 'commandResult') {
       const command = inFlight.get(msg.id) ?? '?';

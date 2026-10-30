@@ -2,7 +2,7 @@
 // own Market.json, so trade scans of a region already covered are answered locally, in milliseconds.
 // Each market keeps only its newest copy; positions come from systems seen in journal messages or Spansh.
 import { DatabaseSync } from 'node:sqlite';
-import type { TradeMarket } from '@et/shared';
+import type { StationOption, TradeMarket } from '@et/shared';
 import { commodityKey } from '../trade/engine.ts';
 
 export interface StationMeta {
@@ -121,6 +121,8 @@ export class PriceDb {
       scans: this.db.prepare('SELECT x, y, z, radius, carriers, max_age_h FROM scans WHERE at >= ?'),
       near: this.db.prepare(`SELECT s.*, y.x, y.y, y.z, y.id64 FROM stations s JOIN systems y ON y.key = s.system_key
         WHERE y.x BETWEEN ? AND ? AND y.y BETWEEN ? AND ? AND y.z BETWEEN ? AND ? AND s.market_at != ''`),
+      stationsIn: this.db.prepare(`SELECT market_id, name, type, ls, planetary, pad_s, pad_m, pad_l FROM stations
+        WHERE system_key = ? AND market_at != '' ORDER BY ls`),
       pricesOf: this.db.prepare(`SELECT * FROM prices WHERE market_id IN (SELECT value FROM json_each(?))`),
       count: this.db.prepare(`SELECT (SELECT count(*) FROM systems) systems, (SELECT count(*) FROM stations WHERE market_at != '') markets,
         (SELECT count(*) FROM prices) prices`),
@@ -254,6 +256,18 @@ export class PriceDb {
         pads: known ? { s: s.pad_s ?? 0, m: s.pad_m ?? 0, l: s.pad_l ?? 0 } : padsByType(s.type),
         state: s.state, updatedAt: s.market_at, source: s.source as TradeMarket['source'],
         items: items.get(s.market_id) ?? [],
+      };
+    });
+  }
+
+  /** Stations with prices in a system, nearest the arrival star first. */
+  stationsIn(system: string): StationOption[] {
+    return (this.q.stationsIn.all(nameKey(system)) as any[]).map((s) => {
+      const known = s.pad_s !== null || s.pad_m !== null || s.pad_l !== null;
+      const pads = known ? { s: s.pad_s ?? 0, m: s.pad_m ?? 0, l: s.pad_l ?? 0 } : padsByType(s.type);
+      return {
+        marketId: s.market_id, station: s.name, type: s.type, ls: s.ls, planetary: s.planetary === 1,
+        pad: pads.l ? 'L' : pads.m ? 'M' : pads.s ? 'S' : '-',
       };
     });
   }

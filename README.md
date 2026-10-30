@@ -7,7 +7,8 @@
 <p align="center">
   <b>A second-screen cockpit for Elite Dangerous.</b><br />
   Live ship telemetry, one-tap ship controls, favourite destinations with one-tap route plotting,<br />
-  a combat console and a trade-route planner with pinned routes,<br />
+  a combat console, a trade-route planner with pinned routes and A → B paths,<br />
+  a colonisation finder and build tracker, and a fleet carrier jump planner,<br />
   on any tablet, phone or spare monitor, in the look of the in-game HUD.
 </p>
 
@@ -99,8 +100,49 @@ a second.
   Phones get four pages: SCAN, ROUTES, ROUTE and MARKET.
 - Route detail side by side wherever it fits: linear routes two stops a row with the jump lanes between them,
   and the trip to the first stop drawn as an amber INITIAL TRIP lane.
+- **A → B**: pick a start and a destination (each with an optional station) and get the best trade path for every
+  number of stops along the corridor between them, up to 500 ly, with a **PLOT** button on each stop. The price-age
+  filter still applies: a start or end whose prices are too old stays in the path, but nothing is traded there.
+- **FROM a station**: pick one station of the FROM system, and EXPORT / IMPORT mean that station.
+- With the game closed (or a ship with no cargo racks), type the hold and the laden jump range to plan with; ship,
+  credits and commander are not shown while the game is off.
+- The session (profit, Cr/h, tons sold, hold) sits in a strip under the routes on monitors.
 
 ![TRADE on an iPad standing up and on an iPhone](docs/images/trade-devices.jpg)
+
+**COLONY**
+
+![COLONY finder: systems to colonise around Ebor, the top one open with where to claim it](docs/images/colony.jpg)
+
+- **Find a system to colonise** around any system: uncolonised systems within reach of populated space (up to
+  16 ly), ranked by landable bodies, ring hotspots, pristine rings, belts, gas giants, life-bearing worlds and a
+  scoopable star, with three profiles (BALANCED, MINING, BUILD). Each system opens as a body tree with tags.
+- Systems the game won't let you claim are left out: permit locked, already colonised or being colonised, a fixed
+  station, a controlling faction or allegiance, or a Thargoid or Guardian site. Human signals only warn, and you can
+  hide a system the game refused (NOT ALLOWED / CLAIMED). The age of each system's data is shown.
+- **Claim at**: the nearest stations offering System Colonisation within 15 ly, with PLOT.
+- **PLAN ↗** opens the system in [RavenColonial](https://ravencolonial.com) for the build plan.
+
+![COLONY build tracker: what the construction site still needs, what the carrier holds, and where to buy the rest](docs/images/colony-build.jpg)
+
+- **BUILD** follows each construction site you dock at, from the journal: delivered, left, in the hold, **on your
+  carrier**, still to buy, trips left for your delivery ship, the time left and the pace it needs, and the credits
+  paid so far. Sites are kept on the PC, so they stay up to date when you play elsewhere.
+- **Shopping list** with what is left, in the hold and on the carrier per commodity.
+- **Where to buy**: markets around the site (or around you) that stock what is still to buy, those carrying most
+  of the list first. Tap a market to mark the list: green for what it covers in full, yellow for part of it.
+
+**CARRIER**
+
+![CARRIER: tank, space and cargo of the fleet carrier, and a three-jump route with the tritium for each jump](docs/images/carrier.jpg)
+
+- The fleet carrier as the journal last showed it: system, a scheduled jump with its countdown, tritium in the
+  tank, space used (services, cargo, buy orders), balance and **cargo by commodity**, tracked from your own transfers
+  and trades with the carrier and checked against the total the game reports.
+- **Jump planner**: from the carrier's system through any stops to a destination, with
+  [Spansh](https://spansh.co.uk)'s carrier router for the systems and the tritium of each jump worked out from the
+  carrier's own load. It says when to move tritium from the cargo into the tank, how much to buy before leaving,
+  which systems have icy rings, and marks where the carrier is now and its next jump.
 
 **Everywhere**
 
@@ -127,7 +169,7 @@ a second.
   and other signals.
 - Open `http://localhost:8420/?sheet=icons` to see the whole set.
 
-> EXPLORE, MINING and CARRIER show a *coming soon* screen for now. See the [roadmap](#roadmap).
+> EXPLORE and MINING show a *coming soon* screen for now. See the [roadmap](#roadmap).
 
 ## How it works
 
@@ -190,7 +232,7 @@ All optional, set as environment variables before `npm start`:
 | `ED_JOURNAL_DIR` | `%USERPROFILE%\Saved Games\Frontier Developments\Elite Dangerous` | Journal folder |
 | `ED_BINDINGS_DIR` | `%LOCALAPPDATA%\Frontier Developments\Elite Dangerous\Options\Bindings` | Key bindings folder |
 | `ED_GAME_DIR` | found through Steam | Game install folder, used for the built-in control schemes |
-| `ET_CACHE_DIR` | `%LOCALAPPDATA%\EliteTerminals` | Spansh cache, market history, favourites (`favorites.json`), pinned routes (`trade-pins.json`) and the price database (`prices.db`) |
+| `ET_CACHE_DIR` | `%LOCALAPPDATA%\EliteTerminals` | Spansh cache, market history, favourites (`favorites.json`), pinned routes (`trade-pins.json`), construction sites (`colony-depots.json`), the carrier (`carrier.json`) and the price database (`prices.db`) |
 | `ET_EDDN` | `1` | Set to `0` to stop listening to EDDN |
 
 ## Development
@@ -215,9 +257,11 @@ clipped text. Add `?tab=combat` (and `&page=survive` for a phone page) to open e
 | `server/src/trade/` | Market scan, route engine (loops, linear chains, mixed loads), reference search |
 | `server/src/prices/` | Local price database (SQLite), EDDN listener, route watch |
 | `server/src/favorites.ts`, `tradePins.ts` | Favourite destinations and pinned trade routes, kept on disk |
+| `server/src/colony/` | Colonisation finder (Spansh systems and bodies, scoring, claim stations) and construction sites |
+| `server/src/carrier/` | Fleet carrier state and cargo from the journal, jump planner |
 | `server/src/galaxy.ts` | Spansh system lookups with a disk cache, and rings of the targeted body |
 | `web/src/hud.css` | Elite HUD design tokens |
-| `web/src/screens/` | FLIGHT, COMBAT and TRADE screens |
+| `web/src/screens/` | FLIGHT, COMBAT, TRADE, COLONY and CARRIER screens |
 | `web/src/lib/macros.svelte.ts` | Multi-key macros (combat, power, route plotting), each step checked against the game's state |
 | `web/src/lib/` | HUD components: FSD ring, pips, throttle, hologram, panels, icons |
 
@@ -233,10 +277,14 @@ clipped text. Add `?tab=combat` (and `&page=survive` for a phone page) to open e
 - [x] FLIGHT favourites with one-tap route plotting, every station of the system with filters
 - [x] TRADE pinned routes, favourites from a route, side-by-side loop on portrait screens
 - [x] Screens in sync, bounded target searches, TRADE route detail side by side everywhere
+- [x] TRADE A → B paths, FROM a station, ship typed in with the game off
+- [x] COLONY: system finder, claim stations, construction sites with carrier stock and where to buy
+- [x] CARRIER: status, tracked cargo, jump planner with tritium per jump
 - [ ] PVP: commanders flagged in the contacts, encounter history, a direct-keys console page
 - [ ] MINING screen (ship first, then surface vehicles)
 - [ ] EXPLORE screen
-- [ ] CARRIER screen
+- [ ] CARRIER: upkeep, carrier market and orders
+- [ ] COLONY: a light build planner (tier points, build queue)
 
 ## Disclaimer
 

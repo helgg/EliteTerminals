@@ -16,7 +16,7 @@
     <span class="title">{title}</span>
     {#if items.length > 1}<span class="mix">MIXED LOAD · {items.length}</span>{/if}
   </div>
-  {#if leg}
+  {#if leg && items.length}
     {#each items as i (i.commodity)}
       <div class="item">
         <div class="line">

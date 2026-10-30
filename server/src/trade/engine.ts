@@ -57,7 +57,7 @@ export function acceptsMarket(m: TradeMarket, q: TradeQuery, now: number): boole
 
 const ageHours = (m: TradeMarket, now: number) => Math.max(0, (now - Date.parse(m.updatedAt)) / 3.6e6);
 
-function end(m: TradeMarket, me: [number, number, number], now: number): TradeEnd {
+export function end(m: TradeMarket, me: [number, number, number], now: number): TradeEnd {
   return {
     marketId: m.marketId, station: m.station, system: m.system, ls: m.ls, type: m.type, pad: padOf(m),
     planetary: m.planetary, state: m.state ?? '', fromMe: dist(me, m.pos), ageH: ageHours(m, now),

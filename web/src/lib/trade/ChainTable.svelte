@@ -8,8 +8,11 @@
   // Sortable list of linear routes (A→B→C…, no return); the selected row drives the detail panel.
   // `compact`: one card per route (narrow screens), sorting by a row of chips.
   // Pinned routes stand out; `pinnedOnly` lists just them, with those this scan left out at their last figures.
-  let { chains, selected = $bindable(), compact = false, onpick, pins = [], pinnedOnly = false }: {
+  // A → B paths use it too, without pins (`pinnable` off) and with their many stops wrapping (`wrap`);
+  // a leg flown empty reads "empty".
+  let { chains, selected = $bindable(), compact = false, onpick, pins = [], pinnedOnly = false, pinnable = true, wrap = false }: {
     chains: TradeChain[]; selected: string; compact?: boolean; onpick?: () => void; pins?: TradePin[]; pinnedOnly?: boolean;
+    pinnable?: boolean; wrap?: boolean;
   } = $props();
   function pick(id: string) {
     selected = id;
@@ -72,7 +75,7 @@
   <div class="scroll cards">
     {#each sorted as c (c.id)}
       {@const age = value(c, 'age')}
-      <div class="card {ageTone(age)}" class:sel={selected === c.id} class:pinned={pinned.has(c.id)} class:gone={gone.has(c.id)}
+      <div class="card {ageTone(age)}" class:wrap class:sel={selected === c.id} class:pinned={pinned.has(c.id)} class:gone={gone.has(c.id)}
         role="button" tabindex="0" onclick={() => pick(c.id)} onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && pick(c.id)}>
         <span class="stops">
           {#each stops(c) as e, k (k)}{#if k}<span class="arrow"> → </span>{/if}<span class="st"><Name value={e.station} stationType={e.type} icon /></span>{/each}
@@ -83,10 +86,10 @@
           <span class:hl={sortKey === 'total'}>{cell(c, 'total')}</span>
         </span>
         <span class="goods dim">
-          {#each c.legs as l, k (k)}{#if k}<span class="sep"> · </span>{/if}{l.leg.commodity}{#if (l.leg.items?.length ?? 1) > 1}<span class="plus">+{l.leg.items.length - 1}</span>{/if}{/each}
+          {#each c.legs as l, k (k)}{#if k}<span class="sep"> · </span>{/if}{l.leg.commodity || 'empty'}{#if (l.leg.items?.length ?? 1) > 1}<span class="plus">+{l.leg.items.length - 1}</span>{/if}{/each}
         </span>
         <span class="meta num">
-          <PinButton pin={{ kind: 'linear', item: c }} />
+          {#if pinnable}<PinButton pin={{ kind: 'linear', item: c }} />{/if}
           <span class:hl={sortKey === 'seconds'}>{cell(c, 'seconds')}</span>
           <span><span class:hl={sortKey === 'ly'}>{cell(c, 'ly')}ly</span> · <span class:hl={sortKey === 'fromMe'}>⌖{cell(c, 'fromMe')}</span></span>
           <span class="age" class:hl={sortKey === 'age'}>{cell(c, 'age')}</span>
@@ -115,13 +118,13 @@
         {@const age = value(c, 'age')}
         <tr class:sel={selected === c.id} class:pinned={pinned.has(c.id)} class:gone={gone.has(c.id)} class={ageTone(age)}
           onclick={() => (selected = c.id)}>
-          <td class="pincol"><PinButton pin={{ kind: 'linear', item: c }} /></td>
-          <td class="route">
+          <td class="pincol">{#if pinnable}<PinButton pin={{ kind: 'linear', item: c }} />{/if}</td>
+          <td class="route" class:wrap>
             <div title={stops(c).map((e) => `${e.station} (${e.system})`).join(' → ')}>
               {#each stops(c) as e, k (k)}{#if k}<span class="arrow">&nbsp;→&nbsp;</span>{/if}<span class="st"><Name value={e.station} stationType={e.type} icon /></span>{/each}
             </div>
-            <div class="dim" title={c.legs.map((l) => l.leg.commodity).join(' → ')}>
-              {#each c.legs as l, k (k)}{#if k}<span class="sep">&nbsp;·&nbsp;</span>{/if}{l.leg.commodity}{#if (l.leg.items?.length ?? 1) > 1}<span class="plus">+{l.leg.items.length - 1}</span>{/if}{/each}
+            <div class="dim" title={c.legs.map((l) => l.leg.commodity || 'empty').join(' → ')}>
+              {#each c.legs as l, k (k)}{#if k}<span class="sep">&nbsp;·&nbsp;</span>{/if}{l.leg.commodity || 'empty'}{#if (l.leg.items?.length ?? 1) > 1}<span class="plus">+{l.leg.items.length - 1}</span>{/if}{/each}
             </div>
             {#if gone.has(c.id)}<div class="gonetag">NOT IN THIS SCAN · seen {seen(c.id)} ago</div>{/if}
           </td>
@@ -153,6 +156,8 @@
   .sort.on { color: var(--hud); }
   td { padding: 3px 4px; border-bottom: 1px solid var(--rule); vertical-align: top; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   td div { overflow: hidden; text-overflow: ellipsis; }
+  td.route.wrap { white-space: normal; }
+  td.route.wrap div { overflow-wrap: anywhere; line-height: 1.4; }
   .r { text-align: right; }
   tr { cursor: pointer; }
   tr:hover td { background: rgb(255 122 24 / 0.05); }
@@ -190,6 +195,12 @@
     .card .goods { grid-area: 1 / 2; }
     .card .figs { grid-area: 1 / 3; }
     .card .meta { grid-area: 1 / 4; min-width: 46px; }
+    /* A → B: many stops read across the card, the loads under them */
+    .card.wrap { grid-template-columns: minmax(0, 1fr) auto auto; }
+    .card.wrap .stops { grid-area: 1 / 1; }
+    .card.wrap .goods { grid-area: 2 / 1; }
+    .card.wrap .figs { grid-area: 1 / 2 / 3 / 3; }
+    .card.wrap .meta { grid-area: 1 / 3 / 3 / 4; }
   }
   .card :global(.name .text) { white-space: normal; overflow-wrap: anywhere; }
   .card {

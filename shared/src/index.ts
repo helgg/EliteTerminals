@@ -215,6 +215,10 @@ export interface EdState {
   macros: MacroState;
   mining: MiningState;
   cargo: { items: CargoItem[]; count: number };
+  /** Construction sites the player docked at (COLONY v2), newest first; kept on disk across sessions. */
+  colony: { depots: ColonyDepot[] };
+  /** The player's fleet carrier (id 0 = none known); kept on disk across sessions. */
+  carrier: CarrierState;
   market: MarketSnapshot;
   /** Player's active control presets and the keyboard key behind each bindable action. */
   controls: { presets: string[]; keys: Record<string, string> };
@@ -474,6 +478,12 @@ export function initialState(): EdState {
     },
     mining: initialMining(),
     cargo: { items: [], count: 0 },
+    colony: { depots: [] },
+    carrier: {
+      id: 0, callsign: '', name: '', system: '', systemAddress: 0, fuel: 0,
+      space: { total: 0, crew: 0, cargo: 0, reserved: 0, packs: 0, free: 0 },
+      balance: 0, available: 0, jump: null, cargo: [], cargoAt: '', cargoSeen: 0, statsAt: '', updatedAt: '',
+    },
     market: { marketId: 0, station: '', stationType: '', system: '', updatedAt: '', items: [] },
     controls: { presets: [], keys: {} },
     session: { startedAt: '', tradeProfit: 0, tonsSold: 0, tonsBought: 0, sales: 0 },
@@ -527,6 +537,8 @@ export interface SystemMatch {
 export interface TradeQuery {
   /** Scan around this system instead of the current one; '' or absent = the current system. */
   reference?: string;
+  /** A station of the reference system (market id): EXPORT / IMPORT mean it. 0 or absent = any. */
+  referenceStation?: number;
   radius: number;
   /** Max price age in hours; 0 = any. */
   maxAgeH: number;
@@ -549,6 +561,44 @@ export interface TradeQuery {
   cargo: number;
   capital: number;
   jumpRange: number;
+}
+
+/** A station with a market, offered by the station picker under a system. */
+export interface StationOption {
+  marketId: number;
+  station: string;
+  type: string;
+  ls: number;
+  pad: string;
+  planetary: boolean;
+}
+
+/** One end of an A → B trade path: a system, and optionally one of its stations. */
+export interface PathEnd {
+  system: string;
+  /** Market id; 0 = any station of the system. */
+  marketId: number;
+}
+
+/** A → B: trade along the way from one system to another, the filters of a scan plus both ends. */
+export interface TradePathQuery extends TradeQuery {
+  from: PathEnd;
+  to: PathEnd;
+}
+
+export interface TradePathResult {
+  query: TradePathQuery;
+  /** System names as found. */
+  from: string;
+  to: string;
+  /** Straight-line distance A → B, in ly. */
+  distance: number;
+  stations: number;
+  fetchedAt: string;
+  /** The best path for each number of stops, fewest first; empty legs (fly empty) carry an empty load. */
+  paths: TradeChain[];
+  /** Why the path starts or ends away from A or B (no usable market there), or ''. */
+  note: string;
 }
 
 export interface TradeEnd {
@@ -731,6 +781,7 @@ export type ServerMessage =
   | { type: 'state'; state: EdState }
   | { type: 'commandResult'; id: string; ok: boolean; error?: string }
   | { type: 'tradeProgress'; loaded: number; total: number; done: boolean; error?: string }
+  | { type: 'colonyProgress'; loaded: number; total: number }
   /** Runs a macro on this screen (AUTO NEXT after a kill goes to one screen only). */
   | { type: 'runMacro'; macro: string }
   /** Stops the macro running on this screen: another one asked. */
@@ -747,3 +798,255 @@ export type ClientMessage =
   | { type: 'stopMacro' }
   /** Macro progress every screen shows (contacts gone, the one being locked, the route being plotted). */
   | { type: 'share'; patch: SharedMacros };
+
+// --- COLONY: systems to colonise (docs/design/COLONY.md) ---
+
+/** How the finder weighs a system: an even mix, rings and asteroids first, or the most room to build. */
+export type ColonyProfile = 'balanced' | 'mining' | 'build';
+
+export interface ColonyQuery {
+  /** Search around this system; '' = the current one. */
+  reference?: string;
+  radius: number;
+  /** Most ly to the nearest populated system (the colonisation reach). */
+  maxPopulatedLy: number;
+  minBodies: number;
+  profile: ColonyProfile;
+}
+
+export interface ColonyRing {
+  name: string;
+  /** Icy, Rocky, Metallic, Metal Rich. */
+  type: string;
+  hotspots: { name: string; count: number }[];
+}
+
+export interface ColonyBody {
+  bodyId: number;
+  name: string;
+  /** 'Star' | 'Planet'. */
+  type: string;
+  subType: string;
+  ls: number;
+  landable: boolean;
+  atmosphere: string;
+  terraformable: boolean;
+  gravity: number | null;
+  /** Pristine, Major, Common, Low, Depleted, or ''. */
+  reserve: string;
+  rings: ColonyRing[];
+  /** Asteroid belts around a star. */
+  belts: number;
+  bio: number;
+  geo: number;
+  /** Surface mining locations (Odyssey). */
+  miningSites: number;
+  /** Thargoid, Guardian and human signals on the body (sites that keep a system off limits, or someone building). */
+  thargoid: number;
+  guardian: number;
+  human: number;
+  /** Body id of the nearest parent body (barycentres skipped); -1 = none. */
+  parent: number;
+  depth: number;
+}
+
+export interface ColonyCounts {
+  landable: number;
+  /** Landable with an atmosphere. */
+  atmospheric: number;
+  rings: number;
+  pristineRings: number;
+  /** Metallic or Metal Rich rings. */
+  metalRings: number;
+  hotspots: number;
+  belts: number;
+  gasGiants: number;
+  elw: number;
+  ww: number;
+  aw: number;
+  terraformable: number;
+  bio: number;
+  geo: number;
+  miningSites: number;
+  thargoid: number;
+  guardian: number;
+  human: number;
+  stars: number;
+  /** Farthest body from the arrival star, in ls. */
+  maxLs: number;
+}
+
+export interface ColonySystem {
+  id64: number;
+  name: string;
+  pos: [number, number, number];
+  /** From the reference system, in ly. */
+  distance: number;
+  /** To the nearest populated system, in ly. */
+  nearestPopulated: number;
+  bodyCount: number;
+  bodiesKnown: number;
+  /** When Spansh last heard of the system: a claim made since is not in its data. */
+  seenAt: string;
+  mainStar: string;
+  scoopable: boolean;
+  counts: ColonyCounts;
+  score: number;
+  /** Where the points come from, largest first. */
+  parts: { label: string; points: number }[];
+  bodies: ColonyBody[];
+}
+
+/** A station with the System Colonisation contact, where a claim on a nearby system can be bought. */
+export interface ColonyClaimStation {
+  system: string;
+  station: string;
+  type: string;
+  ls: number;
+  pad: string;
+  /** From the system to claim, in ly. */
+  ly: number;
+}
+
+/** A system the game refused (NOT ALLOWED) or showed as already claimed: kept out of the finder. */
+export interface ColonyHidden {
+  id64: number;
+  name: string;
+  reason: 'not allowed' | 'claimed';
+  at: string;
+}
+
+/** One commodity a construction site needs (ColonisationConstructionDepot.ResourcesRequired). */
+export interface ColonyResource {
+  /** Journal name, "$steel_name;". */
+  name: string;
+  label: string;
+  required: number;
+  provided: number;
+  /** Credits paid per ton delivered. */
+  payment: number;
+}
+
+/** A construction site: the colonisation ship of a new system, or a later build. */
+export interface ColonyDepot {
+  marketId: number;
+  system: string;
+  /** "Colonisation Ship · Archambault Territory". */
+  station: string;
+  body: string;
+  pos: [number, number, number];
+  /** 0…1. */
+  progress: number;
+  complete: boolean;
+  failed: boolean;
+  resources: ColonyResource[];
+  firstSeenAt: string;
+  updatedAt: string;
+  /** Time limit: estimated (first seen + 28 days) until the player sets it. */
+  deadline: string;
+  deadlineSet: boolean;
+}
+
+/** Where to buy what a site still needs: markets near it carrying the most of the list. */
+export interface ColonyMarkets {
+  marketId: number;
+  /** Markets with at least one needed commodity in stock, most commodities first. */
+  markets: {
+    end: TradeEnd;
+    items: { name: string; price: number; stock: number }[];
+  }[];
+  /** Needed commodities no market around has. */
+  missing: string[];
+  fetchedAt: string;
+}
+
+/** The player's fleet carrier, from CarrierStats / CarrierFinance / CarrierLocation / CarrierJumpRequest. */
+export interface CarrierState {
+  id: number;
+  callsign: string;
+  name: string;
+  system: string;
+  systemAddress: number;
+  /** Tritium in the tank (up to 1000 t); last known, the journal does not report it after each jump. */
+  fuel: number;
+  /** Tons: services' crew, cargo (tritium carried included), buy orders' reserved space, ship and module packs. */
+  space: { total: number; crew: number; cargo: number; reserved: number; packs: number; free: number };
+  balance: number;
+  available: number;
+  /** A jump scheduled in the game: where to and when it leaves. */
+  jump: { system: string; body: string; departAt: string } | null;
+  /**
+   * Cargo by commodity, from the player's own moves only: CargoTransfer, and selling to / buying from the carrier's
+   * market. Other players filling orders and play on another machine are not seen: space.cargo is the total.
+   */
+  cargo: { name: string; label: string; count: number }[];
+  /** Last cargo move applied, and how many at that second: a replayed journal does not count them twice. */
+  cargoAt: string;
+  cargoSeen: number;
+  /** When space.cargo was last reported (CarrierStats). */
+  statsAt: string;
+  updatedAt: string;
+}
+
+/** A carrier route: from a system through one or more destinations, with the carrier's load. */
+export interface CarrierRouteQuery {
+  from: string;
+  to: string[];
+  /** Space used (t), tritium in the cargo included: it is mass. */
+  used: number;
+  /** Tritium in the tank at the start (t). */
+  fuel: number;
+  /** Tritium in the cargo, to move into the tank on the way (t). */
+  tritium: number;
+}
+
+export interface CarrierJump {
+  system: string;
+  id64: number;
+  pos: [number, number, number];
+  /** Length of the jump into this system (0 for the start). */
+  ly: number;
+  /** Straight line left to the next destination. */
+  toGo: number;
+  /** Tritium the jump into this system burns. */
+  fuelUsed: number;
+  /** Tank after the jump. */
+  tank: number;
+  /** Tons to move from the cargo into the tank before this jump (it would not fit otherwise). */
+  topUp: number;
+  /** Tritium left in the cargo after this jump. */
+  cargo: number;
+  /** Short of tritium for this jump, even with the cargo. */
+  short: boolean;
+  /** One of the destinations asked for (the start included). */
+  waypoint: boolean;
+  icyRing: boolean;
+  pristine: boolean;
+}
+
+export interface CarrierRoute {
+  query: CarrierRouteQuery;
+  jumps: CarrierJump[];
+  distance: number;
+  /** Tritium the whole route burns. */
+  tritium: number;
+  /** Tritium to buy before leaving (tank + cargo do not cover it), 0 when it does. */
+  missing: number;
+  fetchedAt: string;
+}
+
+export interface ColonyResult {
+  query: ColonyQuery;
+  reference: string;
+  fetchedAt: string;
+  /** Unpopulated systems in reach with enough bodies, and how many of them (most bodies first) were checked. */
+  candidates: number;
+  checked: number;
+  /** Systems whose bodies could not be loaded (Spansh busy): searching again fetches them. */
+  failed: number;
+  /** Checked systems left out: a permit, a fixed station, a controlling faction or an allegiance (taken or off limits). */
+  locked: number;
+  /** Systems the player marked as refused or claimed in game, left out of every search. */
+  hidden: ColonyHidden[];
+  systems: ColonySystem[];
+}

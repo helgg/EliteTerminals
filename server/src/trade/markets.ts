@@ -21,9 +21,13 @@ const CARRIER_TYPES = ['Drake-Class Carrier'];
 
 export interface ScanParams {
   reference: string;
+  /** Around these coordinates instead of a system (the spheres of an A → B corridor). */
+  coords?: [number, number, number];
   radius: number;
   maxAgeH: number;
   carriers: boolean;
+  /** No page-by-page progress: the caller reports its own. */
+  quiet?: boolean;
 }
 
 const str = (v: unknown) => (typeof v === 'string' ? v : '');
@@ -65,7 +69,10 @@ export function searchBody(p: ScanParams, page: number, now = Date.now()) {
       value: [new Date(now - p.maxAgeH * 3.6e6).toISOString(), new Date(now + 60e3).toISOString()],
     };
   }
-  return { filters, sort: [{ distance: { direction: 'asc' } }], reference_system: p.reference, size: PAGE_SIZE, page };
+  const around = p.coords
+    ? { reference_coords: { x: p.coords[0], y: p.coords[1], z: p.coords[2] } }
+    : { reference_system: p.reference };
+  return { filters, sort: [{ distance: { direction: 'asc' } }], ...around, size: PAGE_SIZE, page };
 }
 
 type Scan = { key: string; at: number; markets: TradeMarket[] };
@@ -97,7 +104,7 @@ export class MarketScanner extends EventEmitter {
 
   /** Same reference and a radius/age at least as wide as asked → reuse; otherwise fetch again. */
   async scan(p: ScanParams, force = false): Promise<TradeMarket[]> {
-    const key = `v2|${p.reference}|${p.radius}|${p.maxAgeH}|${p.carriers}`;
+    const key = `v2|${p.coords?.map((v) => v.toFixed(2)).join(',') ?? p.reference}|${p.radius}|${p.maxAgeH}|${p.carriers}`;
     if (!force && this.last && this.last.key === key && Date.now() - this.last.at < REUSE_MS) return this.last.markets;
     if (this.inFlight) return this.inFlight;
     this.inFlight = this.fetchAll(p)
@@ -126,7 +133,7 @@ export class MarketScanner extends EventEmitter {
       total = Math.min(body.count ?? 0, PAGE_SIZE * MAX_PAGES);
       const results = body.results ?? [];
       out.push(...results.map(fromSpanshStation));
-      this.emit('progress', { loaded: out.length, total, done: false });
+      if (!p.quiet) this.emit('progress', { loaded: out.length, total, done: false });
       if (results.length < PAGE_SIZE || out.length >= total) break;
       await new Promise((r) => setTimeout(r, SPACING_MS));
     }

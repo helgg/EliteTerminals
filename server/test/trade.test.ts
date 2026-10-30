@@ -3,11 +3,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { initialState, type TradeMarket, type TradeQuery } from '@et/shared';
+import { initialState, type TradeMarket, type TradePathQuery, type TradeQuery } from '@et/shared';
 import {
   acceptsMarket, bestLeg, commodityKey, commodityQuotes, computeTrade, legSeconds, levelEstimator, supercruiseSeconds,
 } from '../src/trade/engine.ts';
 import { fromSpanshStation, searchBody } from '../src/trade/markets.ts';
+import { computePath, corridorSpheres } from '../src/trade/path.ts';
 import { withLocalMarket, withLocalMarkets } from '../src/trade/service.ts';
 
 const NOW = Date.parse('2026-10-24T12:00:00Z');
@@ -219,4 +220,64 @@ test('supply/demand levels: game brackets when known, otherwise against the medi
   assert.equal(r.leg.items[0].supplyExact, true);
   assert.equal(r.leg.items[0].demandExact, false);
   assert.ok(r.leg.items[0].demandLevel >= 1);
+});
+
+test('A → B: the corridor is covered by spheres along the line', () => {
+  const { centres, radius } = corridorSpheres([0, 0, 0], [100, 0, 0], 25);
+  assert.equal(centres.length, 5);
+  assert.deepEqual(centres[0], [0, 0, 0]);
+  assert.deepEqual(centres[4], [100, 0, 0]);
+  // a point on the tube's edge half-way between two centres is inside a sphere
+  assert.ok(Math.hypot(12.5, 25) <= radius + 1e-9);
+  const body = searchBody({ reference: '', coords: [1, 2, 3], radius: 30, maxAgeH: 0, carriers: false }, 0);
+  assert.deepEqual((body as any).reference_coords, { x: 1, y: 2, z: 3 });
+  assert.equal((body as any).reference_system, undefined);
+});
+
+test('A → B: best path per number of stops, always moving forward, empty legs when nothing pays', () => {
+  // A(0) → M1(20) → M2(40) → B(60) along x; a station off the corridor and one behind A are never used.
+  const a = market(1, [0, 0, 0], [item('Tea', 1000, 0)], { system: 'Alpha' });
+  const m1 = market(2, [20, 0, 0], [item('Tea', 0, 1600), item('Gold', 9000, 0)]);
+  const m2 = market(3, [40, 0, 0], [item('Gold', 0, 9800)]);
+  const b = market(4, [60, 0, 0], [item('Tea', 0, 1100)], { system: 'Beta' });
+  const off = market(5, [30, 80, 0], [item('Tea', 0, 9000)]);
+  const behind = market(6, [-20, 0, 0], [item('Tea', 0, 9000)]);
+  const q: TradePathQuery = { ...Q, radius: 25, from: { system: 'Alpha', marketId: 0 }, to: { system: 'Beta', marketId: 0 } };
+  const r = computePath([a, m1, m2, b, off, behind], q, { name: 'Alpha', pos: [0, 0, 0] }, { name: 'Beta', pos: [60, 0, 0] }, [0, 0, 0], NOW);
+  assert.equal(r.distance, 60);
+  // 1 leg: tea straight to B (+100/t); 2: tea to M1, fly empty to B; 3: tea to M1, gold to M2, fly empty to B
+  assert.deepEqual(r.paths.map((p) => p.id), ['1-4', '1-2-4', '1-2-3-4']);
+  const [direct, , best] = r.paths;
+  assert.equal(direct.total, 100 * 100);
+  assert.equal(best.total, 60000 + 80000);
+  assert.equal(best.legs[2].leg.amount, 0);
+  assert.ok(r.paths.every((p) => !p.id.split('-').includes('5') && !p.id.split('-').includes('6')));
+  assert.equal(r.note, '');
+});
+
+test('A → B: a picked station must pass the filters; no market at B ends near it', () => {
+  const a = market(1, [0, 0, 0], [item('Tea', 1000, 0)], { system: 'Alpha' });
+  const near = market(2, [55, 0, 0], [item('Tea', 0, 1600)]);
+  const small = market(3, [0, 0, 0], [item('Tea', 900, 0)], { system: 'Alpha', pads: { s: 1, m: 1, l: 0 } });
+  const q: TradePathQuery = { ...Q, radius: 10, from: { system: 'Alpha', marketId: 0 }, to: { system: 'Empty', marketId: 0 } };
+  const A = { name: 'Alpha', pos: [0, 0, 0] as [number, number, number] };
+  const B = { name: 'Empty', pos: [60, 0, 0] as [number, number, number] };
+  const r = computePath([a, near, small], q, A, B, [0, 0, 0], NOW);
+  assert.equal(r.paths[0].id, '1-2');
+  assert.match(r.note, /no station in EMPTY passes/);
+  assert.throws(() => computePath([a, near, small], { ...q, from: { system: 'Alpha', marketId: 3 } }, A, B, [0, 0, 0], NOW), /station picked at A/);
+  assert.throws(() => computePath([a], q, A, A, [0, 0, 0], NOW), /same system/);
+});
+
+test('A → B: a station at B with old prices is still the end, but nothing is traded on its old prices', () => {
+  const a = market(1, [0, 0, 0], [item('Tea', 1000, 0)], { system: 'Alpha' });
+  const oldMid = market(2, [20, 0, 0], [item('Tea', 0, 5000)], { updatedAt: hoursAgo(100) });
+  const mid = market(4, [20, 0, 0], [item('Tea', 0, 1500)]);
+  const oldB = market(3, [40, 0, 0], [item('Tea', 0, 9000)], { system: 'Beta', updatedAt: hoursAgo(100) });
+  const q: TradePathQuery = { ...Q, radius: 10, maxAgeH: 24, from: { system: 'Alpha', marketId: 0 }, to: { system: 'Beta', marketId: 0 } };
+  const r = computePath([a, oldMid, mid, oldB], q, { name: 'Alpha', pos: [0, 0, 0] }, { name: 'Beta', pos: [40, 0, 0] }, [0, 0, 0], NOW);
+  // tea sold at the fresh middle station (not at B's or the old middle one's better but stale price), then on to B empty
+  assert.deepEqual(r.paths.map((p) => p.id), ['1-4-3']);
+  assert.equal(r.paths[0].legs[1].leg.amount, 0);
+  assert.match(r.note, /older than the age filter at S3 \(100h\)/);
 });

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { EdState, TradeQuery, TradeResult } from '@et/shared';
+  import type { EdState, TradePathQuery, TradePathResult, TradeQuery, TradeResult } from '@et/shared';
   import Panel from '../lib/Panel.svelte';
   import RouteTable from '../lib/trade/RouteTable.svelte';
   import RouteDetail from '../lib/trade/RouteDetail.svelte';
@@ -13,17 +13,19 @@
   import { ladenJumpRange } from '../lib/jump.ts';
   import { viewport } from '../lib/viewport.svelte.ts';
   import { cr, short } from '../lib/format.ts';
-  import { restoreLast, tradeStore as ts } from '../lib/trade/store.svelte.ts';
+  import { bestPath, restoreLast, tradeStore as ts } from '../lib/trade/store.svelte.ts';
 
   let { s, now }: { s: EdState; now: number } = $props();
 
   // --- filters, remembered per device ---
+  // `toSystem` / `toStation`: the destination of A → B (FROM is the scan's reference system and station)
   type Filters = Pick<TradeQuery,
-    'reference' | 'radius' | 'maxAgeH' | 'pad' | 'planetary' | 'carriers' | 'exportHere' | 'importHere' | 'maxLs' |
-    'minSupply' | 'minDemand' | 'states' | 'hops'>;
+    'reference' | 'referenceStation' | 'radius' | 'maxAgeH' | 'pad' | 'planetary' | 'carriers' | 'exportHere' | 'importHere' |
+    'maxLs' | 'minSupply' | 'minDemand' | 'states' | 'hops'> & { toSystem: string; toStation: number };
   const DEFAULTS: Filters = {
-    reference: '', radius: 25, maxAgeH: 24, pad: 'L', planetary: false, carriers: false, exportHere: false, importHere: false,
-    maxLs: 5000, minSupply: 0, minDemand: 0, states: [], hops: 3,
+    reference: '', referenceStation: 0, radius: 25, maxAgeH: 24, pad: 'L', planetary: false, carriers: false,
+    exportHere: false, importHere: false, maxLs: 5000, minSupply: 0, minDemand: 0, states: [], hops: 3,
+    toSystem: '', toStation: 0,
   };
   let f = $state<Filters>(readFilters());
   $effect(() => {
@@ -52,12 +54,43 @@
     f.states = f.states.includes(x) ? f.states.filter((y) => y !== x) : [...f.states, x];
   }
 
-  const query = $derived<TradeQuery>({
-    ...f,
-    cargo: s.ship.cargoCapacity || 1,
-    capital: s.commander.credits,
-    jumpRange: ladenJumpRange(s) || 15,
+  // a station picked at FROM means routes from there: EXPORT turns on unless IMPORT or EXPORT already is
+  let lastStation = f.referenceStation;
+  $effect(() => {
+    const st = f.referenceStation;
+    if (st && st !== lastStation && !f.exportHere && !f.importHere) f.exportHere = true;
+    lastStation = st;
   });
+
+  // --- the ship: from the game while it runs; typed in when it is off (or the ship has no hold) ---
+  // With the game off the last ship, credits and commander are not this session's: none of them is used.
+  const online = $derived(s.meta.online);
+  const gameCargo = $derived(online ? s.ship.cargoCapacity : 0);
+  const gameJump = $derived(online ? ladenJumpRange(s) : 0);
+  let ship = $state<{ cargo: number; jump: number }>(readShip());
+  $effect(() => {
+    try { localStorage.setItem('et.trade.ship', JSON.stringify(ship)); } catch {}
+  });
+  function readShip() {
+    try {
+      const saved = JSON.parse(localStorage.getItem('et.trade.ship') ?? '{}');
+      return { cargo: Number(saved.cargo) || 0, jump: Number(saved.jump) || 0 };
+    } catch {
+      return { cargo: 0, jump: 0 };
+    }
+  }
+
+  const { toSystem, toStation, ...scanFilters } = $derived(f);
+  const query = $derived<TradeQuery>({
+    ...scanFilters,
+    cargo: gameCargo || Math.max(0, Math.round(ship.cargo || 0)),
+    capital: online ? s.commander.credits : 0,
+    jumpRange: gameJump || Math.max(0, ship.jump || 0),
+  });
+  /** What the scan still needs from the player before it can run. */
+  const missing = $derived(
+    !query.cargo && !query.jumpRange ? 'SET CARGO + JUMP' : !query.cargo ? 'SET CARGO' : !query.jumpRange ? 'SET JUMP RANGE' : '',
+  );
 
   // --- scan ---
   let busy = $state(false);
@@ -65,6 +98,7 @@
   void restoreLast();
 
   async function scan(force = false) {
+    if (ts.tab === 'path') return plot(force);
     drawer = false;
     if (phone && page === 'scan') setPage('routes');
     busy = true;
@@ -88,15 +122,47 @@
     }
   }
 
+  /** A → B: the corridor's markets, then the best path for each number of stops. */
+  async function plot(force = false) {
+    drawer = false;
+    if (phone && page === 'scan') setPage('routes');
+    busy = true;
+    error = '';
+    link.tradeProgress = null;
+    const body: TradePathQuery = {
+      ...query,
+      from: { system: f.reference ?? '', marketId: f.referenceStation ?? 0 },
+      to: { system: toSystem, marketId: toStation },
+    };
+    try {
+      const res = await fetch('/api/trade/path', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: body, force }),
+      });
+      const out = await res.json();
+      if (!res.ok) throw new Error(out.error ?? res.statusText);
+      ts.path = out as TradePathResult;
+      ts.selectedPath = bestPath(ts.path);
+    } catch (e) {
+      error = (e as Error).message;
+    } finally {
+      busy = false;
+    }
+  }
+
   function setStops(h: number) {
     f.hops = h;
     if (ts.result && !busy) void scan(false); // markets are cached: only the maths runs again
   }
 
-  if (!['loop', 'linear', 'finder', 'local'].includes(ts.tab)) ts.tab = 'loop';
+  if (!['loop', 'linear', 'path', 'finder', 'local'].includes(ts.tab)) ts.tab = 'loop';
   type Tab = typeof ts.tab;
-  const ALL_TABS: Tab[] = ['loop', 'linear', 'finder', 'local'];
-  const TAB_LABELS: Record<Tab, string> = { loop: 'LOOP ROUTES', linear: 'LINEAR ROUTES', finder: 'COMMODITY', local: 'MARKET' };
+  const ALL_TABS: Tab[] = ['loop', 'linear', 'path', 'finder', 'local'];
+  const ROUTE_TABS: Tab[] = ['loop', 'linear', 'path'];
+  const TAB_LABELS: Record<Tab, string> = {
+    loop: 'LOOP ROUTES', linear: 'LINEAR ROUTES', path: 'A → B', finder: 'COMMODITY', local: 'MARKET',
+  };
   // ?view=linear (or loop, finder, local) opens that tab, for testing layouts
   const askedView = new URLSearchParams(location.search).get('view') as Tab | null;
   if (askedView && askedView in TAB_LABELS) ts.tab = askedView;
@@ -127,7 +193,7 @@
   }
   function setPage(p: Page) {
     page = p;
-    if (p === 'market' && (ts.tab === 'loop' || ts.tab === 'linear')) ts.tab = 'finder';
+    if (p === 'market' && ROUTE_TABS.includes(ts.tab)) ts.tab = 'finder';
     if ((p === 'routes' || p === 'route') && (ts.tab === 'finder' || ts.tab === 'local')) ts.tab = 'loop';
     try { localStorage.setItem('et.trade.page', p); } catch {}
   }
@@ -142,14 +208,20 @@
     ?? pins.find((p) => p.kind === 'loop' && p.id === ts.selected)?.route ?? null);
   const chain = $derived(result?.chains?.find((c) => c.id === ts.selectedChain)
     ?? pins.find((p) => p.kind === 'linear' && p.id === ts.selectedChain)?.chain ?? null);
+  const pathChain = $derived(ts.path?.paths.find((c) => c.id === ts.selectedPath) ?? null);
+  /** The chain on show in the detail: a linear route or an A → B path. */
+  const shownChain = $derived(ts.tab === 'path' ? pathChain : chain);
+  const chainTab = $derived(ts.tab === 'linear' || ts.tab === 'path');
   const progress = $derived(link.tradeProgress);
   // the picked route goes to the server, which warns when new prices make it pay less
-  const watchJson = $derived(JSON.stringify(toWatch(ts.tab === 'linear' ? null : route, ts.tab === 'linear' ? chain : null)));
+  const watchJson = $derived(JSON.stringify(toWatch(chainTab ? null : route, chainTab ? shownChain : null)));
   $effect(() => {
     const body = `{"watch":${watchJson}}`;
     void fetch('/api/trade/watch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body }).catch(() => {});
   });
-  const TITLES = { loop: 'Loop routes', linear: 'Linear routes', finder: 'Commodity finder', local: 'Market' };
+  const TITLES = { loop: 'Loop routes', linear: 'Linear routes', path: 'A → B trade', finder: 'Commodity finder', local: 'Market' };
+  const plotLabel = $derived(`${(f.reference || s.location.system || '?').toUpperCase()} → ${(toSystem || '?').toUpperCase()}`);
+  const fetchedAt = $derived((ts.tab === 'path' ? ts.path : result)?.fetchedAt ?? '');
 
   // --- session ---
   const sessionEnd = $derived(s.meta.online ? now : Date.parse(s.meta.lastEventAt) || now);
@@ -165,10 +237,33 @@
   </div>
 {/snippet}
 
+{#snippet shipInputs()}
+  <!-- game off (or a ship with no hold): the hold and laden jump range to plan with -->
+  <div class="group ship">
+    <span class="k">{online ? 'SHIP · NO CARGO RACKS' : 'SHIP · GAME OFFLINE'}</span>
+    <div class="shipin">
+      <label class:need={!query.cargo}>
+        <span>CARGO</span>
+        {#if gameCargo}<b class="num">{cr(gameCargo)}</b>{:else}<input type="number" min="0" step="1" inputmode="numeric" bind:value={ship.cargo} placeholder="0" />{/if}
+        <span class="u">t</span>
+      </label>
+      <label class:need={!query.jumpRange} title="Jump range with a full hold and a full tank">
+        <span>JUMP</span>
+        {#if gameJump}<b class="num">{gameJump.toFixed(1)}</b>{:else}<input type="number" min="0" step="0.1" inputmode="decimal" bind:value={ship.jump} placeholder="0" />{/if}
+        <span class="u">ly</span>
+      </label>
+    </div>
+  </div>
+{/snippet}
+
 {#snippet filters()}
-  <ReferencePicker bind:value={f.reference} current={s.location.system} />
+  {#if !gameCargo || !gameJump}{@render shipInputs()}{/if}
+  <ReferencePicker bind:value={f.reference} bind:station={f.referenceStation} current={s.location.system} />
+  {#if ts.tab === 'path'}
+    <ReferencePicker bind:value={f.toSystem} bind:station={f.toStation} current="" label="TO" />
+  {/if}
   <div class="group">
-    <span class="k">RADIUS (ly)</span>
+    <span class="k">{ts.tab === 'path' ? 'CORRIDOR (ly either side of A → B)' : 'RADIUS (ly)'}</span>
     {@render chips(RADII.map((r) => [r, `${r}`] as [number, string]), f.radius, (v) => (f.radius = v))}
   </div>
   <div class="group">
@@ -212,9 +307,14 @@
 {/snippet}
 
 {#snippet scanButton()}
-  <button class="scan" disabled={busy || !s.location.system} onclick={() => scan(false)}>
+  <button class="scan" disabled={busy || !!missing || (ts.tab === 'path' ? !toSystem : !(f.reference || s.location.system))}
+    onclick={() => scan(false)}>
     {#if busy}
       SCANNING {progress ? `${progress.loaded}/${progress.total}` : '…'}
+    {:else if missing}
+      {missing}
+    {:else if ts.tab === 'path'}
+      {toSystem ? `PLOT · ${plotLabel}` : 'PICK DESTINATION'}
     {:else}
       SCAN · {(f.reference || s.location.system).toUpperCase() || '—'}
     {/if}
@@ -231,14 +331,15 @@
     · {cr(s.prices.stored)} markets
   </div>
   <div class="hint dim" title="Laden jump range used for the time estimates (cargo {cr(query.cargo)}t)">
-    {query.jumpRange.toFixed(1)}ly laden{#if result}&nbsp;· data {new Date(result.fetchedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+    {query.jumpRange.toFixed(1)}ly laden{#if !online}&nbsp;· no credit limit{/if}{#if fetchedAt}&nbsp;· data {new Date(fetchedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
       · <button class="link" disabled={busy} onclick={() => scan(true)} title="Fetch this region from Spansh again">reload</button>{/if}
   </div>
   {#if error}<div class="bad">{error}</div>{/if}
 {/snippet}
 
 {#snippet scanPanel(title: string)}
-  <Panel class="scanp" {title} scroll={false} aside={result ? `${result.stations} markets` : ''}>
+  <Panel class="scanp" {title} scroll={false}
+    aside={ts.tab === 'path' ? (ts.path ? `${ts.path.stations} markets` : '') : result ? `${result.stations} markets` : ''}>
     <div class="filters">
       {@render filters()}
       <div class="go">
@@ -255,18 +356,19 @@
       <div><span class="dim">PROFIT</span><b class="num ok">{short(s.session.tradeProfit)} Cr</b></div>
       <div><span class="dim">CR/H</span><b class="num tele">{short(crPerHour)}</b></div>
       <div><span class="dim">SOLD</span><b class="num">{cr(s.session.tonsSold)}t</b></div>
-      <div><span class="dim">CARGO</span><b class="num">{cr(s.cargo.count)}/{cr(s.ship.cargoCapacity)}t</b></div>
+      <div><span class="dim">CARGO</span><b class="num">{online ? cr(s.cargo.count) : '—'}/{cr(query.cargo)}t</b></div>
     </div>
   </Panel>
 {/snippet}
 
 {#snippet sessionStrip()}
-  <!-- phones: the session in one line under the routes -->
+  <!-- phones and monitors on their side: the session in one line under the routes -->
   <div class="strip" title="Trade session">
+    {#if !phone}<span class="sk">SESSION <span class="dim">{s.session.startedAt ? `${hours.toFixed(1)}h` : 'none'}</span></span>{/if}
     <span><span class="dim">PROFIT</span> <b class="num ok">{short(s.session.tradeProfit)}</b></span>
     <span><span class="dim">CR/H</span> <b class="num tele">{short(crPerHour)}</b></span>
     <span><span class="dim">SOLD</span> <b class="num">{cr(s.session.tonsSold)}t</b></span>
-    <span><span class="dim">CARGO</span> <b class="num">{cr(s.cargo.count)}/{cr(s.ship.cargoCapacity)}t</b></span>
+    <span><span class="dim">CARGO</span> <b class="num">{online ? cr(s.cargo.count) : '—'}/{cr(query.cargo)}t</b></span>
   </div>
 {/snippet}
 
@@ -275,7 +377,9 @@
     {#each ids as t (t)}
       <button class:on={ts.tab === t} onclick={() => (ts.tab = t)}>{TAB_LABELS[t]}</button>
     {/each}
-    {#if ts.tab === 'loop' || ts.tab === 'linear'}
+    {#if ts.tab === 'path' && ts.path}
+      <span class="tools dim">{ts.path.from.toUpperCase()} → {ts.path.to.toUpperCase()} · {ts.path.distance.toFixed(0)}ly</span>
+    {:else if ts.tab === 'loop' || ts.tab === 'linear'}
       <span class="tools">
         {#if ts.tab === 'linear'}
           <span class="stops">
@@ -307,6 +411,16 @@
         <p class="dim">Set the filters and tap SCAN. The first scan of a region downloads its markets from Spansh
           (may take ~30s); then live prices keep them fresh.</p>
       {/if}
+    {:else if ts.tab === 'path'}
+      {#if ts.path?.note}<p class="note">{ts.path.note}</p>{/if}
+      {#if ts.path?.paths.length}
+        <ChainTable chains={ts.path.paths} bind:selected={ts.selectedPath} {compact} {onpick} pinnable={false} wrap />
+      {:else if !ts.path}
+        <p class="dim">Trade on the way from A to B. Pick FROM (empty = here) and TO, a station at either end if you
+          want one, and the CORRIDOR width; then tap PLOT. Each line is the best path for one number of stops, always
+          moving towards B; legs with nothing worth carrying are flown empty. Up to 500ly; a long corridor can take a
+          few minutes the first time.</p>
+      {/if}
     {:else if ts.tab === 'finder'}
       <CommodityFinder names={result?.commodities ?? []} {query} />
     {:else}
@@ -317,7 +431,8 @@
 
 {#snippet center(ids: Tab[], compact: boolean, onpick?: () => void)}
   <Panel class="center" title={TITLES[ts.tab]}
-    aside={ts.tab === 'loop' && result ? `${result.routes.length} routes` : ts.tab === 'linear' && result ? `${result.chains?.length ?? 0} routes` : ''}>
+    aside={ts.tab === 'loop' && result ? `${result.routes.length} routes` : ts.tab === 'linear' && result ? `${result.chains?.length ?? 0} routes`
+      : ts.tab === 'path' && ts.path ? `${ts.path.paths.length} paths` : ''}>
     <div class="center-body">
       {@render tabs(ids)}
       {@render pane(compact, onpick)}
@@ -326,10 +441,10 @@
 {/snippet}
 
 {#snippet detail()}
-  <Panel class="right" title={ts.tab === 'linear' ? 'Linear route' : 'Loop route'}>
-    <WatchBanner watch={s.tradeWatch} id={(ts.tab === 'linear' ? chain?.id : route?.id) ?? ''} {now} />
-    {#if ts.tab === 'linear'}
-      <ChainDetail {chain} jumpRange={query.jumpRange} {split} />
+  <Panel class="right" title={ts.tab === 'path' ? 'A → B path' : ts.tab === 'linear' ? 'Linear route' : 'Loop route'}>
+    <WatchBanner watch={s.tradeWatch} id={(chainTab ? shownChain?.id : route?.id) ?? ''} {now} />
+    {#if chainTab}
+      <ChainDetail chain={shownChain} jumpRange={query.jumpRange} {split} pinnable={ts.tab !== 'path'} plot={ts.tab === 'path'} />
     {:else}
       <RouteDetail {route} jumpRange={query.jumpRange} {split} />
     {/if}
@@ -340,9 +455,12 @@
   <div class="trade wide">
     <div class="left">
       {@render scanPanel('Scan')}
-      {@render session()}
     </div>
-    {@render center(ALL_TABS, false)}
+    <!-- the session sits in a fixed strip under the routes: the filters need the whole left column -->
+    <div class="midcol">
+      {@render center(ALL_TABS, false)}
+      {@render sessionStrip()}
+    </div>
     {@render detail()}
   </div>
 {:else if phone}
@@ -357,7 +475,7 @@
       {#if page === 'scan'}
         {@render scanPanel('Scan')}
       {:else if page === 'routes'}
-        {@render center(['loop', 'linear'], true, () => setPage('route'))}
+        {@render center(ROUTE_TABS, true, () => setPage('route'))}
         {@render sessionStrip()}
       {:else if page === 'route'}
         {@render detail()}
@@ -395,20 +513,25 @@
     position: relative;
   }
   .trade.wide { grid-template-columns: 272px minmax(0, 1fr) 290px; }
-  .left { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+  /* with the ship typed in and A → B's TO the filters may outgrow the column: it scrolls then */
+  .left { display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow-y: auto; }
   .trade :global(.center .body) { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 
-  /* SCAN takes the column height left by SESSION */
+  .midcol { display: flex; flex-direction: column; gap: 8px; min-height: 0; min-width: 0; }
+  .midcol > :global(.center) { flex: 1; min-height: 0; }
+  .midcol .strip { flex: none; justify-content: flex-start; gap: 4px 28px; padding: 8px 12px; font-size: 13px; }
+  .strip .sk { color: var(--hud-hi); font-weight: 800; letter-spacing: 0.12em; font-size: 11px; }
+  /* SCAN takes the column height (on tablets, the drawer's height left by SESSION) */
   .left > :global(.scanp), .page > :global(.scanp) { flex: 1 0 auto; }
   .trade :global(.scanp .body) { flex: 1; display: flex; flex-direction: column; }
   .filters { flex: 1; display: flex; flex-direction: column; justify-content: space-between; gap: 6px; }
   .group { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
   /* monitor on its side: the buttons grow into the height instead of leaving gaps between the groups */
   .wide .filters { justify-content: flex-start; gap: 10px; }
-  .wide .filters > .group, .wide .filters > .pair, .wide .filters > .toggles { flex: 1 1 0; }
-  .wide .pair .group, .wide .filters > .group { min-height: 0; }
+  /* (never below their content: with the ship typed in and A → B's TO the column is full) */
+  .wide .filters > .group, .wide .filters > .pair, .wide .filters > .toggles { flex: 1 0 auto; }
   .wide .group .chips { flex: 1; align-content: stretch; }
-  .wide .chips button { min-height: 30px; font-size: 12px; }
+  .wide .chips button { min-height: 26px; font-size: 12px; }
   .wide .chips button.state { font-size: 11px; }
   .wide .toggles { grid-auto-rows: 1fr; }
   .wide .toggles button { font-size: 12px; }
@@ -430,16 +553,35 @@
     padding: 12px; background: var(--hud); color: var(--void); border: 0;
     font-weight: 800; letter-spacing: 0.1em; box-shadow: var(--glow);
     clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    overflow-wrap: anywhere;
   }
   .scan:disabled { opacity: 0.6; cursor: progress; }
   .bar { height: 4px; background: var(--steel); }
   .bar div { height: 100%; background: var(--telemetry); transition: width 0.3s; }
   .hint { font-size: 10px; line-height: 1.5; white-space: nowrap; }
+  .wide .hint { white-space: normal; }
   .eddn { color: var(--muted); }
   .eddn .live { color: var(--ok); }
   .eddn .off { color: var(--dim); }
   .link { background: none; border: 0; padding: 0; color: var(--hud-hi); text-decoration: underline; font-size: 10px; }
+
+  .shipin { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; }
+  .shipin label {
+    display: flex; align-items: center; gap: 5px; padding: 3px 6px; background: var(--steel); border: 1px solid var(--rule);
+    font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: var(--muted); min-width: 0;
+  }
+  .shipin label.need { border-color: var(--hud-hi); }
+  .shipin input {
+    flex: 1; min-width: 5ch; width: 100%; padding: 4px; font: 700 13px var(--mono); color: var(--telemetry);
+    background: var(--void); border: 1px solid var(--rule); outline: none; text-align: right;
+  }
+  .shipin input:focus { border-color: var(--hud); }
+  /* no spinner arrows: on a PC they cover the number being typed */
+  .shipin input { appearance: textfield; -moz-appearance: textfield; }
+  .shipin input::-webkit-outer-spin-button, .shipin input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .shipin b { flex: 1; text-align: right; color: var(--text); font-size: 13px; }
+  .shipin .u { color: var(--dim); font-weight: 400; white-space: nowrap; }
+  .note { margin: 0 0 6px; padding: 4px 8px; font-size: 11px; color: var(--hud-hi); border-left: 2px solid var(--hud); background: var(--rail); }
 
   .kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; }
   .kpis div { display: flex; flex-direction: column; }

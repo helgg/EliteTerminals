@@ -1,0 +1,143 @@
+{
+ "timestamp": "2026-10-29T17:42:34Z",
+ "event": "ColonisationConstructionDepot",
+ "MarketID": 3966749186,
+ "ConstructionProgress": 0.0,
+ "ConstructionComplete": false,
+ "ConstructionFailed": false,
+ "ResourcesRequired": [
+  {
+   "Name": "$aluminium_name;",
+   "Name_Localised": "Aluminium",
+   "RequiredAmount": 12555,
+   "ProvidedAmount": 0,
+   "Payment": 3239
+  },
+  {
+   "Name": "$ceramiccomposites_name;",
+   "Name_Localised": "Ceramic Composites",
+   "RequiredAmount": 1327,
+   "ProvidedAmount": 0,
+   "Payment": 724
+  },
+  {
+   "Name": "$cmmcomposite_name;",
+   "Name_Localised": "CMM Composite",
+   "RequiredAmount": 14241,
+   "ProvidedAmount": 0,
+   "Payment": 6788
+  },
+  {
+   "Name": "$computercomponents_name;",
+   "Name_Localised": "Computer Components",
+   "RequiredAmount": 205,
+   "ProvidedAmount": 0,
+   "Payment": 1112
+  },
+  {
+   "Name": "$copper_name;",
+   "Name_Localised": "Copper",
+   "RequiredAmount": 764,
+   "ProvidedAmount": 0,
+   "Payment": 1050
+  },
+  {
+   "Name": "$foodcartridges_name;",
+   "Name_Localised": "Food Cartridges",
+   "RequiredAmount": 242,
+   "ProvidedAmount": 0,
+   "Payment": 673
+  },
+  {
+   "Name": "$fruitandvegetables_name;",
+   "Name_Localised": "Fruit and Vegetables",
+   "RequiredAmount": 145,
+   "ProvidedAmount": 0,
+   "Payment": 865
+  },
+  {
+   "Name": "$insulatingmembrane_name;",
+   "Name_Localised": "Insulating Membrane",
+   "RequiredAmount": 824,
+   "ProvidedAmount": 0,
+   "Payment": 11788
+  },
+  {
+   "Name": "$liquidoxygen_name;",
+   "Name_Localised": "Liquid oxygen",
+   "RequiredAmount": 4976,
+   "ProvidedAmount": 0,
+   "Payment": 2260
+  },
+  {
+   "Name": "$medicaldiagnosticequipment_name;",
+   "Name_Localised": "Medical Diagnostic Equipment",
+   "RequiredAmount": 25,
+   "ProvidedAmount": 0,
+   "Payment": 3609
+  },
+  {
+   "Name": "$nonlethalweapons_name;",
+   "Name_Localised": "Non-Lethal Weapons",
+   "RequiredAmount": 25,
+   "ProvidedAmount": 0,
+   "Payment": 2503
+  },
+  {
+   "Name": "$polymers_name;",
+   "Name_Localised": "Polymers",
+   "RequiredAmount": 1166,
+   "ProvidedAmount": 0,
+   "Payment": 682
+  },
+  {
+   "Name": "$powergenerators_name;",
+   "Name_Localised": "Power Generators",
+   "RequiredAmount": 65,
+   "ProvidedAmount": 0,
+   "Payment": 3072
+  },
+  {
+   "Name": "$semiconductors_name;",
+   "Name_Localised": "Semiconductors",
+   "RequiredAmount": 221,
+   "ProvidedAmount": 0,
+   "Payment": 1526
+  },
+  {
+   "Name": "$steel_name;",
+   "Name_Localised": "Steel",
+   "RequiredAmount": 19436,
+   "ProvidedAmount": 0,
+   "Payment": 5057
+  },
+  {
+   "Name": "$superconductors_name;",
+   "Name_Localised": "Superconductors",
+   "RequiredAmount": 342,
+   "ProvidedAmount": 0,
+   "Payment": 7657
+  },
+  {
+   "Name": "$titanium_name;",
+   "Name_Localised": "Titanium",
+   "RequiredAmount": 11660,
+   "ProvidedAmount": 0,
+   "Payment": 5360
+  },
+  {
+   "Name": "$water_name;",
+   "Name_Localised": "Water",
+   "RequiredAmount": 2209,
+   "ProvidedAmount": 0,
+   "Payment": 662
+  },
+  {
+   "Name": "$waterpurifiers_name;",
+   "Name_Localised": "Water Purifiers",
+   "RequiredAmount": 105,
+   "ProvidedAmount": 0,
+   "Payment": 849
+  }
+ ]
+}

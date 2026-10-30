@@ -1,10 +1,33 @@
 <script lang="ts">
-  // FROM: the system the trade scan runs around. Empty = the current system; typing searches
-  // system names (Spansh autocomplete + the server's price database) and a pick sets the reference.
-  import type { SystemMatch } from '@et/shared';
+  // FROM (or TO): a system, and optionally one of its stations. Empty = the current system (none for TO);
+  // typing searches system names (Spansh autocomplete + the server's price database) and a pick sets it.
+  // The station list under it holds the stations of that system with a market; ANY STATION = the whole system.
+  import type { StationOption, SystemMatch } from '@et/shared';
   import PlaceIcon from '../PlaceIcon.svelte';
+  import { cr } from '../format.ts';
 
-  let { value = $bindable(''), current }: { value?: string; current: string } = $props();
+  // `stations` off: just the system (the COLONY finder searches around systems, not stations)
+  let { value = $bindable(''), station = $bindable(0), current, label = 'FROM', stations: withStations = true }: {
+    value?: string; station?: number; current: string; label?: string; stations?: boolean;
+  } = $props();
+
+  const system = $derived(value || current);
+  let stations = $state<StationOption[]>([]);
+  let loading = $state(false);
+  $effect(() => {
+    const name = system;
+    stations = [];
+    if (!name || !withStations) return;
+    loading = true;
+    let live = true;
+    fetch(`/api/trade/stations?system=${encodeURIComponent(name)}`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((list: StationOption[]) => live && (stations = list))
+      .catch(() => {})
+      .finally(() => live && (loading = false));
+    return () => (live = false);
+  });
+  const typeShort = (t: string) => t.replace(/ Starport$/, '').replace(/^Planetary /, 'Pl. ').replace(/Drake-Class /, '');
 
   let text = $state('');
   let matches = $state<SystemMatch[]>([]);
@@ -35,6 +58,7 @@
   }
 
   function pick(m: SystemMatch) {
+    if (m.name !== value) station = 0;
     value = m.name;
     text = '';
     matches = [];
@@ -42,14 +66,16 @@
   }
 
   function reset() {
+    if (value) station = 0;
     value = '';
     text = '';
     matches = [];
   }
 </script>
 
+<div class="place">
 <div class="ref">
-  <span class="k">FROM</span>
+  <span class="k">{label}</span>
   <div class="field">
     <input
       bind:value={text}
@@ -57,7 +83,7 @@
       onfocus={() => (open = matches.length > 0)}
       onblur={() => setTimeout(() => (open = false), 150)}
       onkeydown={(e) => e.key === 'Enter' && matches[0] && pick(matches[0])}
-      placeholder={(value || current || 'system').toUpperCase()}
+      placeholder={(value || current || 'pick a system').toUpperCase()}
       class:remote={!!value}
       spellcheck="false"
       autocomplete="off"
@@ -76,12 +102,34 @@
       </ul>
     {/if}
   </div>
-  <button class="here" class:on={!value} disabled={!value} onclick={reset} title="Back to the current system">⌖ HERE</button>
+  {#if current}
+    <button class="here" class:on={!value} disabled={!value} onclick={reset} title="Back to the current system">⌖ HERE</button>
+  {:else}
+    <button class="here" class:on={!value} disabled={!value} onclick={reset} title="Clear">✕</button>
+  {/if}
+</div>
+{#if system && withStations}
+  <select class="station" class:on={!!station} bind:value={station} disabled={loading && !stations.length}
+    title="A station of {system.toUpperCase()}: EXPORT / IMPORT and A → B then mean that station">
+    <option value={0}>{loading && !stations.length ? 'LOADING STATIONS…' : `ANY STATION · ${stations.length}`}</option>
+    {#if station && !stations.some((x) => x.marketId === station)}<option value={station}>PICKED STATION</option>{/if}
+    {#each stations as x (x.marketId)}
+      <option value={x.marketId}>{x.station} · {typeShort(x.type)} · {cr(Math.round(x.ls))}ls · {x.pad}</option>
+    {/each}
+  </select>
+{/if}
 </div>
 
 <style>
+  .place { display: flex; flex-direction: column; gap: 3px; }
   .ref { display: flex; align-items: center; gap: 6px; }
-  .k { font-size: 10px; letter-spacing: 0.1em; color: var(--dim); }
+  .k { font-size: 10px; letter-spacing: 0.1em; color: var(--dim); min-width: 30px; }
+  .station {
+    width: 100%; min-width: 0; padding: 5px 6px; font: 700 11px var(--mono); color: var(--muted);
+    background: var(--void); border: 1px solid var(--rule); outline: none;
+  }
+  .station.on { color: var(--hud-hi); border-color: var(--hud); }
+  .station:focus { border-color: var(--hud); }
   .field { position: relative; flex: 1; min-width: 0; }
   input {
     width: 100%; box-sizing: border-box; padding: 6px 8px; font: 700 12px var(--mono); letter-spacing: 0.04em;

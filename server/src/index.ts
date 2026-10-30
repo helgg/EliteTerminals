@@ -1,11 +1,12 @@
 // Local server: reads the game's journals and serves state + the web UI to the LAN.
-import { existsSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import Fastify from 'fastify';
 import fastifyStatic from '@fastify/static';
 import fastifyWebsocket from '@fastify/websocket';
-import type { ClientMessage, MiningSellQuery, ServerMessage, TradeQuery, TradeWatch } from '@et/shared';
+import type { CarrierRoute, CarrierRouteQuery, ClientMessage, ColonyQuery, MiningSellQuery, ServerMessage, TradePathQuery, TradeQuery, TradeWatch } from '@et/shared';
 import { JournalReader } from './reader.ts';
 import { Controls } from './controls.ts';
 import { findGameDir } from './binds.ts';
@@ -13,6 +14,8 @@ import { createWin32Sender } from './input.ts';
 import { Galaxy, summary } from './galaxy.ts';
 import { MarketScanner } from './trade/markets.ts';
 import { TradeService } from './trade/service.ts';
+import { ColonyService } from './colony/service.ts';
+import { mergeDepots } from './colony/depots.ts';
 import { commodityKey } from './trade/engine.ts';
 import { searchSystems } from './trade/reference.ts';
 import { checkWatch, watchedMarkets } from './prices/watch.ts';
@@ -25,6 +28,8 @@ import { Favorites, toFavorite } from './favorites.ts';
 import { TradePins, toPin } from './tradePins.ts';
 import { HOTSPOT_COMMODITIES, Rings, type HotspotQuery } from './rings.ts';
 import { systemRings } from './mining.ts';
+import { mergeCarrier } from './carrier/state.ts';
+import { carrierRoute } from './carrier/route.ts';
 
 const PORT = Number(process.env.PORT ?? 8420);
 const HOST = process.env.HOST ?? '0.0.0.0';
@@ -54,6 +59,51 @@ reader.state.tradePins = pins.list;
 mkdirSync(CACHE_DIR, { recursive: true });
 const prices = new PriceDb(join(CACHE_DIR, 'prices.db'));
 const trade = new TradeService(scanner, () => reader.state, () => history.markets, prices);
+const colony = new ColonyService(CACHE_DIR, (name) => {
+  const loc = reader.state.location;
+  if (!name.trim() || name.trim().toLowerCase() === loc.system.toLowerCase()) {
+    if (!loc.system) throw new Error('current system unknown: pick a system in FROM');
+    return { name: loc.system, pos: loc.pos };
+  }
+  const sys = prices.system(name);
+  if (!sys) throw new Error(`unknown system "${name}": pick it from the list`);
+  return sys;
+}, (loaded, total) => {
+  const data = encode({ type: 'colonyProgress', loaded, total });
+  clients.forEach((c) => c.send(data));
+});
+await colony.load();
+
+// Construction sites are kept on disk: their journals may be on another machine (cloud gaming) next session.
+const DEPOTS_FILE = join(CACHE_DIR, 'colony-depots.json');
+try {
+  reader.state.colony.depots = JSON.parse(readFileSync(DEPOTS_FILE, 'utf8'));
+} catch {
+  // none yet
+}
+let savedDepots = JSON.stringify(reader.state.colony.depots);
+const saveDepots = () => {
+  const now = JSON.stringify(reader.state.colony.depots);
+  if (now === savedDepots) return;
+  savedDepots = now;
+  void writeFile(DEPOTS_FILE, now).catch((err: Error) => app.log.warn({ error: err.message }, 'colony depots not saved'));
+};
+// The carrier too: CarrierStats only comes when its management opens, CarrierLocation only at login.
+const CARRIER_FILE = join(CACHE_DIR, 'carrier.json');
+try {
+  reader.state.carrier = mergeCarrier(JSON.parse(readFileSync(CARRIER_FILE, 'utf8')), reader.state.carrier);
+} catch {
+  // none yet
+}
+let savedCarrier = JSON.stringify(reader.state.carrier);
+const saveCarrier = () => {
+  const now = JSON.stringify(reader.state.carrier);
+  if (now === savedCarrier || !reader.state.carrier.id) return;
+  savedCarrier = now;
+  void writeFile(CARRIER_FILE, now).catch((err: Error) => app.log.warn({ error: err.message }, 'carrier not saved'));
+};
+let lastCarrierRoute: CarrierRoute | null = null;
+
 // Live prices only while the server runs; ET_EDDN=0 turns the feed off.
 const eddn = new EddnListener(prices);
 if (process.env.ET_EDDN !== '0') eddn.start();
@@ -134,6 +184,8 @@ function watchKills() {
 
 let lastMarketAt = '';
 reader.on('change', () => {
+  saveDepots();
+  saveCarrier();
   refreshGalaxy();
   watchKills();
   scheduleBroadcast();
@@ -266,6 +318,82 @@ app.post('/api/trade/routes', async (req, reply) => {
     return result;
   } catch (err) {
     app.log.warn({ error: (err as Error).message }, 'trade scan failed');
+    return reply.code(502).send({ error: (err as Error).message });
+  }
+});
+
+app.post('/api/trade/path', async (req, reply) => {
+  const { query, force } = req.body as { query: TradePathQuery; force?: boolean };
+  try {
+    return await trade.path(query, force === true);
+  } catch (err) {
+    app.log.warn({ error: (err as Error).message }, 'trade path failed');
+    return reply.code(502).send({ error: (err as Error).message });
+  }
+});
+app.get('/api/trade/last-path', async (_req, reply) => trade.lastPath ?? reply.code(204).send());
+app.get('/api/trade/stations', async (req) => trade.stations(String((req.query as { system?: string }).system ?? '')));
+
+app.post('/api/colony/search', async (req, reply) => {
+  try {
+    return await colony.search(req.body as ColonyQuery);
+  } catch (err) {
+    app.log.warn({ error: (err as Error).message }, 'colony search failed');
+    return reply.code(502).send({ error: (err as Error).message });
+  }
+});
+app.post('/api/colony/rescore', async (req, reply) => colony.rescore(req.body as ColonyQuery) ?? reply.code(204).send());
+app.post('/api/carrier/route', async (req, reply) => {
+  try {
+    lastCarrierRoute = await carrierRoute(req.body as CarrierRouteQuery);
+    return lastCarrierRoute;
+  } catch (err) {
+    app.log.warn({ error: (err as Error).message }, 'carrier route failed');
+    return reply.code(502).send({ error: (err as Error).message });
+  }
+});
+app.get('/api/carrier/last-route', async (_req, reply) => lastCarrierRoute ?? reply.code(204).send());
+app.get('/api/colony/last', async (_req, reply) => colony.last ?? reply.code(204).send());
+app.post('/api/colony/depot', async (req, reply) => {
+  const { marketId, deadline } = req.body as { marketId: number; deadline: string };
+  const d = reader.state.colony.depots.find((x) => x.marketId === Number(marketId));
+  if (!d || Number.isNaN(Date.parse(deadline))) return reply.code(400).send({ error: 'unknown site or date' });
+  d.deadline = new Date(deadline).toISOString();
+  d.deadlineSet = true;
+  saveDepots();
+  scheduleBroadcast();
+  return d;
+});
+app.post('/api/colony/markets', async (req, reply) => {
+  // near the site (default), or near the player: buy in the bubble, the carrier brings it all in one jump
+  const { marketId, query, near } = req.body as { marketId: number; query: TradeQuery; near?: 'site' | 'me' };
+  const d = reader.state.colony.depots.find((x) => x.marketId === Number(marketId));
+  if (!d) return reply.code(404).send({ error: 'unknown construction site' });
+  // what is already in the hold or on the carrier is not to be bought again
+  const have = new Map<string, number>();
+  for (const x of [...reader.state.cargo.items, ...reader.state.carrier.cargo]) {
+    const k = commodityKey(x.name);
+    have.set(k, (have.get(k) ?? 0) + x.count);
+  }
+  const needs = d.resources
+    .map((r) => ({ name: r.label, tons: r.required - r.provided - (have.get(commodityKey(r.name)) ?? 0) }))
+    .filter((r) => r.tons > 0);
+  try {
+    const pos = near === 'me' && reader.state.location.system ? reader.state.location.pos : d.pos;
+    return await trade.colonyMarkets(d.marketId, pos, needs, query);
+  } catch (err) {
+    return reply.code(502).send({ error: (err as Error).message });
+  }
+});
+app.post('/api/colony/hide', async (req) => {
+  const { id64, name, reason } = req.body as { id64: number; name: string; reason: 'not allowed' | 'claimed' | null };
+  return (await colony.hide(Number(id64), String(name ?? ''), reason === 'not allowed' || reason === 'claimed' ? reason : null)) ?? {};
+});
+app.get('/api/colony/claim', async (req, reply) => {
+  const { system, ly } = req.query as { system?: string; ly?: string };
+  try {
+    return await colony.claimAt(String(system ?? ''), Math.min(Math.max(Number(ly) || 15, 1), 20));
+  } catch (err) {
     return reply.code(502).send({ error: (err as Error).message });
   }
 });

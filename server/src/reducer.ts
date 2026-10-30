@@ -3,6 +3,8 @@
 import { STATUS_FLAGS, STATUS_FLAGS2, shipLabel, type EdState, type Flags } from '@et/shared';
 import { applyCombat } from './combat.ts';
 import { applyMining } from './mining.ts';
+import { applyColony } from './colony/depots.ts';
+import { applyCarrier } from './carrier/state.ts';
 
 export type JournalEvent = { event: string; timestamp?: string; [key: string]: any };
 
@@ -76,6 +78,7 @@ export function applyEvent(state: EdState, e: JournalEvent): void {
     case 'Location':
     case 'FSDJump':
     case 'CarrierJump':
+      if (e.event === 'CarrierJump') applyCarrier(state, e);
       setSystem(state, e);
       state.location.body = str(e.Body);
       state.location.station = e.Docked ? str(e.StationName) : '';
@@ -137,12 +140,18 @@ export function applyEvent(state: EdState, e: JournalEvent): void {
       if (typeof e.Count === 'number') state.cargo.count = e.Count;
       break;
 
+    case 'CargoTransfer':
+      applyCarrier(state, e);
+      break;
+
     case 'MarketBuy':
+      applyCarrier(state, e);
       state.commander.credits -= e.TotalCost ?? 0;
       state.session.tonsBought += e.Count ?? 0;
       break;
 
     case 'MarketSell': {
+      applyCarrier(state, e);
       const count = e.Count ?? 0;
       state.commander.credits += e.TotalSale ?? 0;
       state.session.tradeProfit += (e.TotalSale ?? 0) - (e.AvgPricePaid ?? 0) * count;
@@ -150,6 +159,21 @@ export function applyEvent(state: EdState, e: JournalEvent): void {
       state.session.sales += 1;
       break;
     }
+
+    case 'CarrierBuy':
+    case 'CarrierStats':
+    case 'CarrierFinance':
+    case 'CarrierDepositFuel':
+    case 'CarrierLocation':
+    case 'CarrierJumpRequest':
+    case 'CarrierJumpCancelled':
+      applyCarrier(state, e);
+      break;
+
+    case 'ColonisationConstructionDepot':
+    case 'ColonisationContribution':
+      applyColony(state, e);
+      break;
 
     case 'Status':
       applyStatus(state, e);

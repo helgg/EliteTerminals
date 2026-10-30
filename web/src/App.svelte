@@ -8,6 +8,8 @@
   import Flight from './screens/Flight.svelte';
   import Trade from './screens/Trade.svelte';
   import Combat from './screens/Combat.svelte';
+  import Colony from './screens/Colony.svelte';
+  import Carrier from './screens/Carrier.svelte';
   import ComingSoon from './lib/ComingSoon.svelte';
   import Name from './lib/Name.svelte';
   import { copied } from './lib/copy.svelte.ts';
@@ -16,13 +18,12 @@
   import { viewport } from './lib/viewport.svelte.ts';
   import { short } from './lib/format.ts';
 
-  const TABS = ['FLIGHT', 'COMBAT', 'EXPLORE', 'MINING', 'TRADE', 'CARRIER'] as const;
+  const TABS = ['FLIGHT', 'COMBAT', 'EXPLORE', 'MINING', 'TRADE', 'COLONY', 'CARRIER'] as const;
   type Tab = (typeof TABS)[number];
   // Screens still being built: what each one will bring.
   const SOON: Partial<Record<Tab, string[]>> = {
     EXPLORE: ['bodies of the system and their scan value', 'first discoveries and mapping', 'exobiology signals'],
     MINING: ['prospector readout and asteroid history', 'ring hotspots and finder', 'refined tons, limpets and where to sell'],
-    CARRIER: ['finances, tritium and upkeep', 'jump planning', 'carrier market'],
   };
 
   let tab = $state<Tab>(readTab());
@@ -35,7 +36,7 @@
   // Portrait screens bring SHIP and POWER into their own grid instead (RESPONSIVE-FLIGHT.md).
   // TRADE needs the width for its tables, COMBAT for its console (it has its own POWER bay).
   const side = $derived(
-    tab !== 'TRADE' && tab !== 'COMBAT' && (viewport.vp === 'desktop-landscape' || viewport.vp === 'tablet-landscape'),
+    tab !== 'TRADE' && tab !== 'COMBAT' && tab !== 'COLONY' && tab !== 'CARRIER' && (viewport.vp === 'desktop-landscape' || viewport.vp === 'tablet-landscape'),
   );
 
   onMount(() => {
@@ -106,6 +107,10 @@
     </button>
     <div class="where">
       <div class="sys"><Name value={s.location.system} system /> <span class="dim">/</span> <span class="muted">{where}</span></div>
+      <!-- game off: the last ship, credits and commander are a past session's, so none of them shows -->
+      {#if !s.meta.online}
+      <div class="line dim">ship, credits and commander unknown while the game is off</div>
+      {:else}
       <div class="line tele">
         {s.ship.label || '—'}
         <!-- tablets drop the ident and the commander name: the line must fit without ellipsis -->
@@ -121,6 +126,7 @@
           </span>
         {/if}
       </div>
+      {/if}
     </div>
     <!-- tablets: the game's state sits in the header's free space, not in the status strip -->
     {#if tablet && !live}<span class="linkstate">{link.connected ? 'GAME OFFLINE' : 'NO SERVER'}</span>{/if}
@@ -154,6 +160,10 @@
       <Trade {s} {now} />
     {:else if tab === 'COMBAT'}
       <Combat {s} {now} />
+    {:else if tab === 'COLONY'}
+      <Colony {s} {now} />
+    {:else if tab === 'CARRIER'}
+      <Carrier {s} {now} />
     {:else}
       <ComingSoon title={tab} plans={SOON[tab] ?? []} />
     {/if}
