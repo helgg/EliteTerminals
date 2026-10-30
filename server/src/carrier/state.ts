@@ -43,6 +43,38 @@ function moveCargo(c: CarrierState, at: string, moves: { type: string; label: st
   c.cargo = c.cargo.filter((x) => x.count > 0).sort((a, b) => b.count - a.count);
 }
 
+const LEDGER_MAX = 500;
+
+/** One point of the balance history, unless the replay meets it again (an older point, or the same one twice). */
+function record(c: CarrierState, at: string, balance: number, moved = 0) {
+  if (!at || !balance) return;
+  const last = c.ledger.at(-1);
+  if (last && (at < last.at || (last.balance === balance && !moved))) return;
+  c.ledger.push({ at, balance, moved });
+  if (c.ledger.length > LEDGER_MAX) c.ledger.shift();
+}
+
+const LEDGER_EVENTS = new Set(['CarrierStats', 'CarrierFinance', 'CarrierBankTransfer']);
+export const isLedgerEvent = (e: JournalEvent) => LEDGER_EVENTS.has(e.event);
+
+/** Balance points from earlier journals, merged with the ones already kept (in time order, no repeats). */
+export function backfillLedger(c: CarrierState, events: JournalEvent[]): void {
+  const found: CarrierState['ledger'] = [];
+  for (const e of events) {
+    if (!LEDGER_EVENTS.has(e.event) || (c.id && num(e.CarrierID) && num(e.CarrierID) !== c.id)) continue;
+    const balance = e.event === 'CarrierStats' ? num(e.Finance?.CarrierBalance) : num(e.CarrierBalance);
+    found.push({ at: str(e.timestamp), balance, moved: e.event === 'CarrierBankTransfer' ? num(e.Deposit) - num(e.Withdraw) : 0 });
+  }
+  const all = [...c.ledger, ...found].filter((x) => x.at && x.balance).sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
+  const out: CarrierState['ledger'] = [];
+  for (const x of all) {
+    const last = out.at(-1);
+    if (last && last.balance === x.balance && (!x.moved || (last.at === x.at && last.moved === x.moved))) continue;
+    out.push(x);
+  }
+  c.ledger = out.slice(-LEDGER_MAX);
+}
+
 export function applyCarrier(state: EdState, e: JournalEvent): void {
   const c = state.carrier;
   if (e.event === 'CargoTransfer') {
@@ -77,12 +109,20 @@ export function applyCarrier(state: EdState, e: JournalEvent): void {
           total: num(u.TotalCapacity), crew: num(u.Crew), cargo: num(u.Cargo), reserved: num(u.CargoSpaceReserved),
           packs: num(u.ShipPacks) + num(u.ModulePacks), free: num(u.FreeSpace),
         },
-        balance: num(f.CarrierBalance), available: num(f.AvailableBalance), statsAt: at,
+        balance: num(f.CarrierBalance), reserve: num(f.ReserveBalance), available: num(f.AvailableBalance), statsAt: at,
       });
+      record(c, at, c.balance);
       break;
     }
     case 'CarrierFinance':
-      Object.assign(c, { id, balance: num(e.CarrierBalance), available: num(e.AvailableBalance) });
+      Object.assign(c, { id, balance: num(e.CarrierBalance), reserve: num(e.ReserveBalance), available: num(e.AvailableBalance) });
+      record(c, at, c.balance);
+      break;
+    case 'CarrierBankTransfer':
+      // the player moving credits in (Deposit) or out (Withdraw): the balance after it is CarrierBalance
+      c.id = id;
+      c.balance = num(e.CarrierBalance) || c.balance;
+      record(c, at, c.balance, num(e.Deposit) - num(e.Withdraw));
       break;
     case 'CarrierDepositFuel':
       c.id = id;

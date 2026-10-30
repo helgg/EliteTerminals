@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { initialState } from '@et/shared';
 import { applyEvent } from '../src/reducer.ts';
-import { mergeCarrier } from '../src/carrier/state.ts';
+import { backfillLedger, mergeCarrier } from '../src/carrier/state.ts';
 import { hopsOf, jumpFuel, simulate } from '../src/carrier/route.ts';
 
 const ID = 3700000001;
@@ -139,4 +139,33 @@ test('carrier cargo: replaying the journal onto the copy kept on disk counts not
   assert.equal(total(again), 1830);
   applyEvent(again, { timestamp: '2026-10-30T03:00:00Z', event: 'CargoTransfer', Transfers: [{ Type: 'steel', Count: 7, Direction: 'tocarrier' }] });
   assert.equal(total(again), 1837, 'a third move in that second is new');
+});
+
+test('carrier balance history: snapshots and the player\'s own deposits, a replay not doubling them', () => {
+  const s = initialState();
+  const fin = (timestamp: string, CarrierBalance: number) => ({ timestamp, event: 'CarrierFinance', CarrierID: ID, CarrierBalance, ReserveBalance: 0, AvailableBalance: CarrierBalance });
+  applyEvent(s, { timestamp: '2026-10-29T18:34:54Z', event: 'CarrierBankTransfer', CarrierID: ID, Deposit: 2500000000, CarrierBalance: 2500000000 });
+  applyEvent(s, fin('2026-10-30T00:14:05Z', 2410000000));
+  applyEvent(s, fin("2026-10-30T00:14:09Z", 2410000000)); // same balance again: no new point
+  applyEvent(s, fin('2026-10-30T05:37:47Z', 2376417000));
+  assert.deepEqual(s.carrier.ledger, [
+    { at: '2026-10-29T18:34:54Z', balance: 2500000000, moved: 2500000000 },
+    { at: '2026-10-30T00:14:05Z', balance: 2410000000, moved: 0 },
+    { at: '2026-10-30T05:37:47Z', balance: 2376417000, moved: 0 },
+  ]);
+  applyEvent(s, fin('2026-10-30T00:14:05Z', 2410000000)); // replayed: older, skipped
+  assert.equal(s.carrier.ledger.length, 3);
+});
+
+test('carrier balance history backfilled from earlier journals, merged in time order', () => {
+  const s = initialState();
+  applyEvent(s, { timestamp: '2026-10-30T15:10:44Z', event: 'CarrierFinance', CarrierID: ID, CarrierBalance: 2376417000, ReserveBalance: 0, AvailableBalance: 1 });
+  backfillLedger(s.carrier, [
+    { timestamp: '2026-10-29T18:34:54Z', event: 'CarrierBankTransfer', CarrierID: ID, Deposit: 2500000000, CarrierBalance: 2500000000 },
+    { timestamp: '2026-10-30T00:14:05Z', event: 'CarrierFinance', CarrierID: ID, CarrierBalance: 2410000000 },
+    { timestamp: '2026-10-30T05:37:47Z', event: 'CarrierFinance', CarrierID: ID, CarrierBalance: 2376417000 },
+  ]);
+  assert.deepEqual(s.carrier.ledger.map((x) => [x.at.slice(5, 16), x.balance, x.moved]), [
+    ['10-29T18:34', 2500000000, 2500000000], ['10-30T00:14', 2410000000, 0], ['10-30T05:37', 2376417000, 0],
+  ]);
 });

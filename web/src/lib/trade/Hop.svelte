@@ -21,8 +21,8 @@
     <span class="arrow">{arrow}</span>
     {#if ly !== undefined}
       <b class="num">{ly.toFixed(1)}ly</b>
-      <span class="sep">·</span>
-      <span class="num">{jumps} {jumps === 1 ? 'JUMP' : 'JUMPS'}</span>
+      {#if jumps !== undefined}<span class="sep">·</span>
+      <span class="num">{jumps} {jumps === 1 ? 'JUMP' : 'JUMPS'}</span>{/if}
       {#if seconds}<span class="sep">·</span><span class="num">≈{duration(seconds)}</span>{/if}
     {/if}
     {#each label ? label.split(' · ') : [] as part, i (i)}

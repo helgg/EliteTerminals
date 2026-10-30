@@ -352,6 +352,14 @@ app.post('/api/carrier/route', async (req, reply) => {
     return reply.code(502).send({ error: (err as Error).message });
   }
 });
+app.post('/api/carrier/upkeep', async (req, reply) => {
+  const w = Number((req.body as { weekly?: unknown } | null)?.weekly ?? 0);
+  if (!Number.isFinite(w) || w < 0 || w > 1e9) return reply.code(400).send({ error: 'weekly upkeep out of range' });
+  reader.state.carrier.upkeep = Math.round(w);
+  saveCarrier();
+  scheduleBroadcast();
+  return { upkeep: reader.state.carrier.upkeep };
+});
 app.get('/api/carrier/last-route', async (_req, reply) => lastCarrierRoute ?? reply.code(204).send());
 app.get('/api/colony/last', async (_req, reply) => colony.last ?? reply.code(204).send());
 app.post('/api/colony/depot', async (req, reply) => {
@@ -366,7 +374,7 @@ app.post('/api/colony/depot', async (req, reply) => {
 });
 app.post('/api/colony/markets', async (req, reply) => {
   // near the site (default), or near the player: buy in the bubble, the carrier brings it all in one jump
-  const { marketId, query, near } = req.body as { marketId: number; query: TradeQuery; near?: 'site' | 'me' };
+  const { marketId, query, near } = req.body as { marketId: number; query: TradeQuery; near?: 'site' | 'me' | 'carrier' };
   const d = reader.state.colony.depots.find((x) => x.marketId === Number(marketId));
   if (!d) return reply.code(404).send({ error: 'unknown construction site' });
   // what is already in the hold or on the carrier is not to be bought again
@@ -379,8 +387,13 @@ app.post('/api/colony/markets', async (req, reply) => {
     .map((r) => ({ name: r.label, tons: r.required - r.provided - (have.get(commodityKey(r.name)) ?? 0) }))
     .filter((r) => r.tons > 0);
   try {
-    const pos = near === 'me' && reader.state.location.system ? reader.state.location.pos : d.pos;
-    return await trade.colonyMarkets(d.marketId, pos, needs, query);
+    // 'carrier': the carrier parked where the shopping is done (its system's position, from the price database)
+    const carrierPos = near === 'carrier' && reader.state.carrier.system ? prices.systemPos(reader.state.carrier.system) : null;
+    const pos = carrierPos ?? (near === 'me' && reader.state.location.system ? reader.state.location.pos : d.pos);
+    const found = await trade.colonyMarkets(d.marketId, pos, needs, query);
+    // the player's own carrier is already counted in `have`: not a place to buy from
+    const own = reader.state.carrier.id;
+    return own ? { ...found, markets: found.markets.filter((m) => m.end.marketId !== own) } : found;
   } catch (err) {
     return reply.code(502).send({ error: (err as Error).message });
   }

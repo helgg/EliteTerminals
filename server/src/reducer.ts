@@ -163,6 +163,7 @@ export function applyEvent(state: EdState, e: JournalEvent): void {
     case 'CarrierBuy':
     case 'CarrierStats':
     case 'CarrierFinance':
+    case 'CarrierBankTransfer':
     case 'CarrierDepositFuel':
     case 'CarrierLocation':
     case 'CarrierJumpRequest':

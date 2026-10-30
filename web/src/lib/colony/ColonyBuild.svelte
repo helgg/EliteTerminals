@@ -82,7 +82,7 @@
   // the frontier has few markets, often with old prices: wide radii and any price age
   const RADII = [50, 100, 250, 500];
   let radius = $state(100);
-  let near = $state<'site' | 'me'>('site');
+  let near = $state<'site' | 'me' | 'carrier'>('site');
   let pad = $state<'S' | 'M' | 'L'>('L');
   // surface ports cost a descent and a climb per trip: off leaves only stations in space
   let planetary = $state(readPlanetary());
@@ -91,6 +91,14 @@
   }
   $effect(() => {
     try { localStorage.setItem('et.colony.planetary', planetary ? '1' : '0'); } catch {}
+  });
+  // fleet carriers' markets too (they move and their stock changes: the age shows how old the list is)
+  let carriers = $state(readCarriers());
+  function readCarriers() {
+    try { return localStorage.getItem('et.colony.carriers') === '1'; } catch { return false; }
+  }
+  $effect(() => {
+    try { localStorage.setItem('et.colony.carriers', carriers ? '1' : '0'); } catch {}
   });
   let markets = $state<ColonyMarkets | null>(null);
   let busy = $state(false);
@@ -107,7 +115,7 @@
           marketId: depot.marketId,
           near,
           query: {
-            radius, maxAgeH: 0, pad, planetary, carriers: false, exportHere: false, importHere: false, states: [], hops: 2,
+            radius, maxAgeH: 0, pad, planetary, carriers, exportHere: false, importHere: false, states: [], hops: 2,
             maxLs: 0, minSupply: 0, minDemand: 0, cargo: hold || 1, capital: 0, jumpRange: 20,
           },
         }),
@@ -161,40 +169,53 @@
         <a class="raven" href="https://ravencolonial.com/#sys={encodeURIComponent(depot.system)}" target="_blank" rel="noopener"
           title="Plan this system in RavenColonial">PLAN ↗</a>
       </div>
-      <div class="bigbar"><div style:width="{required ? (provided / required) * 100 : 0}%"></div>
-        {#if carried}<div class="hold" style:left="{(provided / required) * 100}%" style:width="{(carried / required) * 100}%"></div>{/if}
-        {#if stocked}<div class="fc" style:left="{((provided + carried) / required) * 100}%" style:width="{(stocked / required) * 100}%"></div>{/if}</div>
-      <div class="kpis">
-        <div><span class="k">DELIVERED</span><b class="num">{cr(provided)}<small>/{cr(required)}t</small></b></div>
-        <div><span class="k">LEFT</span><b class="num hud">{cr(left)}t</b></div>
-        <div><span class="k">IN HOLD</span><b class="num tele">{cr(carried)}t</b></div>
-        <div><span class="k">ON CARRIER</span><b class="num fcc">{cr(stocked)}t</b></div>
-        <div><span class="k">STILL TO BUY</span><b class="num">{cr(toBuy)}t</b></div>
-        <div><span class="k">TRIPS LEFT</span><b class="num">{hold ? trips : '—'}{#if hold}<small> × {cr(hold)}t</small>{/if}</b></div>
-      </div>
-      <label class="hauler" title="The cargo ship doing the deliveries, often not the one flown now">
-        <span class="k">DELIVERY SHIP HOLD</span>
-        <input type="number" min="0" step="1" inputmode="numeric" bind:value={hauler} placeholder={String(s.ship.cargoCapacity || 0)} />t
-        <span class="dim">{hauler ? '' : 'empty = the ship flown now'}</span>
-      </label>
-      <div class="deadline" class:late={msLeft <= 0 || (hold > 0 && tripsPerDay > 6)}>
-        <div>
-          <span class="k">TIME LEFT {depot.deadlineSet ? '' : '· ESTIMATED'}</span>
-          <b class="num">{countdown}</b>
-          <span class="dim">{new Date(depot.deadline).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+      <section class="sec">
+        <header><span>PROGRESS</span><i></i><em>{cr(provided)} of {cr(required)} t delivered</em></header>
+        <div class="bigbar"><div style:width="{required ? (provided / required) * 100 : 0}%"></div>
+          {#if carried}<div class="hold" style:left="{(provided / required) * 100}%" style:width="{(carried / required) * 100}%"></div>{/if}
+          {#if stocked}<div class="fc" style:left="{((provided + carried) / required) * 100}%" style:width="{(stocked / required) * 100}%"></div>{/if}</div>
+        <div class="legend">
+          <span><i class="dl"></i>delivered</span><span><i class="hd"></i>in hold</span><span><i class="cc"></i>on carrier</span><span>still to buy</span>
         </div>
-        <div>
-          <span class="k">PACE NEEDED</span>
-          <b class="num">{cr(perDay)}t<small>/day</small></b>
-          {#if hold}<span class="dim">≈{tripsPerDay.toFixed(1)} trips/day</span>{/if}
+        <div class="kpis">
+          <div><span class="k">LEFT</span><b class="num hud">{cr(left)}t</b></div>
+          <div><span class="k">STILL TO BUY</span><b class="num">{cr(toBuy)}t</b></div>
+          <div><span class="k">IN HOLD</span><b class="num tele">{cr(carried)}t</b></div>
+          <div><span class="k">ON CARRIER</span><b class="num fcc">{cr(stocked)}t</b></div>
         </div>
-        {#if editing}
-          <span class="edit"><input type="datetime-local" bind:value={deadlineText} /><button onclick={saveDeadline}>SET</button><button onclick={() => (editing = false)}>✕</button></span>
-        {:else}
-          <button class="set" onclick={startEdit} title="The journal does not give the time limit: set the one the game shows">{depot.deadlineSet ? 'EDIT' : 'SET'} DEADLINE</button>
-        {/if}
-      </div>
-      <div class="pay"><span class="k">PAID FOR DELIVERIES</span><b class="num ok">{short(paid)} Cr</b><span class="dim">· {short(toBePaid)} Cr still to earn</span></div>
+      </section>
+
+      <section class="sec">
+        <header><span>DELIVERY</span><i></i><em>{hauler ? 'ship typed here' : 'the ship flown now'}</em></header>
+        <label class="hauler" title="The cargo ship doing the deliveries, often not the one flown now">
+          <span class="k">SHIP HOLD</span>
+          <input type="number" min="0" step="1" inputmode="numeric" bind:value={hauler} placeholder={String(s.ship.cargoCapacity || 0)} />t
+        </label>
+        <div class="kpis">
+          <div><span class="k">TRIPS LEFT</span><b class="num">{hold ? trips : '—'}{#if hold}<small> × {cr(hold)}t</small>{/if}</b></div>
+          <div><span class="k">PACE NEEDED</span><b class="num">{cr(perDay)}t<small>/day</small></b>{#if hold}<span class="dim sub">≈{tripsPerDay.toFixed(1)} trips/day</span>{/if}</div>
+        </div>
+      </section>
+
+      <section class="sec">
+        <header><span>DEADLINE</span><i></i><em>{new Date(depot.deadline).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</em></header>
+        <div class="deadline" class:late={msLeft <= 0 || (hold > 0 && tripsPerDay > 6)}>
+          <div>
+            <span class="k">TIME LEFT {depot.deadlineSet ? '' : '· ESTIMATED'}</span>
+            <b class="num">{countdown}</b>
+          </div>
+          {#if editing}
+            <span class="edit"><input type="datetime-local" bind:value={deadlineText} /><button onclick={saveDeadline}>SET</button><button onclick={() => (editing = false)}>✕</button></span>
+          {:else}
+            <button class="set" onclick={startEdit} title="The journal does not give the time limit: set the one the game shows">{depot.deadlineSet ? 'EDIT' : 'SET'} DEADLINE</button>
+          {/if}
+        </div>
+      </section>
+
+      <section class="sec">
+        <header><span>REWARD</span><i></i><em>paid for deliveries</em></header>
+        <div class="pay"><b class="num ok">{short(paid)} Cr</b><span class="dim">· {short(toBePaid)} Cr still to earn</span></div>
+      </section>
       <div class="dim seen">list from {ageLabel((now - Date.parse(depot.updatedAt)) / 3.6e6)} ago · it refreshes while docked there</div>
     {/if}
   </Panel>
@@ -236,9 +257,9 @@
           <div class="group">
             <span class="k">AROUND</span>
             <div class="chips">
-              {#each [['site', 'SITE'], ['me', 'ME']] as const as [v, label] (v)}
-                <button class:on={near === v} onclick={() => (near = v)}
-                  title={v === 'me' ? 'Around where you are now (fill a carrier in the bubble)' : 'Around the construction site'}>{label}</button>
+              {#each [['site', 'SITE'], ['me', 'ME'], ...(s.carrier.id ? [['carrier', 'MY CARRIER']] : [])] as [v, label] (v)}
+                <button class:on={near === v} onclick={() => (near = v as typeof near)}
+                  title={v === 'me' ? 'Around where you are now (fill a carrier in the bubble)' : v === 'carrier' ? 'Around where your carrier is parked' : 'Around the construction site'}>{label}</button>
               {/each}
             </div>
           </div>
@@ -251,6 +272,8 @@
             <div class="toggles">
               <button class:on={planetary} onclick={() => (planetary = !planetary)}
                 title={planetary ? 'Surface ports included: tap to leave them out' : 'Only stations in space: tap to include surface ports'}>PLANETARY</button>
+              <button class:on={carriers} onclick={() => (carriers = !carriers)}
+                title={carriers ? 'Fleet carriers included: tap to leave them out' : 'Only stations and ports: tap to include fleet carriers'}>FLEET CARRIERS</button>
             </div>
           </div>
         </div>
@@ -260,7 +283,7 @@
             <div class="chips">{#each RADII as r (r)}<button class:on={radius === r} onclick={() => (radius = r)}>{r}</button>{/each}</div>
           </div>
           <button class="scan" disabled={busy || !left} onclick={findMarkets}
-            title="Markets {near === 'me' ? 'around you' : 'around the construction site'} within {radius} ly">{busy ? 'SEARCHING…' : 'FIND'}</button>
+            title="Markets {near === 'me' ? 'around you' : near === 'carrier' ? 'around your carrier' : 'around the construction site'} within {radius} ly">{busy ? 'SEARCHING…' : 'FIND'}</button>
         </div>
       </div>
       {#if error}<p class="bad">{error}</p>{/if}
@@ -277,7 +300,7 @@
             <div class="mh">
               <span class="st"><PlaceIcon kind={placeKind(m.end.type)} /><Name value={m.end.station} /></span>
               <PadBadge pad={m.end.pad} />
-              <span class="num dim">{m.end.fromMe.toFixed(1)}ly {near === 'me' ? 'from you' : 'from site'} · {cr(m.end.ls)}ls</span>
+              <span class="num dim">{m.end.fromMe.toFixed(1)}ly {near === 'me' ? 'from you' : near === 'carrier' ? 'from carrier' : 'from site'} · {cr(m.end.ls)}ls</span>
               <span class="{ageTone(m.end.ageH)} num">{ageLabel(m.end.ageH)}</span>
             </div>
             <div class="ms"><Name value={m.end.system} system /><PlotButton system={m.end.system} /></div>
@@ -332,24 +355,31 @@
     background: color-mix(in srgb, var(--hud) 14%, var(--steel)); box-shadow: inset 0 2px var(--hud);
     clip-path: polygon(0 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%);
   }
-  .bigbar { position: relative; height: 10px; background: var(--steel); border: 1px solid var(--rule); margin-bottom: 8px; }
+  .bigbar { position: relative; height: 22px; background: var(--steel); border: 1px solid var(--rule); }
   .bigbar > div { position: absolute; top: 0; bottom: 0; left: 0; background: var(--ok); }
   .bigbar .hold { background: var(--telemetry); opacity: 0.8; }
   .bigbar .fc { background: var(--hud-hi); opacity: 0.7; }
   .fcc { color: var(--hud-hi); }
-  .kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; margin-bottom: 8px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 2px 10px; font-size: 10px; color: var(--muted); margin: 3px 0 6px; }
+  .legend i { display: inline-block; width: 8px; height: 8px; margin-right: 3px; }
+  .legend .dl { background: var(--ok); }
+  .legend .hd { background: var(--telemetry); opacity: 0.8; }
+  .legend .cc { background: var(--hud-hi); opacity: 0.7; }
+  .kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .kpis div { padding: 4px 8px; border: 1px solid var(--rule); background: var(--rail); }
   .kpis div, .deadline > div { display: flex; flex-direction: column; }
+  .sub { font-size: 10px; }
   .kpis b { font-size: 17px; }
   .kpis small, .deadline small { font-size: 11px; color: var(--dim); font-weight: 400; }
   .hud { color: var(--hud); }
-  .hauler { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; font-size: 10px; color: var(--dim); margin: -2px 0 8px; }
+  .hauler { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; font-size: 10px; color: var(--dim); margin: 0 0 6px; }
   .hauler input {
     width: 64px; padding: 2px 4px; font: 700 12px var(--mono); color: var(--telemetry); text-align: right;
     background: var(--void); border: 1px solid var(--rule); appearance: textfield; -moz-appearance: textfield;
   }
   .hauler input::-webkit-outer-spin-button, .hauler input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
   .deadline {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; padding: 6px 8px; margin-bottom: 8px;
+    display: flex; justify-content: space-between; align-items: center; gap: 6px 10px; padding: 6px 8px;
     border: 1px solid var(--rule); background: var(--rail);
   }
   .deadline b { font-size: 17px; color: var(--hud-hi); }
@@ -392,7 +422,11 @@
   .group { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
   /* two rows: where / pad / planetary, then radius beside FIND */
   .row { display: grid; gap: 6px; align-items: end; }
-  .row.three { grid-template-columns: 2fr 2fr 3fr; }
+  /* each group is at least as wide as its buttons and shares the rest (3 : 2 : 3): one fixed line, nothing wraps (a wrapping row
+     changes the panel height, a scrollbar then changes the width, and the row flips back and forth) */
+  .row.three { grid-template-columns: minmax(max-content, 3fr) minmax(max-content, 2fr) minmax(max-content, 3fr); gap: 6px 10px; }
+  .row.three .chips { flex-wrap: nowrap; }
+  .row.three button { white-space: nowrap; }
   .row.find { grid-template-columns: minmax(0, 1fr) auto; }
   .row.find .scan { padding: 8px 22px; }
   .chips { display: flex; flex-wrap: wrap; gap: 3px; }
@@ -401,7 +435,8 @@
     color: var(--muted); font-size: 11px; font-weight: 700; cursor: pointer;
   }
   .chips button.on { background: var(--hud); border-color: var(--hud); color: var(--void); }
-  .toggles { display: grid; grid-template-columns: 1fr; gap: 3px; }
+  .toggles { display: flex; gap: 3px; }
+  .toggles button { flex: 1 1 0; white-space: nowrap; }
   .toggles button.on { border-color: var(--telemetry); color: var(--telemetry); box-shadow: inset 0 2px var(--telemetry); }
   .scan {
     padding: 11px; background: var(--hud); color: var(--void); border: 0; cursor: pointer;

@@ -83,3 +83,9 @@ button {
   color: inherit;
   cursor: pointer;
 }
+
+/* a panel's sections: a small orange title, a rule fading to the right, a note in grey at the end */
+.sec { margin-top: 12px; }
+.sec > header { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; font-size: 10px; font-weight: 800; letter-spacing: 0.16em; color: var(--hud); }
+.sec > header i { flex: 1; height: 1px; background: linear-gradient(to right, var(--hud), var(--rule)); opacity: 0.6; }
+.sec > header em { font-style: normal; font-weight: 400; letter-spacing: 0.06em; color: var(--dim); }

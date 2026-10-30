@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { initialState, type EdState } from '@et/shared';
 import { applyEvent, type JournalEvent } from './reducer.ts';
 import { MISSION_EVENTS, missionHistory } from './combat.ts';
+import { backfillLedger, isLedgerEvent } from './carrier/state.ts';
 
 export const JOURNAL_RE = /^Journal(Alpha|Beta)?\.(.+)\.log$/;
 const COMPANION_FILES = ['Status.json', 'Cargo.json', 'NavRoute.json', 'Market.json'];
@@ -108,18 +109,23 @@ export class JournalReader extends EventEmitter {
     }
     files.sort((a, b) => a.mtime - b.mtime || a.name.localeCompare(b.name));
     const events: JournalEvent[] = [];
+    const carrierEvents: JournalEvent[] = [];
     for (const { name } of files) {
       const text = await readFile(join(this.dir, name), 'utf8').catch(() => '');
       for (const line of text.split(/\r?\n/)) {
         // Cheap pre-filter before JSON.parse: most lines are not mission events.
-        if (!line.includes('"Mission') && !line.includes('"Bounty"')) continue;
+        const mission = line.includes('"Mission') || line.includes('"Bounty"');
+        if (!mission && !line.includes('"Carrier')) continue;
         try {
           const e = JSON.parse(line) as JournalEvent;
           if (MISSION_EVENTS.has(e.event)) events.push(e);
+          else if (isLedgerEvent(e)) carrierEvents.push(e);
         } catch {}
       }
     }
     this.state.combat.missions = missionHistory(events);
+    // the carrier's balance history from those sessions (the newest journal is followed live)
+    backfillLedger(this.state.carrier, carrierEvents);
   }
 
   private async poll() {

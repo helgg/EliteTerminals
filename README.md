@@ -125,24 +125,35 @@ a second.
 
 ![COLONY build tracker: what the construction site still needs, what the carrier holds, and where to buy the rest](docs/images/colony-build.jpg)
 
-- **BUILD** follows each construction site you dock at, from the journal: delivered, left, in the hold, **on your
-  carrier**, still to buy, trips left for your delivery ship, the time left and the pace it needs, and the credits
-  paid so far. Sites are kept on the PC, so they stay up to date when you play elsewhere.
+- **BUILD** follows each construction site you dock at, from the journal, in sections: **progress** (delivered, left,
+  in the hold, **on your carrier**, still to buy), **delivery** (your delivery ship's hold, trips left, the pace
+  needed), the **deadline** and the **reward** paid so far. Sites are kept on the PC, so they stay up to date when
+  you play elsewhere.
 - **Shopping list** with what is left, in the hold and on the carrier per commodity.
-- **Where to buy**: markets around the site (or around you) that stock what is still to buy, those carrying most
-  of the list first. Tap a market to mark the list: green for what it covers in full, yellow for part of it.
+- **Where to buy**: markets around the site, around you or around **your carrier** (park it where the shopping is
+  and buy there) that stock what is still to buy, those carrying most of the list first. Surface ports and other
+  players' **fleet carriers** can each be included or left out; your own carrier is never listed. Tap a market to mark the list: green for what it covers in full, yellow for part of it.
 
 **CARRIER**
 
-![CARRIER: tank, space and cargo of the fleet carrier, and a three-jump route with the tritium for each jump](docs/images/carrier.jpg)
+![CARRIER: status sheet of the fleet carrier (tritium, space, cargo, finances, income and upkeep) and a three-jump route as stop cards with the tritium of each jump](docs/images/carrier.jpg)
 
-- The fleet carrier as the journal last showed it: system, a scheduled jump with its countdown, tritium in the
-  tank, space used (services, cargo, buy orders), balance and **cargo by commodity**, tracked from your own transfers
-  and trades with the carrier and checked against the total the game reports.
+- A **status sheet** of the fleet carrier as the journal last showed it, in sections: where it is and a scheduled
+  jump with its countdown; the **tritium** in the tank; the **space** used (services, cargo, buy orders, packs); the
+  **cargo by commodity**, tracked from your own transfers and trades with the carrier and checked against the total
+  the game reports; and the **finances** (balance, available, reserve).
+- **Upkeep**: type the weekly upkeep the game shows (it is kept on the PC, so every device shows it) and see how long
+  the balance covers it, the next charge (Thursdays 07:00 UTC), the date it is paid until, and when to top up with a
+  four-week margin. Until you type it, the most it can cost (about 30 M Cr) is used and marked as an estimate.
+- **Income and goal**: the balance history from the journal gives the last 7 days of income (rises, minus your own
+  deposits) against the weekly upkeep, as a bar with the 100% mark. Costs mix upkeep, jumps and buy orders being
+  filled, because the balance cannot tell them apart.
 - **Jump planner**: from the carrier's system through any stops to a destination, with
   [Spansh](https://spansh.co.uk)'s carrier router for the systems and the tritium of each jump worked out from the
-  carrier's own load. It says when to move tritium from the cargo into the tank, how much to buy before leaving,
-  which systems have icy rings, and marks where the carrier is now and its next jump.
+  carrier's own load. The route is a chain of **stop cards** joined by jump lanes with the distance and the tritium
+  of each jump; a card shows the tank and cargo after the jump and tags HERE, NEXT, JUMPING, STOP, SHORT and
+  REFUEL (move tritium from the cargo into the tank before that jump), and which systems have icy rings with
+  tritium to mine (pristine ones in green). It also says how much to buy before leaving.
 
 **Everywhere**
 
@@ -280,10 +291,11 @@ clipped text. Add `?tab=combat` (and `&page=survive` for a phone page) to open e
 - [x] TRADE A → B paths, FROM a station, ship typed in with the game off
 - [x] COLONY: system finder, claim stations, construction sites with carrier stock and where to buy
 - [x] CARRIER: status, tracked cargo, jump planner with tritium per jump
+- [x] CARRIER: stop cards, sectioned status sheet, weekly upkeep with coverage, balance history and income goal
 - [ ] PVP: commanders flagged in the contacts, encounter history, a direct-keys console page
 - [ ] MINING screen (ship first, then surface vehicles)
 - [ ] EXPLORE screen
-- [ ] CARRIER: upkeep, carrier market and orders
+- [ ] CARRIER: carrier market and orders, where to park and what to stock
 - [ ] COLONY: a light build planner (tier points, build queue)
 
 ## Disclaimer

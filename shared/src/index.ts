@@ -482,7 +482,7 @@ export function initialState(): EdState {
     carrier: {
       id: 0, callsign: '', name: '', system: '', systemAddress: 0, fuel: 0,
       space: { total: 0, crew: 0, cargo: 0, reserved: 0, packs: 0, free: 0 },
-      balance: 0, available: 0, jump: null, cargo: [], cargoAt: '', cargoSeen: 0, statsAt: '', updatedAt: '',
+      balance: 0, reserve: 0, upkeep: 0, available: 0, ledger: [], jump: null, cargo: [], cargoAt: '', cargoSeen: 0, statsAt: '', updatedAt: '',
     },
     market: { marketId: 0, station: '', stationType: '', system: '', updatedAt: '', items: [] },
     controls: { presets: [], keys: {} },
@@ -972,6 +972,10 @@ export interface CarrierState {
   /** Tons: services' crew, cargo (tritium carried included), buy orders' reserved space, ship and module packs. */
   space: { total: number; crew: number; cargo: number; reserved: number; packs: number; free: number };
   balance: number;
+  /** The weekly upkeep the player read in the game (Cr; 0 = not given), kept here so every device shows it. */
+  upkeep: number;
+  /** Part of the balance the game keeps aside (ReserveBalance). */
+  reserve: number;
   available: number;
   /** A jump scheduled in the game: where to and when it leaves. */
   jump: { system: string; body: string; departAt: string } | null;
@@ -983,6 +987,11 @@ export interface CarrierState {
   /** Last cargo move applied, and how many at that second: a replayed journal does not count them twice. */
   cargoAt: string;
   cargoSeen: number;
+  /**
+   * The balance as the journal showed it over time (CarrierStats, CarrierFinance, CarrierBankTransfer), kept for the
+   * income: `moved` is what the player deposited (+) or withdrew (-) at that point, which is not income.
+   */
+  ledger: { at: string; balance: number; moved: number }[];
   /** When space.cargo was last reported (CarrierStats). */
   statsAt: string;
   updatedAt: string;
