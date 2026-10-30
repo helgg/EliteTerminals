@@ -134,7 +134,17 @@
   const phone = $derived(viewport.device === 'phone');
   let drawer = $state(new URLSearchParams(location.search).get('filters') === 'open');
   type Page = 'search' | 'list' | 'system';
-  let page = $state<Page>('list');
+  let page = $state<Page>(readPage());
+  function readPage(): Page {
+    try {
+      const v = localStorage.getItem('et.colony.page');
+      if (v === 'search' || v === 'list' || v === 'system') return v;
+    } catch {}
+    return 'list';
+  }
+  $effect(() => {
+    try { localStorage.setItem('et.colony.page', page); } catch {}
+  });
   const PAGES: { id: Page; label: string; icon: string }[] = [
     { id: 'search', label: 'SEARCH', icon: '⚙' }, { id: 'list', label: 'SYSTEMS', icon: '≡' }, { id: 'system', label: 'SYSTEM', icon: '◎' },
   ];
@@ -280,6 +290,10 @@
 {#snippet detailPanel()}
   <Panel class="right" title="System" aside={picked ? `${picked.bodiesKnown} bodies` : ''}>
     <div class="pane">
+      {#if phone && !picked}
+        <p class="dim">No system picked yet.</p>
+        <button class="back" onclick={() => (page = result ? 'list' : 'search')}>{result ? 'SHOW THE SYSTEMS' : 'GO TO SEARCH'}</button>
+      {/if}
       <ColonyDetail sys={picked} reach={result?.query.maxPopulatedLy ?? f.maxPopulatedLy}
         onhide={(reason) => picked && hide(picked.id64, picked.name, reason)} />
     </div>
@@ -434,6 +448,11 @@
   }
 
   /* phones: pages, tabs at the bottom standing up, down the left on its side */
+  /* phones: thumb-sized controls; on the search page SEARCH stays at the foot */
+  :global(html[data-vp^='phone']) .modes button { min-height: 44px; }
+  :global(html[data-vp='phone-portrait']) .chips button, :global(html[data-vp='phone-portrait']) .sortbar button { min-height: 44px; }
+  :global(html[data-vp='phone-portrait']) .go { position: sticky; bottom: 0; background: var(--void); padding-top: 6px; }
+  .back { align-self: flex-start; margin-top: 8px; padding: 12px 16px; min-height: 44px; background: var(--hud); border: 0; color: var(--void); font-weight: 800; letter-spacing: 0.1em; }
   .colony.phone { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; gap: 6px; }
   .colony.phone.landscape { grid-template-columns: 74px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
   .phone.portrait .pages { grid-row: 2; }

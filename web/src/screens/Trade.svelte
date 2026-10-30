@@ -650,6 +650,11 @@
   .page { min-height: 0; min-width: 0; display: flex; flex-direction: column; gap: 6px; overflow-y: auto; }
   .page > :global(.center), .page > :global(.right) { flex: 1; min-height: 0; }
   /* on its side the SCAN filters sit in three columns so they fit the short screen */
+  /* standing up: thumb-sized controls (the page scrolls) and SCAN stays in reach at the foot */
+  .phone.portrait .p-scan .chips button, .phone.portrait .p-scan .toggles button { min-height: 40px; }
+  .phone.portrait .p-scan :global(.body) { overflow: visible; }
+  .phone.portrait .p-scan :global(.panel) { overflow: visible; }
+  .phone.portrait .p-scan .go { position: sticky; bottom: 0; z-index: 2; padding: 6px 0 2px; background: var(--void); }
   .phone.landscape .p-scan .filters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px 10px; align-content: start; }
   .phone.landscape .p-scan .go { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 2px 10px; align-items: center; }
   .phone.landscape .p-scan .go .scan { grid-row: span 2; padding: 8px; }

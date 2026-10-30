@@ -318,7 +318,9 @@
   .shell.phone { gap: 6px; padding-top: max(6px, env(safe-area-inset-top)); }
   .top.slim { gap: 8px; padding: 4px 6px 4px 8px; position: sticky; top: 0; z-index: 5; }
   .top.slim .logo { font-size: 16px; }
-  .top.slim .sys { font-size: 13px; line-height: 1.2; }
+  .top.slim .sys { font-size: 13px; line-height: 1.15; }
+  /* the system name wraps (two lines at most) instead of being cut with an ellipsis */
+  .top.slim .sys :global(.text) { white-space: normal; overflow-wrap: anywhere; }
   .top.slim .st { font-size: 11px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   :global(html[data-vp='phone-portrait']) .cur { display: none; }
   .cur { color: var(--hud-hi); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; }

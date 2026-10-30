@@ -134,7 +134,13 @@
   const PAGES: { id: Page; label: string; icon: string }[] = [
     { id: 'status', label: 'STATUS', icon: '▣' }, { id: 'planner', label: 'JUMP PLANNER', icon: '➤' },
   ];
-  let page = $state<Page>('status');
+  let page = $state<Page>(readPage());
+  function readPage(): Page {
+    try { return localStorage.getItem('et.carrier.page') === 'planner' ? 'planner' : 'status'; } catch { return 'status'; }
+  }
+  $effect(() => {
+    try { localStorage.setItem('et.carrier.page', page); } catch {}
+  });
   const phone = $derived(viewport.device === 'phone');
   const wide = $derived(viewport.vp === 'desktop-landscape' || viewport.vp === 'tablet-landscape');
   const tracked = $derived(c.cargo.reduce((t, x) => t + x.count, 0));

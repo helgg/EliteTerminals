@@ -26,7 +26,11 @@
   const PAGES: { id: Page; label: string; icon: string }[] = [
     { id: 'filter', label: 'FILTER', icon: '⚙' }, { id: 'system', label: 'SYSTEM', icon: '◎' },
   ];
-  let page = $state<Page>(view === 'FIND' ? 'filter' : 'system');
+  // svelte-ignore state_referenced_locally
+  let page = $state<Page>(read('et.explore.page', view === 'FIND' ? 'filter' : 'system') as Page);
+  $effect(() => {
+    try { localStorage.setItem('et.explore.page', page); } catch {}
+  });
   const phone = $derived(viewport.device === 'phone');
   function setView(v: View) {
     view = v;
