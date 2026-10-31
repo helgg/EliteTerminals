@@ -471,6 +471,8 @@ export interface ExploreBody {
   ls: number;
   /** Body id of the nearest parent body (barycentres skipped); -1 = the system's centre. */
   parent: number;
+  /** The barycentre it shares with its siblings (a pair of planets orbiting each other): bodies with the same `bary` form a group; -1 = alone. */
+  bary: number;
   depth: number;
   mainStar: boolean;
   landable: boolean;

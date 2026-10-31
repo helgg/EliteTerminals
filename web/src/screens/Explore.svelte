@@ -5,6 +5,7 @@
   import { viewport } from '../lib/viewport.svelte.ts';
   import Name from '../lib/Name.svelte';
   import PlotButton from '../lib/trade/PlotButton.svelte';
+  import Loading from '../lib/Loading.svelte';
   import SystemMap from '../lib/explore/SystemMap.svelte';
   import BodyInspector from '../lib/explore/BodyInspector.svelte';
   import ExploreFind from '../lib/explore/ExploreFind.svelte';
@@ -214,7 +215,10 @@
     <div class="cols">
       <Panel title="System map" aside={loading ? 'loading…' : sys ? `${bodies.length} bodies · Spansh${mineHere ? ' + your scans' : ''}` : ''}>
         {#if sys}
+          <div class="mapbox">
           <SystemMap {tree} system={sys.name} {own} {selected} onpick={(id) => (selected = id)} {dim} focus={focus} />
+          {#if loading}<Loading cover label="LOADING SYSTEM" />{/if}
+          </div>
           {#if richest.length}
             <section class="sec worthy">
               <header><span>WORTH A STOP</span><i></i><em>first scan + mapping, Spansh's estimate</em></header>
@@ -231,7 +235,7 @@
             </section>
           {/if}
         {:else}
-          <p class="dim">Loading the system…</p>
+          <Loading block label="LOADING SYSTEM" />
         {/if}
       </Panel>
       <Panel title={beltPick ? 'Asteroid belt' : 'Body'} aside={pick ? (own.get(pick.id)?.scan ? 'scanned by you' : '') : ''}>
@@ -308,6 +312,7 @@
 {/if}
 
 <style>
+  .mapbox { position: relative; }
   .ex { display: flex; flex-direction: column; gap: 10px; height: 100%; min-height: 0; }
   /* a phone: the page scrolls as a whole (PhonePages), the panels take the height of what they hold */
   .ex.phone { height: auto; min-height: min-content; gap: 8px; }

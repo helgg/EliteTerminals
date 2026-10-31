@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { ExploreFindResult, ExplorePreset, ExploreTarget } from '@et/shared';
   import Name from '../Name.svelte';
+  import Loading from '../Loading.svelte';
   import PlotButton from '../trade/PlotButton.svelte';
   import ReferencePicker from '../trade/ReferencePicker.svelte';
   import { credits, gravityLabel, distanceLabel } from './explore.ts';
@@ -78,7 +79,9 @@
 
   {#if error}<p class="err">{error}</p>{/if}
 
-  {#if result}
+  {#if busy}
+    <Loading block label="SEARCHING SPANSH" />
+  {:else if result}
     <div class="count">{result.targets.length} of {result.total.toLocaleString('en-US')} bodies · nearest first{result.query.preset === 'terra' || result.query.preset === 'value' ? ' · richest first' : ''}</div>
     <div class="cards">
       {#each result.targets as t (t.system + t.body)}
@@ -121,7 +124,7 @@
         <p class="dim">Nothing matches. Widen the distance or lower the signals.</p>
       {/each}
     </div>
-  {:else if !busy}
+  {:else}
     <p class="dim hint">{spec.hint}, around {f.reference || current || 'you'} · press SEARCH.</p>
   {/if}
 </div>

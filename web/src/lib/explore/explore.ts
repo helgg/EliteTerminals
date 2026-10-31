@@ -99,22 +99,62 @@ export function shortName(name: string, system: string): string {
 export interface TreeNode {
   body: ExploreBody;
   kids: TreeNode[];
+  /** Root only: the stars of the centre, the main one first (a binary's stars are stacked there). */
+  centre: ExploreBody[];
+  /** Root only: what lies along the line, in orbit order. A column with several bodies is a group that orbits one barycentre. */
+  cols: TreeNode[][];
 }
 
-/** Bodies by what they orbit: the stars at the centre first, then each one's planets and moons by distance. */
+/** Brown dwarfs (L, T, Y) are drawn like planets: a place on the line, not a star of the centre. */
+const isBrownDwarf = (b: ExploreBody) => /brown dwarf/i.test(b.subType);
+
+/**
+ * The system as the game's map lays it out, from the barycentre tree Spansh gives in `parents` (rules: docs/design/SYSTEM-MAP.md):
+ * - the main star, and the true stars that orbit the same centre with no satellites, stand stacked at the left;
+ * - a true star with satellites of its own (a wide binary's other star) keeps its own system: another row, its own line;
+ * - everything else (planets, brown dwarfs, belts) takes a place along the line, in the game's order;
+ * - bodies that share a barycentre (`bary`) share one place, side by side, joined by a bracket;
+ * - moons hang under their parent (and the moons of moons beside it).
+ */
 export function orbitTree(bodies: ExploreBody[], system = ''): TreeNode[] {
-  const nodes = new Map<number, TreeNode>(bodies.map((b) => [b.id, { body: b, kids: [] }]));
-  const roots: TreeNode[] = [];
+  const nodes = new Map<number, TreeNode>(bodies.map((b) => [b.id, { body: b, kids: [], centre: [], cols: [] }]));
+  const loose: TreeNode[] = [];
   for (const n of nodes.values()) {
     const parent = nodes.get(n.body.parent);
     if (parent && parent !== n) parent.kids.push(n);
-    else roots.push(n);
+    else loose.push(n);
   }
   // in the game's numbering (A 17 before A 18), not by the distance of one moment: see compareOrbit
   const order = (a: TreeNode, b: TreeNode) => compareOrbit(a.body, b.body, system);
+  const places = (list: TreeNode[]) => {
+    const out: TreeNode[][] = [];
+    const groups = new Map<number, TreeNode[]>();
+    for (const n of list) {
+      if (n.body.bary === -1) out.push([n]);
+      else (groups.get(n.body.bary) ?? groups.set(n.body.bary, []).get(n.body.bary)!).push(n);
+    }
+    out.push(...groups.values());
+    out.forEach((c) => c.sort(order));
+    return out.sort((a, b) => order(a[0], b[0]));
+  };
   const walk = (n: TreeNode) => (n.kids.sort(order), n.kids.forEach(walk));
-  roots.sort((a, b) => Number(b.body.mainStar) - Number(a.body.mainStar) || order(a, b));
-  roots.forEach(walk);
+
+  const stars = loose.filter((n) => n.body.type === 'Star' && !isBrownDwarf(n.body));
+  const main = stars.find((n) => n.body.mainStar) ?? stars[0];
+  if (!main) return loose.sort(order);
+  const own = stars.filter((n) => n !== main && n.kids.length);
+  const mates = stars.filter((n) => n !== main && !n.kids.length);
+  const rest = loose.filter((n) => n !== main && !own.includes(n) && !mates.includes(n));
+
+  const section = (star: TreeNode, centre: TreeNode[], line: TreeNode[]) => {
+    star.cols = places(line);
+    star.centre = centre.sort((a, b) => Number(b.body.mainStar) - Number(a.body.mainStar) || order(a, b)).map((n) => n.body);
+    star.cols.flat().forEach(walk);
+    star.kids = [];
+    return star;
+  };
+  const roots = [section(main, [main, ...mates], [...main.kids, ...rest])];
+  for (const s of own.sort(order)) roots.push(section(s, [s], s.kids));
   return roots;
 }
 

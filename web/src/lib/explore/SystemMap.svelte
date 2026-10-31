@@ -3,6 +3,7 @@
   import { beltId, distanceLabel, hasRings, look, orbSize, ringTone, shortName, type TreeNode } from './explore.ts';
 
   // The system as an orbit tree: each star with its planets along a line by distance, moons hung under their planet.
+  // The layout follows the game's barycentre tree: stars stacked at the left, everything else along one line, pairs stacked on it.
   // Spheres are shaded by the kind of body, sized on a log scale, and marked by what you have scanned of them.
   let { tree, system, own, selected, onpick, dim, focus = '' }: {
     tree: TreeNode[];
@@ -16,14 +17,14 @@
     focus?: string;
   } = $props();
 
-  /** What lies along a star's line, by distance: its planets and its belts. */
+  /** What lies along the line, by distance: the places (a body, or a pair around one barycentre) and the main star's belts. */
   function lane(root: TreeNode) {
-    // the planets keep the game's order; each belt goes before the first planet that is farther than its inner edge
-    type Item = { key: string; node: TreeNode | null; index?: number };
-    const items: Item[] = root.kids.map((n) => ({ key: `b${n.body.id}`, node: n }));
+    // the places keep the game's order; each belt goes before the first place that is farther than its inner edge
+    type Item = { key: string; col: TreeNode[] | null; index?: number };
+    const items: Item[] = root.cols.map((c) => ({ key: `b${c[0].body.id}`, col: c }));
     root.body.belts.forEach((b, i) => {
-      const at = root.kids.findIndex((n) => n.body.ls > b.innerLs);
-      items.splice(at < 0 ? items.length : at + items.slice(0, at).filter((x) => !x.node).length, 0, { key: `r${i}`, node: null, index: i });
+      const at = root.cols.findIndex((c) => c[0].body.ls > b.innerLs);
+      items.splice(at < 0 ? items.length : at + items.slice(0, at).filter((x) => !x.col).length, 0, { key: `r${i}`, col: null, index: i });
     });
     return items;
   }
@@ -72,6 +73,32 @@
       el.removeEventListener('pointercancel', onUp);
     };
   });
+
+  /**
+   * The line the bodies sit on leaves from the middle between the centre's stars (a binary's stars are stacked at the left,
+   * joined by a bracket). A single star is its own middle, so the line runs through it as before.
+   */
+  function align(row: HTMLElement) {
+    const AXIS = 81; // the middle of a body drawn on the line (see .axis)
+    const set = () => {
+      const stack = row.querySelector<HTMLElement>('.stack');
+      const orbs = stack ? ([...stack.children] as HTMLElement[]) : [];
+      if (!stack || !orbs.length) return;
+      const top = orbs[0].offsetTop + AXIS;
+      const bottom = orbs[orbs.length - 1].offsetTop + AXIS;
+      row.style.setProperty('--lead', `${Math.max(0, (top + bottom) / 2 - AXIS)}px`);
+      stack.style.setProperty('--t', `${top}px`);
+      stack.style.setProperty('--h', `${bottom - top}px`);
+    };
+    set();
+    const ro = new ResizeObserver(set);
+    row.querySelectorAll('.stack').forEach((st) => ro.observe(st));
+    return { destroy: () => ro.disconnect() };
+  }
+
+  const SAT = 108; // the width one moon takes beside its parent moon
+  /** Room a planet's column keeps at its right for the moons of its moons, which sit beside them. */
+  const reserve = (n: TreeNode) => Math.max(0, ...n.kids.map((k) => k.kids.length * SAT));
 
   const scanned = (id: number) => own.get(id)?.scan ?? '';
   const mine = (id: number) => own.get(id);
@@ -137,12 +164,20 @@
   </div>
 {/snippet}
 
-{#snippet branch(n: TreeNode, top = false)}
-  <div class="node">
-    {@render orb(n.body, top)}
-    {#if n.kids.length}
+<!--
+  A planet's moons hang below it in a chain; the moons of a moon (AB 2 b → AB 2 b a) sit beside it, to the right, as in the game.
+  `level`: 0 = on the line, 1 = a moon of that, 2 = deeper.
+-->
+{#snippet branch(n: TreeNode, level = 0)}
+  <div class="node" class:moon={level > 0} style:margin-right={level === 0 ? `${reserve(n)}px` : undefined} style:--r={level === 0 ? `${reserve(n)}px` : undefined}>
+    {@render orb(n.body, level === 0)}
+    {#if n.kids.length && level === 1}
+      <div class="sat">
+        {#each n.kids as k (k.body.id)}{@render branch(k, 2)}{/each}
+      </div>
+    {:else if n.kids.length}
       <div class="moons">
-        {#each n.kids as k (k.body.id)}{@render branch(k)}{/each}
+        {#each n.kids as k (k.body.id)}{@render branch(k, level + 1)}{/each}
       </div>
     {/if}
   </div>
@@ -152,13 +187,22 @@
 <div class="map" style:--sun={tree[0] ? look(tree[0].body).glow : '#ff7a18'}>
   {#each tree as root (root.body.id)}
     <section class="system">
-      <div class="centre">{@render orb(root.body, true)}</div>
-      <div class="orbits">
+      <div class="row" use:align>
         <div class="axis" aria-hidden="true"></div>
+        <div class="col centre" class:pair={root.centre.length > 1}>
+          <div class="stack">{#each root.centre as m (m.id)}{@render orb(m, true)}{/each}</div>
+        </div>
         {#each lane(root) as item (item.key)}
-          {#if item.node}{@render branch(item.node, true)}{:else}{@render belt(root.body.id, item.index!, root.body)}{/if}
+          {#if item.col}
+            <!-- bodies around one barycentre sit side by side on the line, joined by a bracket; each keeps its own moons below -->
+            <div class="col group" class:pair={item.col.length > 1}>
+              {#each item.col as n (n.body.id)}{@render branch(n)}{/each}
+            </div>
+          {:else}
+            <div class="col">{@render belt(root.body.id, item.index!, root.body)}</div>
+          {/if}
         {/each}
-        {#if !root.kids.length && !root.body.belts.length}<p class="none">Nothing orbits this star in Spansh's data.</p>{/if}
+        {#if !root.cols.length && !root.body.belts.length}<p class="none">Nothing orbits this star in Spansh's data.</p>{/if}
       </div>
     </section>
   {/each}
@@ -205,16 +249,31 @@
     background-size: auto, 613px 487px, 613px 487px, 613px 487px, 613px 487px, 613px 487px, 613px 487px, 613px 487px, 613px 487px, 613px 487px, 613px 487px, 613px 487px, 613px 487px, 613px 487px, 613px 487px, 613px 487px, 613px 487px, 613px 487px, 613px 487px, 613px 487px, 613px 487px, 613px 487px, 613px 487px, 613px 487px, 613px 487px, 613px 487px, 613px 487px;
   }
   .system { display: flex; gap: 18px; align-items: flex-start; }
-  .centre { flex: none; width: 176px; display: flex; justify-content: center; }
-  .orbits {
-    position: relative; flex: none; display: flex; flex-wrap: nowrap; gap: 10px 22px; align-items: flex-start; padding-right: 30px;
-    padding-top: 2px;
+  .row { position: relative; display: flex; flex-wrap: nowrap; gap: 10px 22px; align-items: flex-start; padding: 2px 30px 0 0; }
+  /* a place on the line: it drops by the lead so the line runs through the middle of the centre's stars */
+  .col { flex: none; display: flex; align-items: flex-start; gap: 22px; margin-top: var(--lead, 0px); }
+  .centre { width: 176px; margin-top: 0; }
+  .stack { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  /* the bracket that joins a binary's stars, from the middle of one to the middle of the other */
+  .centre.pair .stack::before {
+    content: ''; position: absolute; left: -10px; top: var(--t, 0); height: var(--h, 0); width: 14px; pointer-events: none;
+    border: 1px solid color-mix(in srgb, var(--text) 45%, transparent); border-right: 0;
   }
-  /* the line the planets sit on */
+  /* bodies that orbit one barycentre: a bracket over them, as the game draws it */
+  .group.pair > .node::before {
+    content: ''; position: absolute; top: 0; height: 12px; left: 50%; right: calc(-11px - var(--r, 0px)); pointer-events: none;
+    border-top: 1px solid color-mix(in srgb, var(--text) 45%, transparent);
+  }
+  .group.pair > .node:first-child::before { border-left: 1px solid color-mix(in srgb, var(--text) 45%, transparent); }
+  .group.pair > .node:not(:first-child):not(:last-child)::before { left: -11px; right: calc(-11px - var(--r, 0px)); }
+  .group.pair > .node:last-child::before { left: -11px; right: 50%; border-right: 1px solid color-mix(in srgb, var(--text) 45%, transparent); }
+  .group.pair > .node:first-child:last-child::before { display: none; }
+  /* the line the bodies sit on starts beside the middle of the stars, marked by a cross */
   .axis {
-    position: absolute; left: 0; right: 0; top: 81px; height: 1px; pointer-events: none;
-    background: linear-gradient(to right, transparent, color-mix(in srgb, var(--hud) 55%, transparent) 12%, color-mix(in srgb, var(--hud) 30%, transparent) 88%, transparent);
+    position: absolute; left: 150px; right: 0; top: calc(81px + var(--lead, 0px)); height: 1px; pointer-events: none;
+    background: linear-gradient(to right, color-mix(in srgb, var(--hud) 55%, transparent) 12%, color-mix(in srgb, var(--hud) 30%, transparent) 88%, transparent);
   }
+  .axis::before { content: '×'; position: absolute; left: -4px; top: -9px; font-size: 13px; line-height: 1; color: var(--text); }
   .node { display: flex; flex-direction: column; align-items: center; position: relative; }
   .moons {
     display: flex; flex-direction: column; align-items: center; gap: 2px; margin-top: 2px; padding-top: 6px; position: relative;
@@ -223,7 +282,13 @@
     content: ''; position: absolute; top: 0; bottom: 14px; left: 50%; width: 1px;
     background: repeating-linear-gradient(to bottom, color-mix(in srgb, var(--hud) 45%, transparent) 0 3px, transparent 3px 6px);
   }
-  .moons > .node { background: color-mix(in srgb, var(--panel) 88%, transparent); }
+  .moons > .node, .sat > .node { background: color-mix(in srgb, var(--panel) 88%, transparent); }
+  /* the moons of a moon: in a row at its right, joined to it by a short line */
+  .sat { position: absolute; left: calc(100% + 6px); top: 0; display: flex; align-items: flex-start; gap: 4px; }
+  .sat::before {
+    content: ''; position: absolute; left: -10px; top: 27px; width: 12px; height: 0;
+    border-top: 1px dashed color-mix(in srgb, var(--hud) 55%, transparent);
+  }
 
   .orb {
     position: relative; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 8px 6px; background: transparent; border: 1px solid transparent; color: var(--text); font: inherit; cursor: pointer;

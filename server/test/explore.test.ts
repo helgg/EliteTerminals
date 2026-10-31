@@ -141,3 +141,68 @@ test('a scan from another system (nav beacon) does not land in this one', () => 
   ]);
   assert.equal(s.explore.bodies.length, 0);
 });
+
+test('a binary: the planets of the pair share the main star\'s line, a bare companion is stacked with it, pairs share one place, a star with its own planets is on the line', async () => {
+  const { orbitTree } = await import('../../web/src/lib/explore/explore.ts');
+  const sys = 'Col 359 Sector FM-M d7-48';
+  // parents as in Spansh's dump (2026-10-31): A and B orbit the system centre (Null 0); AB 8 shares barycentre 45 with the star AB 7
+  const b = (id: number, name: string, type: string, parents: object[], extra: object = {}) =>
+    fromDump({ bodyId: id, name: `${sys} ${name}`, type, distanceToArrival: id * 10, parents, ...extra });
+  const bodies = [
+    b(1, 'A', 'Star', [{ Null: 0 }], { mainStar: true }),
+    b(2, 'B', 'Star', [{ Null: 0 }]),
+    b(3, 'AB 1', 'Planet', [{ Null: 0 }]),
+    b(6, 'AB 1 a', 'Planet', [{ Planet: 3 }, { Null: 0 }]),
+    b(11, 'AB 2', 'Planet', [{ Null: 10 }, { Null: 0 }]),
+    b(19, 'AB 3', 'Planet', [{ Null: 10 }, { Null: 0 }]),
+    b(46, 'AB 7', 'Star', [{ Null: 45 }, { Null: 0 }], { subType: 'Y (Brown dwarf) Star' }),
+    b(48, 'AB 7 a', 'Planet', [{ Star: 46 }, { Null: 45 }, { Null: 0 }]),
+    b(49, 'AB 8', 'Planet', [{ Null: 45 }, { Null: 0 }]),
+    b(50, 'AB 9', 'Star', [{ Null: 0 }], { subType: 'Y (Brown dwarf) Star' }),
+    b(53, 'AB 9 a', 'Planet', [{ Star: 50 }, { Null: 0 }]),
+  ];
+  const tree = orbitTree(bodies, sys);
+  const nm = (x: { name: string }) => x.name.slice(sys.length + 1);
+  assert.equal(tree.length, 1);
+  // the centre: A and its bare companion B, stacked
+  assert.deepEqual(tree[0].centre.map(nm), ['A', 'B']);
+  // one line, in the game's order; bodies around one barycentre (AB 2 + AB 3, AB 7 + AB 8) share a place; AB 9 is on the line too
+  assert.deepEqual(tree[0].cols.map((c) => c.map((n) => nm(n.body))), [['AB 1'], ['AB 2', 'AB 3'], ['AB 7', 'AB 8'], ['AB 9']]);
+  assert.deepEqual(tree[0].cols[0][0].kids.map((n) => nm(n.body)), ['AB 1 a']);
+  assert.deepEqual(tree[0].cols[2][0].kids.map((n) => nm(n.body)), ['AB 7 a']);
+  assert.deepEqual(tree[0].cols[3][0].kids.map((n) => nm(n.body)), ['AB 9 a']);
+  // a single star is unchanged
+  const solo = orbitTree([b(0, 'A', 'Star', [], { mainStar: true }), b(1, 'A 1', 'Planet', [{ Star: 0 }])], sys);
+  assert.equal(solo.length, 1);
+  assert.deepEqual(solo[0].centre.map(nm), ['A']);
+  assert.deepEqual(solo[0].cols.map((c) => c.length), [1]);
+});
+
+test('a wide binary: each true star keeps its own line; pairs under a star group by their barycentre, nested ones in one group', async () => {
+  const { orbitTree } = await import('../../web/src/lib/explore/explore.ts');
+  const sys = 'Col 359 Sector FM-M d7-90';
+  const b = (id: number, name: string, type: string, parents: object[], extra: object = {}) =>
+    fromDump({ bodyId: id, name: `${sys} ${name}`, type, subType: type === 'Star' ? 'M (Red dwarf) Star' : '', distanceToArrival: id * 10, parents, ...extra });
+  const bodies = [
+    b(1, 'A', 'Star', [{ Null: 0 }], { mainStar: true }),
+    b(2, 'B', 'Star', [{ Null: 0 }]),
+    b(3, 'A 1', 'Planet', [{ Star: 1 }, { Null: 0 }]),
+    b(15, 'A 4', 'Planet', [{ Null: 14 }, { Star: 1 }, { Null: 0 }]),
+    b(18, 'A 5', 'Planet', [{ Null: 14 }, { Star: 1 }, { Null: 0 }]),
+    b(23, 'A 6', 'Planet', [{ Null: 22 }, { Null: 21 }, { Star: 1 }, { Null: 0 }]),
+    b(25, 'A 7', 'Planet', [{ Null: 22 }, { Null: 21 }, { Star: 1 }, { Null: 0 }]),
+    b(26, 'A 8', 'Planet', [{ Null: 21 }, { Star: 1 }, { Null: 0 }]),
+    b(77, 'B 1', 'Planet', [{ Star: 2 }, { Null: 0 }]),
+    b(82, 'B 5', 'Planet', [{ Null: 81 }, { Star: 2 }, { Null: 0 }]),
+    b(86, 'B 6', 'Planet', [{ Null: 81 }, { Star: 2 }, { Null: 0 }]),
+    b(88, 'B 6 a', 'Planet', [{ Planet: 86 }, { Null: 81 }, { Star: 2 }, { Null: 0 }]),
+  ];
+  const nm = (x: { name: string }) => x.name.slice(sys.length + 1);
+  const tree = orbitTree(bodies, sys);
+  assert.deepEqual(tree.map((r) => nm(r.body)), ['A', 'B']);
+  assert.deepEqual(tree[0].centre.map(nm), ['A']);
+  assert.deepEqual(tree[0].cols.map((c) => c.map((n) => nm(n.body))), [['A 1'], ['A 4', 'A 5'], ['A 6', 'A 7', 'A 8']]);
+  assert.deepEqual(tree[1].centre.map(nm), ['B']);
+  assert.deepEqual(tree[1].cols.map((c) => c.map((n) => nm(n.body))), [['B 1'], ['B 5', 'B 6']]);
+  assert.deepEqual(tree[1].cols[1][1].kids.map((n) => nm(n.body)), ['B 6 a']);
+});

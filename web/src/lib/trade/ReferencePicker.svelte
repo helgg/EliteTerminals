@@ -5,6 +5,7 @@
   import type { StationOption, SystemMatch } from '@et/shared';
   import PlaceIcon from '../PlaceIcon.svelte';
   import { cr } from '../format.ts';
+  import Loading from '../Loading.svelte';
 
   // `stations` off: just the system (the COLONY finder searches around systems, not stations)
   let { value = $bindable(''), station = $bindable(0), current, label = 'FROM', stations: withStations = true }: {
@@ -32,6 +33,8 @@
   let text = $state('');
   let matches = $state<SystemMatch[]>([]);
   let open = $state(false);
+  /** A search is on its way (the wait before it, and the request): the list says so instead of staying shut. */
+  let searching = $state(false);
   let timer: ReturnType<typeof setTimeout> | undefined;
   let seq = 0;
 
@@ -40,8 +43,11 @@
     const q = text.trim();
     if (q.length < 2) {
       matches = [];
+      searching = false;
       return;
     }
+    searching = true;
+    open = true;
     timer = setTimeout(async () => {
       const mine = ++seq;
       try {
@@ -53,6 +59,8 @@
         }
       } catch {
         if (mine === seq) matches = [];
+      } finally {
+        if (mine === seq) searching = false;
       }
     }, 250);
   }
@@ -80,7 +88,7 @@
     <input
       bind:value={text}
       oninput={onInput}
-      onfocus={() => (open = matches.length > 0)}
+      onfocus={() => (open = matches.length > 0 || searching)}
       onblur={() => setTimeout(() => (open = false), 150)}
       onkeydown={(e) => e.key === 'Enter' && matches[0] && pick(matches[0])}
       placeholder={(value || current || 'pick a system').toUpperCase()}
@@ -88,8 +96,9 @@
       spellcheck="false"
       autocomplete="off"
     />
-    {#if open && matches.length}
+    {#if open && (matches.length || searching)}
       <ul class="list">
+        {#if searching}<li class="wait"><Loading label="SEARCHING" /></li>{/if}
         {#each matches as m (m.name)}
           <li>
             <button onmousedown={(e) => e.preventDefault()} onclick={() => pick(m)}>
@@ -147,6 +156,7 @@
     font: 12px var(--mono); color: var(--text); text-align: left; cursor: pointer;
   }
   .list button:hover { background: var(--steel); }
+  .list .wait { padding: 7px 8px; }
   .name { flex: 1; min-width: 0; overflow-wrap: anywhere; color: var(--telemetry); }
   .dist { color: var(--muted); font-size: 11px; }
   .here {

@@ -33,6 +33,21 @@ export function mixOf(v: unknown): { name: string; share: number }[] {
   return list.filter((x) => x.name && x.share > 0).sort((a, b) => b.share - a.share);
 }
 
+/**
+ * The barycentre a body shares with its siblings: the outermost one below its parent in the `parents` chain, or -1 when it
+ * orbits its parent (or the system's centre) alone. [{Null:22},{Null:21},{Star:1},{Null:0}] → 21; [{Null:10},{Null:0}] → 10;
+ * [{Null:0}] and [{Star:1},{Null:0}] → -1. The last barycentre of a chain without a parent body is the system's own centre.
+ */
+function baryOf(b: any): number {
+  const chain: [string, unknown][] = (Array.isArray(b?.parents) ? b.parents : []).map((p: any) => Object.entries(p ?? {})[0] as [string, unknown]).filter(Boolean);
+  const lead: number[] = [];
+  for (const [kind, id] of chain) {
+    if (kind !== 'Null') return lead.length ? lead[lead.length - 1] : -1;
+    lead.push(num(id));
+  }
+  return lead.length > 1 ? lead[lead.length - 2] : -1;
+}
+
 /** A body of Spansh's dump (what colony.finder reads too) with the physical detail the map shows. */
 export function fromDump(b: any, values?: { scan: number; map: number }): ExploreBody {
   const base = fromDumpBody(b);
@@ -45,6 +60,7 @@ export function fromDump(b: any, values?: { scan: number; map: number }): Explor
     subType: base.subType,
     ls: base.ls,
     parent: base.parent,
+    bary: baryOf(b),
     depth: base.depth,
     mainStar: b?.mainStar === true,
     landable: base.landable,
