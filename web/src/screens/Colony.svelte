@@ -187,11 +187,12 @@
 {/snippet}
 
 {#snippet searchButton()}
-  <button class="search" disabled={busy || !(f.reference || s.location.system)} onclick={search}>
+  <button class="search" disabled={busy || !(f.reference || s.location.system)} onclick={search}
+    title="Search around {(f.reference || s.location.system || '?').toUpperCase()}">
     {#if busy}
       SEARCHING {progress?.total ? `${progress.loaded}/${progress.total}` : '…'}
     {:else}
-      SEARCH · {(f.reference || s.location.system || '?').toUpperCase()}
+      SEARCH
     {/if}
   </button>
   {#if busy && progress?.total}<div class="bar"><div style:width="{(progress.loaded / progress.total) * 100}%"></div></div>{/if}

@@ -269,8 +269,9 @@
           <span class="k">TRITIUM IN CARGO</span><input type="number" min="0" inputmode="numeric" bind:value={f.tritium} placeholder="0" />t</label>
         {#if f.used !== null || f.fuel !== null}<button class="link" onclick={() => ((f.used = null), (f.fuel = null))}>carrier's values</button>{/if}
       </div>
-      <button class="plot" disabled={busy || !q.from || !q.to.length} onclick={plot}>
-        {busy ? 'PLOTTING…' : `PLOT · ${(q.from || '?').toUpperCase()} → ${(q.to.at(-1) || '?').toUpperCase()}`}
+      <button class="plot" disabled={busy || !q.from || !q.to.length} onclick={plot}
+        title="Plot {(q.from || '?').toUpperCase()} → {(q.to.at(-1) || '?').toUpperCase()}">
+        {busy ? 'PLOTTING…' : 'PLOT ROUTE'}
       </button>
       {#if error}<p class="bad">{error}</p>{/if}
     </div>
@@ -425,8 +426,8 @@
   .nums input::-webkit-outer-spin-button, .nums input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
   .link { background: none; border: 0; padding: 0; color: var(--hud-hi); text-decoration: underline; font: inherit; font-size: 10px; cursor: pointer; }
   .plot {
-    padding: 11px; background: var(--hud); color: var(--void); border: 0; font-weight: 800; letter-spacing: 0.1em; overflow-wrap: anywhere;
-    box-shadow: var(--glow); clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+    padding: 11px 28px; background: var(--hud); color: var(--void); border: 0; font-weight: 800; letter-spacing: 0.1em; overflow-wrap: anywhere;
+    align-self: flex-start; box-shadow: var(--glow); clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
   }
   .plot:disabled { opacity: 0.6; }
 

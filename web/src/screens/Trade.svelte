@@ -308,15 +308,16 @@
 
 {#snippet scanButton()}
   <button class="scan" disabled={busy || !!missing || (ts.tab === 'path' ? !toSystem : !(f.reference || s.location.system))}
+    title={ts.tab === 'path' ? (toSystem ? `Plot ${plotLabel}` : '') : `Scan around ${(f.reference || s.location.system || '—').toUpperCase()}`}
     onclick={() => scan(false)}>
     {#if busy}
       SCANNING {progress ? `${progress.loaded}/${progress.total}` : '…'}
     {:else if missing}
       {missing}
     {:else if ts.tab === 'path'}
-      {toSystem ? `PLOT · ${plotLabel}` : 'PICK DESTINATION'}
+      {toSystem ? 'PLOT ROUTE' : 'PICK DESTINATION'}
     {:else}
-      SCAN · {(f.reference || s.location.system).toUpperCase() || '—'}
+      SCAN
     {/if}
   </button>
   {#if busy && progress?.total}

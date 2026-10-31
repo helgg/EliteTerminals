@@ -75,7 +75,7 @@ a second.
 
 **TRADE**
 
-![TRADE screen: loop routes with two pinned, live EDDN prices and a watched route](docs/images/trade.jpg)
+![TRADE screen: a scan of the markets around Lie Town, loop routes ranked by credits per hour and the best one open with live EDDN prices](docs/images/trade.jpg)
 
 - Scans the markets around you, or around **any system you pick** (FROM, with name search), 10 to 80 ly out,
   and ranks **loop routes** (A → B → A) and **linear routes** (up to five stops) by Cr/t, total profit, Cr/h or profit %.
@@ -109,11 +109,11 @@ a second.
   credits and commander are not shown while the game is off.
 - The session (profit, Cr/h, tons sold, hold) sits in a strip under the routes on monitors.
 
-![TRADE on an iPad standing up and on an iPhone](docs/images/trade-devices.jpg)
+![TRADE on an iPad standing up and on an iPhone: the same scan and the route sheet, one page at a time](docs/images/devices-trade.jpg)
 
 **COLONY**
 
-![COLONY finder: systems to colonise around Ebor, the top one open with where to claim it](docs/images/colony.jpg)
+![COLONY finder: systems to colonise, the top one open with its body tree and where to claim it](docs/images/colony.jpg)
 
 - **Find a system to colonise** around any system: uncolonised systems within reach of populated space (up to
   16 ly), ranked by landable bodies, ring hotspots, pristine rings, belts, gas giants, life-bearing worlds and a
@@ -124,7 +124,9 @@ a second.
 - **Claim at**: the nearest stations offering System Colonisation within 15 ly, with PLOT.
 - **PLAN ↗** opens the system in [RavenColonial](https://ravencolonial.com) for the build plan.
 
-![COLONY build tracker: what the construction site still needs, what the carrier holds, and where to buy the rest](docs/images/colony-build.jpg)
+![COLONY build tracker: what the construction site still needs, what the carrier holds, and the markets that sell the rest](docs/images/colony-build.jpg)
+
+![COLONY on an iPad and two iPhone pages: the system sheet and the construction site](docs/images/devices-colony.jpg)
 
 - **BUILD** follows each construction site you dock at, from the journal, in sections: **progress** (delivered, left,
   in the hold, **on your carrier**, still to buy), **delivery** (your delivery ship's hold, trips left, the pace
@@ -138,6 +140,8 @@ a second.
 **CARRIER**
 
 ![CARRIER: status sheet of the fleet carrier (tritium, space, cargo, finances, income and upkeep) and a three-jump route as stop cards with the tritium of each jump](docs/images/carrier.jpg)
+
+![CARRIER on an iPad and an iPhone: the jump planner as stop cards](docs/images/devices-carrier.jpg)
 
 - A **status sheet** of the fleet carrier as the journal last showed it, in sections: where it is and a scheduled
   jump with its countdown; the **tritium** in the tank; the **space** used (services, cargo, buy orders, packs); the
@@ -158,6 +162,8 @@ a second.
 
 **EXPLORE**
 
+![EXPLORE: the system map with the orbits in the game's order, the highlight chips and the bodies worth a stop](docs/images/explore.jpg)
+
 - A **system map** of the orbits, drawn from [Spansh](https://spansh.co.uk) and overlaid with your own journal scans:
   stars, planets and moons in the game's own numbering (A 17 before A 18), rings and **asteroid belts** at their real
   distance, planets coloured by type, and marks for scanned, first discovery and mapped. Drag or scroll sideways to
@@ -171,7 +177,11 @@ a second.
   terraformable bodies and geology. **MAP** opens the system, **PLOT** routes to it.
 - An **EXP** button next to PLOT in FLIGHT and COLONY opens the system you are looking at in EXPLORE.
 
+![EXPLORE and ENGINEERING on an iPad and two iPhone pages](docs/images/devices-explore.jpg)
+
 **ENGINEERING**
+
+![ENGINEERING: raw, manufactured and encoded materials by grade with the storage limit, and the engineers](docs/images/engineering.jpg)
 
 - Your **materials** (raw, manufactured, encoded) by grade with the storage limit of each grade, read from the game
   and kept up to date as you collect, trade, craft and synthesise; search, and sort by grade, name or count.
@@ -202,7 +212,7 @@ a second.
   and other signals.
 - Open `http://localhost:8420/?sheet=icons` to see the whole set.
 
-> EXPLORE and MINING show a *coming soon* screen for now. See the [roadmap](#roadmap).
+> MINING shows a *coming soon* screen for now. See the [roadmap](#roadmap).
 
 ## How it works
 
