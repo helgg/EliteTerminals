@@ -39,6 +39,7 @@ function moveCargo(c: CarrierState, at: string, moves: { type: string; label: st
     if (!row) c.cargo.push((row = { name, label: m.label || m.type.charAt(0).toUpperCase() + m.type.slice(1), count: 0 }));
     if (m.label) row.label = m.label;
     row.count = Math.max(0, row.count + m.count);
+    c.sinceStats += m.count;
   }
   c.cargo = c.cargo.filter((x) => x.count > 0).sort((a, b) => b.count - a.count);
 }
@@ -112,6 +113,8 @@ export function applyCarrier(state: EdState, e: JournalEvent): void {
         balance: num(f.CarrierBalance), reserve: num(f.ReserveBalance), available: num(f.AvailableBalance), statsAt: at,
       });
       record(c, at, c.balance);
+      // the game's total is the truth from here on (a stale stats event, met again in a replay, is no news)
+      if (!c.cargoAt || at >= c.cargoAt) c.sinceStats = 0;
       break;
     }
     case 'CarrierFinance':
@@ -156,5 +159,20 @@ export function applyCarrier(state: EdState, e: JournalEvent): void {
 export function mergeCarrier(saved: CarrierState, live: CarrierState): CarrierState {
   if (!saved.id || (live.id && live.updatedAt >= saved.updatedAt)) return live;
   // fields added since the copy was saved start from their defaults
-  return { ...live, ...saved };
+  const merged = { ...live, ...saved };
+  // a copy from before sinceStats: nothing is called untracked until the next CarrierStats gives the game's total
+  if (typeof (saved as Partial<CarrierState>).sinceStats !== 'number') {
+    merged.sinceStats = merged.cargo.reduce((n, x) => n + x.count, 0) - merged.space.cargo;
+  }
+  return merged;
+}
+
+/** The player says how much of a commodity the carrier holds (the journal cannot tell): the untracked tons shrink by it. */
+export function setCarrierCargo(c: CarrierState, name: string, label: string, count: number): void {
+  const key = name.toLowerCase().replace(/^\$/, '').replace(/_name;$/, '').replace(/[^a-z0-9]/g, '');
+  const n = Math.max(0, Math.round(count));
+  const row = c.cargo.find((x) => x.name === key);
+  if (row) row.count = n;
+  else if (n) c.cargo.push({ name: key, label: label || name, count: n });
+  c.cargo = c.cargo.filter((x) => x.count > 0).sort((a, b) => b.count - a.count);
 }

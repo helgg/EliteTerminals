@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { carrierUntracked } from '@et/shared';
   import type { CarrierRoute, EdState } from '@et/shared';
   import Panel from '../lib/Panel.svelte';
   import Name from '../lib/Name.svelte';
@@ -143,6 +144,7 @@
   });
   const phone = $derived(viewport.device === 'phone');
   const wide = $derived(viewport.vp === 'desktop-landscape' || viewport.vp === 'tablet-landscape');
+  const untracked = $derived(carrierUntracked(c));
   const tracked = $derived(c.cargo.reduce((t, x) => t + x.count, 0));
   const seg = (n: number) => `${c.space.total ? (n / c.space.total) * 100 : 0}%`;
 </script>
@@ -187,15 +189,16 @@
       </section>
 
       <section class="sec">
-        <header><span>CARGO</span><i></i><em>{cr(tracked)} t tracked</em></header>
+        <header><span>CARGO</span><i></i><em>{cr(tracked + untracked)} t</em></header>
         {#if c.cargo.length}
           <div class="cargo-list">
             {#each c.cargo as x (x.name)}<div class="cg"><span>{x.label}</span><b class="num">{cr(x.count)}</b></div>{/each}
+            {#if untracked > 0}<div class="cg" title="More than the journal's moves explain (cargo moved while playing on another machine). Assign it in COLONY › BUILD."><span>unassigned</span><b class="num">{cr(untracked)}</b></div>{/if}
           </div>
         {:else}
           <p class="dim small">Nothing tracked yet: transfers from your ship and sales to the carrier's market show here.</p>
         {/if}
-        {#if c.statsAt && tracked !== c.space.cargo}
+        {#if untracked > 0}
           <p class="drift" title="Tracked from your own transfers and trades with the carrier. Other players filling orders, play on another machine and anything before tracking began are not seen.">
             carrier reported {cr(c.space.cargo)} t {ageLabel((now - Date.parse(c.statsAt)) / 3.6e6)} ago · open the carrier management to refresh</p>
         {/if}

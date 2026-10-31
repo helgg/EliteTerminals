@@ -695,7 +695,7 @@ export function initialState(): EdState {
     carrier: {
       id: 0, callsign: '', name: '', system: '', systemAddress: 0, fuel: 0,
       space: { total: 0, crew: 0, cargo: 0, reserved: 0, packs: 0, free: 0 },
-      balance: 0, reserve: 0, upkeep: 0, available: 0, ledger: [], jump: null, cargo: [], cargoAt: '', cargoSeen: 0, statsAt: '', updatedAt: '',
+      balance: 0, reserve: 0, upkeep: 0, available: 0, ledger: [], jump: null, cargo: [], cargoAt: '', cargoSeen: 0, sinceStats: 0, statsAt: '', updatedAt: '',
     },
     market: { marketId: 0, station: '', stationType: '', system: '', updatedAt: '', items: [] },
     controls: { presets: [], keys: {} },
@@ -1200,6 +1200,8 @@ export interface CarrierState {
   /** Last cargo move applied, and how many at that second: a replayed journal does not count them twice. */
   cargoAt: string;
   cargoSeen: number;
+  /** Net tons the moves above added since the last CarrierStats (which gives the game's own total, space.cargo). */
+  sinceStats: number;
   /**
    * The balance as the journal showed it over time (CarrierStats, CarrierFinance, CarrierBankTransfer), kept for the
    * income: `moved` is what the player deposited (+) or withdrew (-) at that point, which is not income.
@@ -1272,3 +1274,11 @@ export interface ColonyResult {
   hidden: ColonyHidden[];
   systems: ColonySystem[];
 }
+
+/**
+ * Tons on the carrier the tracked rows do not account for: the game's total (as of the last CarrierStats, moved on by
+ * what the journal showed since) less the rows. Cargo moved while playing on another machine ends up here until the
+ * player says what it is.
+ */
+export const carrierUntracked = (c: CarrierState): number =>
+  c.statsAt ? Math.max(0, c.space.cargo + c.sinceStats - c.cargo.reduce((n, x) => n + x.count, 0)) : 0;

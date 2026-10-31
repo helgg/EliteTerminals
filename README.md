@@ -132,7 +132,9 @@ a second.
   in the hold, **on your carrier**, still to buy), **delivery** (your delivery ship's hold, trips left, the pace
   needed), the **deadline** and the **reward** paid so far. Sites are kept on the PC, so they stay up to date when
   you play elsewhere.
-- **Shopping list** with what is left, in the hold and on the carrier per commodity.
+- **Shopping list** with what is left, in the hold and on the carrier per commodity. What the carrier holds comes
+  from your own moves, so cargo moved while playing on another machine is not seen: the game's total (from the
+  carrier management) shows the tons not assigned to a commodity, and you type the real figure in the Carrier column.
 - **Where to buy**: markets around the site, around you or around **your carrier** (park it where the shopping is
   and buy there) that stock what is still to buy, those carrying most of the list first. Surface ports and other
   players' **fleet carriers** can each be included or left out; your own carrier is never listed. Tap a market to mark the list: green for what it covers in full, yellow for part of it.
@@ -193,6 +195,8 @@ a second.
 
 - Six layout classes (phone, tablet and monitor, each in landscape and portrait) with no cut-off text. Phones
   show one page at a time, picked from a bar at the bottom (or down the left on its side).
+- **SYNC** (the status strip, or the ≡ menu on phones) reads the journals and the game's files again and reports what
+  the carrier holds against what the game says.
 - Tap the logo for a QR code of the PC's LAN address, so any device can connect without typing an IP.
 - Installable as a full-screen web app (Android, iPadOS and iOS "Add to Home Screen"), with a reload button
   since home-screen apps have no browser bar.

@@ -6,6 +6,7 @@ import { join, resolve } from 'node:path';
 import Fastify from 'fastify';
 import fastifyStatic from '@fastify/static';
 import fastifyWebsocket from '@fastify/websocket';
+import { carrierUntracked } from '@et/shared';
 import type { CarrierRoute, CarrierRouteQuery, ClientMessage, ColonyQuery, ExploreFindQuery, ExplorePreset, MiningSellQuery, ServerMessage, TradePathQuery, TradeQuery, TradeWatch } from '@et/shared';
 import { JournalReader } from './reader.ts';
 import { Controls } from './controls.ts';
@@ -29,7 +30,7 @@ import { TradePins, toPin } from './tradePins.ts';
 import { HOTSPOT_COMMODITIES, Rings, type HotspotQuery } from './rings.ts';
 import { ExploreService } from './explore/service.ts';
 import { systemRings } from './mining.ts';
-import { mergeCarrier } from './carrier/state.ts';
+import { mergeCarrier, setCarrierCargo } from './carrier/state.ts';
 import { carrierRoute } from './carrier/route.ts';
 
 const PORT = Number(process.env.PORT ?? 8420);
@@ -361,6 +362,28 @@ app.post('/api/carrier/upkeep', async (req, reply) => {
   saveCarrier();
   scheduleBroadcast();
   return { upkeep: reader.state.carrier.upkeep };
+});
+app.post('/api/carrier/cargo', async (req, reply) => {
+  const b = (req.body ?? {}) as { name?: unknown; label?: unknown; count?: unknown };
+  const count = Number(b.count);
+  if (typeof b.name !== 'string' || !b.name || !Number.isFinite(count) || count < 0 || count > 1e6) return reply.code(400).send({ error: 'name and count needed' });
+  if (!reader.state.carrier.id) return reply.code(409).send({ error: 'no carrier known yet' });
+  setCarrierCargo(reader.state.carrier, b.name, typeof b.label === 'string' ? b.label : '', count);
+  saveCarrier();
+  scheduleBroadcast();
+  return { cargo: reader.state.carrier.cargo, untracked: carrierUntracked(reader.state.carrier) };
+});
+// SYNC: read the journals and the game's files again, keep what is kept on disk, and tell every screen
+app.post('/api/sync', async () => {
+  const r = await reader.sync();
+  saveCarrier();
+  saveDepots();
+  scheduleBroadcast();
+  const c = reader.state.carrier;
+  return {
+    journal: r.journal,
+    carrier: c.id ? { reported: c.space.cargo + c.sinceStats, tracked: c.cargo.reduce((n, x) => n + x.count, 0), untracked: carrierUntracked(c), statsAt: c.statsAt } : null,
+  };
 });
 app.get('/api/carrier/last-route', async (_req, reply) => lastCarrierRoute ?? reply.code(204).send());
 app.get('/api/colony/last', async (_req, reply) => colony.last ?? reply.code(204).send());

@@ -77,8 +77,33 @@
   );
 
   // Last command or copy, shown for a few seconds (status strip, or a toast on phones).
+  // SYNC: read the journals and the game's files again (server side), and say what is known about the carrier
+  let synced = $state<{ at: number; ok: boolean; text: string } | null>(null);
+  let syncing = $state(false);
+  async function sync() {
+    if (syncing) return;
+    syncing = true;
+    try {
+      const r = await fetch('/api/sync', { method: 'POST' });
+      if (!r.ok) throw new Error(String(r.status));
+      const d = (await r.json()) as { journal: string; carrier: { reported: number; tracked: number; untracked: number } | null };
+      const c = d.carrier;
+      synced = {
+        at: Date.now(), ok: !c?.untracked,
+        text: c
+          ? `SYNCED · carrier ${cr(c.reported)} t reported, ${cr(c.tracked)} t tracked${c.untracked ? `, ${cr(c.untracked)} t unassigned` : ''}`
+          : 'SYNCED',
+      };
+    } catch {
+      synced = { at: Date.now(), ok: false, text: 'SYNC FAILED · is the server running?' };
+    } finally {
+      syncing = false;
+    }
+  }
   const notice = $derived(
-    copied.at && now - copied.at < 4000
+    synced && now - synced.at < 8000
+      ? { ok: synced.ok, text: synced.text }
+      : copied.at && now - copied.at < 4000
       ? { ok: copied.ok, text: `${copied.ok ? 'COPIED' : 'COPY FAILED ON PC'} · ${copied.text}` }
       : link.last && now - link.last.at < 6000
         ? { ok: link.last.ok, text: `${link.last.command} ${link.last.ok ? '✓' : `✗ ${link.last.error}`}` }
@@ -196,6 +221,10 @@
     {:else}
       <span class="dim opt journal">{s.meta.journal}</span>
     {/if}
+    <button class="sync" disabled={syncing} onclick={sync}
+      title="Read the journals and the game's files again now. The carrier's cargo is only as good as the moves the journal showed: type what it holds in the BUILD list.">
+      {syncing ? '⟳ SYNCING…' : '⟳ SYNC'}
+    </button>
     <span class="dim right">
       binds {s.controls.presets[1] ?? '—'} · {Object.keys(s.controls.keys).length} actions ·
       {s.meta.gameVersion}{s.meta.odyssey ? ' · Odyssey' : ''}
@@ -216,6 +245,7 @@
       <button class="qr" onclick={() => { menu = false; showQr = true; }}>▣ OPEN ON ANOTHER DEVICE</button>
       <!-- opened from the home screen there is no browser bar: this is the only way to load a new version -->
       <button class="reload" onclick={() => location.reload()}>⟳ RELOAD</button>
+      <button class="reload" disabled={syncing} onclick={() => { menu = false; void sync(); }}>⟳ SYNC THE JOURNAL</button>
       <div class="meta dim">
         <span class:ok={live} class:bad={!live}>{live ? 'GAME ONLINE' : link.connected ? 'GAME OFFLINE' : 'NO SERVER'}</span>
         · VP {viewport.vp} {viewport.width}×{viewport.height}
@@ -301,6 +331,12 @@
     overflow: hidden;
   }
   .right { margin-left: auto; }
+  .sync {
+    background: none; border: 1px solid var(--rule); color: var(--muted); font: inherit; font-size: 11px; letter-spacing: 0.08em;
+    padding: 0 8px; cursor: pointer;
+  }
+  .sync:hover:not(:disabled) { color: var(--hud-hi); border-color: var(--hud); }
+  .sync:disabled { opacity: 0.6; cursor: progress; }
 
   .vp { color: var(--faint); font-size: 11px; }
 

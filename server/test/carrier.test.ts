@@ -3,9 +3,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { initialState } from '@et/shared';
+import { carrierUntracked, initialState } from '@et/shared';
 import { applyEvent } from '../src/reducer.ts';
-import { backfillLedger, mergeCarrier } from '../src/carrier/state.ts';
+import { backfillLedger, mergeCarrier, setCarrierCargo } from '../src/carrier/state.ts';
 import { hopsOf, jumpFuel, simulate } from '../src/carrier/route.ts';
 
 const ID = 3700000001;
@@ -168,4 +168,44 @@ test('carrier balance history backfilled from earlier journals, merged in time o
   assert.deepEqual(s.carrier.ledger.map((x) => [x.at.slice(5, 16), x.balance, x.moved]), [
     ['10-29T18:34', 2500000000, 2500000000], ['10-30T00:14', 2410000000, 0], ['10-30T05:37', 2376417000, 0],
   ]);
+});
+
+test('cargo moved while playing elsewhere: the game total is kept as untracked and later moves out of it', () => {
+  const s = initialState();
+  const stats = (at: string, cargo: number) => applyEvent(s, {
+    timestamp: at, event: 'CarrierStats', CarrierID: ID, Callsign: 'KTX-01Y', FuelLevel: 800,
+    SpaceUsage: { TotalCapacity: 25000, Cargo: cargo, FreeSpace: 25000 - cargo }, Finance: { CarrierBalance: 1 },
+  });
+  const move = (at: string, dir: string, n: number) => applyEvent(s, {
+    timestamp: at, event: 'CargoTransfer', Transfers: [{ Type: 'cmmcomposite', Type_Localised: 'CMM Composite', Count: n, Direction: dir }],
+  });
+  stats('2026-10-30T10:00:00Z', 100);
+  move('2026-10-30T10:01:00Z', 'tocarrier', 1000);
+  stats('2026-10-31T02:00:00Z', 3000); // 2000 more than the moves explain: played on another machine
+  assert.equal(carrierUntracked(s.carrier), 2000);
+  move('2026-10-31T02:05:00Z', 'toship', 1500); // 1000 tracked, 500 of it was the unseen cargo
+  assert.equal(s.carrier.cargo.find((x) => x.name === 'cmmcomposite'), undefined);
+  assert.equal(carrierUntracked(s.carrier), 1500);
+});
+
+test('typing what the carrier holds assigns the untracked tons', () => {
+  const s = initialState();
+  Object.assign(s.carrier, {
+    id: ID, statsAt: 'x', space: { ...s.carrier.space, cargo: 2544 }, cargo: [{ name: 'ceramiccomposites', label: 'Ceramic Composites', count: 1327 }],
+  });
+  assert.equal(carrierUntracked(s.carrier), 1217);
+  setCarrierCargo(s.carrier, 'CMM Composite', 'CMM Composite', 1217);
+  assert.deepEqual(s.carrier.cargo.map((x) => [x.name, x.count]), [['ceramiccomposites', 1327], ['cmmcomposite', 1217]]);
+  assert.equal(carrierUntracked(s.carrier), 0);
+  setCarrierCargo(s.carrier, 'cmmcomposite', '', 0);
+  assert.equal(s.carrier.cargo.length, 1);
+});
+
+test('a carrier copy saved before sinceStats starts with nothing untracked', () => {
+  const live = initialState();
+  const saved = JSON.parse(JSON.stringify(live.carrier));
+  Object.assign(saved, { id: ID, updatedAt: 'z', statsAt: 'x', cargo: [{ name: 'tritium', label: 'tritium', count: 500 }] });
+  saved.space.cargo = 6596;
+  delete saved.sinceStats;
+  assert.equal(carrierUntracked(mergeCarrier(saved, live.carrier)), 0);
 });

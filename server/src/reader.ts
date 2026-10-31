@@ -56,6 +56,16 @@ export class JournalReader extends EventEmitter {
     this.timers.push(setInterval(() => void this.scanDir(), DIR_SCAN_MS));
   }
 
+  /** The SYNC button: look at the journals and the game's own files again now, then say what is known. */
+  async sync(): Promise<{ journal: string }> {
+    this.companionMtimes.clear();
+    await this.scanDir();
+    await this.loadMissionHistory();
+    await this.poll();
+    this.changed();
+    return { journal: this.journal };
+  }
+
   stop() {
     this.timers.forEach(clearInterval);
     this.timers = [];

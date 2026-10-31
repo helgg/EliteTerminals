@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { carrierUntracked } from '@et/shared';
   import type { ColonyDepot, ColonyMarkets, EdState } from '@et/shared';
   import Panel from '../Panel.svelte';
   import Name from '../Name.svelte';
@@ -21,6 +22,12 @@
   const key = (n: string) => n.toLowerCase().replace(/^\$/, '').replace(/_name;$/, '').replace(/[^a-z0-9]/g, '');
   const inHold = $derived(new Map(s.cargo.items.map((i) => [key(i.name), i.count])));
   // on the player's carrier: tracked from their own transfers (CARRIER screen)
+  const untracked = $derived(carrierUntracked(s.carrier));
+  async function setCarrier(label: string, v: string) {
+    await fetch('/api/carrier/cargo', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: label, label, count: Number(v) || 0 }),
+    }).catch(() => {});
+  }
   const onCarrier = $derived(new Map(s.carrier.cargo.map((i) => [key(i.name), i.count])));
 
   // the hauler doing the deliveries (often not the ship flown now): typed here and kept on this device;
@@ -237,7 +244,13 @@
                 <td class="cn">{r.label}</td>
                 <td class="r num left">{r.left ? cr(r.left) : '✓'}</td>
                 <td class="r num tele">{r.hold ? cr(r.hold) : ''}</td>
-                <td class="r num fcc">{r.carrier ? cr(r.carrier) : ''}</td>
+                <td class="r num fcc">
+                  <!-- what the carrier holds is only as good as the moves the journal showed: type the real figure here -->
+                  <input class="ce" type="text" inputmode="numeric" value={r.carrier ? cr(r.carrier) : ''} placeholder="·"
+                    title="Tons of {r.label} on your carrier: type what the game shows to correct it"
+                    onclick={(e) => e.stopPropagation()}
+                    onchange={(e) => setCarrier(r.label, e.currentTarget.value.replace(/[^0-9]/g, ''))} />
+                </td>
                 <td class="bar"><span class="mini"><span style:width="{(r.provided / r.required) * 100}%"></span></span></td>
                 <td class="r num dim">{cr(r.required)}</td>
                 <td class="r num dim">{cr(r.payment)}</td>
@@ -245,6 +258,10 @@
             {/each}
           </tbody>
         </table>
+        {#if untracked > 0}
+          <p class="drift" title="The game reports more on the carrier than the journal's moves explain (cargo moved while playing on another machine).">
+            {cr(untracked)} t on your carrier are not assigned to a commodity · type what it holds in the Carrier column</p>
+        {/if}
       </div>
     {/if}
   </Panel>
@@ -362,6 +379,14 @@
   .bigbar .hold { background: var(--telemetry); opacity: 0.8; }
   .bigbar .fc { background: var(--hud-hi); opacity: 0.7; }
   .fcc { color: var(--hud-hi); }
+  .ce {
+    width: 64px; text-align: right; background: transparent; border: 1px solid transparent; color: var(--hud-hi); font: inherit;
+    padding: 0 3px; height: 18px; line-height: 18px; font-size: inherit;
+  }
+  .ce:hover { border-color: var(--rule); }
+  .ce:focus { outline: 1px solid var(--hud); background: var(--steel); }
+  .drift { font-size: 11px; color: var(--hud-hi); margin: 6px 4px 0; }
+  .phone .ce { width: 56px; min-height: 32px; font-size: 13px; border-color: var(--rule); }
   .legend { display: flex; flex-wrap: wrap; gap: 2px 10px; font-size: 10px; color: var(--muted); margin: 3px 0 6px; }
   .legend i { display: inline-block; width: 8px; height: 8px; margin-right: 3px; }
   .legend .dl { background: var(--ok); }
