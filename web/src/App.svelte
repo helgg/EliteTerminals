@@ -17,6 +17,8 @@
   import Name from './lib/Name.svelte';
   import { copied } from './lib/copy.svelte.ts';
   import ConnectQr from './lib/ConnectQr.svelte';
+  import About from './lib/About.svelte';
+  import Feedback from './lib/Feedback.svelte';
   import FullScreen from './lib/FullScreen.svelte';
   import { viewport } from './lib/viewport.svelte.ts';
   import { short } from './lib/format.ts';
@@ -31,6 +33,8 @@
   let tab = $state<Tab>(readTab());
   let now = $state(Date.now());
   let showQr = $state(false);
+  let showAbout = $state(false);
+  let showFeedback = $state(false);
   let menu = $state(false);
   const phone = $derived(viewport.device === 'phone');
   const tablet = $derived(viewport.device === 'tablet');
@@ -225,6 +229,8 @@
       title="Read the journals and the game's files again now. The carrier's cargo is only as good as the moves the journal showed: type what it holds in the BUILD list.">
       {syncing ? '⟳ SYNCING…' : '⟳ SYNC'}
     </button>
+    <button class="sync" onclick={() => (showFeedback = true)} title="Report a bug or suggest an idea">✎ FEEDBACK</button>
+    <button class="sync" onclick={() => (showAbout = true)} title="About EliteTerminals">ⓘ ABOUT</button>
     <span class="dim right">
       binds {s.controls.presets[1] ?? '—'} · {Object.keys(s.controls.keys).length} actions ·
       {s.meta.gameVersion}{s.meta.odyssey ? ' · Odyssey' : ''}
@@ -246,6 +252,8 @@
       <!-- opened from the home screen there is no browser bar: this is the only way to load a new version -->
       <button class="reload" onclick={() => location.reload()}>⟳ RELOAD</button>
       <button class="reload" disabled={syncing} onclick={() => { menu = false; void sync(); }}>⟳ SYNC THE JOURNAL</button>
+      <button class="reload" onclick={() => { menu = false; showFeedback = true; }}>✎ REPORT A BUG · SUGGEST</button>
+      <button class="reload" onclick={() => { menu = false; showAbout = true; }}>ⓘ ABOUT</button>
       <div class="meta dim">
         <span class:ok={live} class:bad={!live}>{live ? 'GAME ONLINE' : link.connected ? 'GAME OFFLINE' : 'NO SERVER'}</span>
         · VP {viewport.vp} {viewport.width}×{viewport.height}
@@ -255,6 +263,8 @@
 {/if}
 
 <ConnectQr bind:open={showQr} />
+<About bind:open={showAbout} onfeedback={() => (showFeedback = true)} />
+<Feedback bind:open={showFeedback} {s} {tab} />
 
 <style>
   .shell {

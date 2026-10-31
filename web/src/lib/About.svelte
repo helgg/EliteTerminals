@@ -1,0 +1,59 @@
+<script lang="ts">
+  import Dialog from './Dialog.svelte';
+  import { PROJECT } from './project.ts';
+
+  let { open = $bindable(false), onfeedback }: { open: boolean; onfeedback: () => void } = $props();
+</script>
+
+<Dialog bind:open title="ABOUT">
+  <div class="id">
+    <span class="logo">ED·ET</span>
+    <div>
+      <div class="name">{PROJECT.name}</div>
+      <div class="dim">A second-screen cockpit for Elite Dangerous · v{PROJECT.version}</div>
+    </div>
+  </div>
+
+  <section>
+    <span class="k">CREATED BY</span>
+    <div class="who">{PROJECT.author}</div>
+  </section>
+
+  <section>
+    <span class="k">PROJECT</span>
+    <a href={PROJECT.repo} target="_blank" rel="noopener noreferrer">{PROJECT.repo.replace('https://', '')}</a>
+    <div class="dim">Free software under the {PROJECT.license} licence: you may use, study and share it, and a copy that is shared must keep this credit and its source open.</div>
+  </section>
+
+  <section>
+    <span class="k">DATA</span>
+    <div class="dim">
+      Your own journals and game files, read-only. Systems, bodies and prices also come from the community:
+      <a href="https://spansh.co.uk" target="_blank" rel="noopener noreferrer">Spansh</a> and the
+      <a href="https://github.com/EDCD/EDDN" target="_blank" rel="noopener noreferrer">EDDN</a> network. Thank you to everyone who keeps them running.
+    </div>
+  </section>
+
+  <button class="go" onclick={() => { open = false; onfeedback(); }}>REPORT A BUG OR SUGGEST AN IDEA</button>
+
+  <p class="legal">
+    EliteTerminals is an unofficial fan project and is not affiliated with or endorsed by Frontier Developments.
+    Elite Dangerous is a trademark of Frontier Developments plc.
+  </p>
+</Dialog>
+
+<style>
+  .id { display: flex; align-items: center; gap: 12px; }
+  .logo { font-size: 22px; font-weight: 800; letter-spacing: 0.08em; color: var(--hud); text-shadow: var(--glow); }
+  .name { font-size: 16px; font-weight: 800; letter-spacing: 0.08em; color: var(--text); }
+  .dim { color: var(--muted); font-size: 12px; line-height: 1.5; }
+  section { display: flex; flex-direction: column; gap: 3px; }
+  .k { color: var(--dim); font-size: 10px; letter-spacing: 0.1em; }
+  .who { color: var(--hud-hi); font-size: 18px; font-weight: 800; letter-spacing: 0.08em; }
+  a { color: var(--telemetry); font-size: 12px; overflow-wrap: anywhere; }
+  .go {
+    background: var(--steel); border: 1px solid var(--hud); color: var(--hud-hi); font: inherit; font-size: 12px; font-weight: 800;
+    letter-spacing: 0.1em; padding: 9px 10px; cursor: pointer;
+  }
+  .legal { margin: 0; font-size: 10px; color: var(--dim); }
+</style>

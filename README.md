@@ -336,6 +336,13 @@ clipped text. Add `?tab=combat` (and `&page=survive` for a phone page) to open e
 - [ ] CARRIER: carrier market and orders, where to park and what to stock
 - [ ] COLONY: a light build planner (tier points, build queue)
 
+## Feedback and contributing
+
+Found a bug or have an idea? Press **FEEDBACK** in the status bar (or in the ≡ menu on a phone): it prepares a GitHub issue
+and shows what will be sent. Pull requests are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md).
+
+EliteTerminals is made by **CMDR SCORPZ**. **ABOUT** in the app shows the credits.
+
 ## Disclaimer
 
 EliteTerminals is an unofficial fan project and is not affiliated with or endorsed by Frontier Developments.
