@@ -407,6 +407,9 @@
   .score { color: var(--hud); font-weight: 800; font-size: 13px; }
   .warn { color: var(--hud-hi); }
 
+  /* a phone: the sort keys slide sideways in one row instead of taking two */
+  :global(html[data-vp^='phone']) .sortbar { flex-wrap: nowrap; overflow-x: auto; flex: none; }
+  :global(html[data-vp^='phone']) .sortbar button { flex: none; white-space: nowrap; }
   .sortbar { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; margin-bottom: 4px; }
   .sortbar .k { margin-right: 2px; }
   .sortbar button {
@@ -432,15 +435,18 @@
   .colony.mid { grid-template-rows: auto minmax(0, 1fr); }
   .mid.landscape { grid-template-columns: minmax(0, 1fr) minmax(340px, 42%); }
   .mid.portrait { grid-template-rows: auto minmax(0, 45fr) minmax(0, 55fr); }
-  .topbar { grid-column: 1 / -1; display: flex; gap: 8px; align-items: stretch; }
+  .topbar { grid-column: 1 / -1; display: flex; gap: 8px; align-items: flex-start; }
   .filt {
     flex: none; padding: 0 16px; background: var(--steel); border: 1px solid var(--hud); color: var(--hud-hi);
     font-size: 12px; font-weight: 800; letter-spacing: 0.1em;
   }
   .filt.on { background: var(--hud); color: var(--void); }
-  .topsearch { flex: 0 1 360px; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .topsearch { flex: 0 1 360px; display: flex; flex-direction: column; gap: 3px; min-width: 0; align-self: flex-start; }
   .topsearch .search { flex: 1; }
-  .tophint { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+  /* the notes (taken, hidden by you…) scroll in a few lines: they must not stretch the bar and the SEARCH button with it */
+  .tophint { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; max-height: 64px; overflow-y: auto; }
+  .filt, .topsearch .search { min-height: 48px; }
+  .filt { align-self: stretch; }
   .shade { position: absolute; inset: 0; z-index: 30; background: rgb(0 0 0 / 0.55); border: 0; }
   .drawer {
     position: absolute; z-index: 31; top: 0; left: 0; bottom: 0; width: min(360px, 92%); padding: 8px; overflow-y: auto;

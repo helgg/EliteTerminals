@@ -209,4 +209,8 @@
   .t.human { color: var(--void); background: var(--danger); border-color: var(--danger); }
   .ls { font-size: 10px; white-space: nowrap; }
   .ok { color: var(--ok); }
+
+  /* a phone: the buttons that act on this system are thumb-sized */
+  :global(html[data-vp^='phone']) .acts :global(button), :global(html[data-vp^='phone']) .acts .raven { min-height: 40px; padding-left: 14px; padding-right: 14px; display: inline-flex; align-items: center; }
+  :global(html[data-vp^='phone']) .detail :global(.plot), :global(html[data-vp^='phone']) .mark button { min-height: 36px; }
 </style>
