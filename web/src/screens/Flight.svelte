@@ -158,6 +158,26 @@
   </dl>
 {/snippet}
 
+{#snippet cockpit()}
+  <!-- monitor, landscape: the gauge in the middle, its readouts as instrument cells on both sides -->
+  <div class="cockpit">
+    <div class="side l">
+      <div class="cell"><span class="k">NEXT</span><span class="v next"><Name value={next?.system ?? ''} system /></span></div>
+      <div class="cell"><span class="k">JUMPS LEFT</span><span class="v big num">{s.route.remainingJumps}</span></div>
+      <div class="cell"><span class="k">LAST JUMP</span>
+        <span class="v num">{s.ship.lastJump.distance ? `${s.ship.lastJump.distance.toFixed(1)}ly · ${s.ship.lastJump.fuelUsed.toFixed(1)}t` : '—'}</span></div>
+    </div>
+    {@render gauge()}
+    <div class="side r">
+      <div class="cell" title="Estimate with the current cargo and fuel (max empty: {s.ship.maxJumpRange.toFixed(2)}ly)">
+        <span class="k">RANGE</span><span class="v big num">≈{range.toFixed(1)}<small>ly</small></span></div>
+      <div class="cell" class:bad={f.lowFuel}><span class="k">FUEL</span><span class="v big num">{s.status.fuelMain.toFixed(1)}<small>t</small></span></div>
+      <div class="cell" title="Jumps the tank still holds, at the fuel the last jump used">
+        <span class="k">ON TANK</span><span class="v num">{fuelJumps !== null ? `≈${fuelJumps} jumps` : '—'}</span></div>
+    </div>
+  </div>
+{/snippet}
+
 {#snippet targetCard()}
   <div class="target">
     <div class="t-head">
@@ -357,8 +377,12 @@
 <div class="flight {vp}" class:portrait>
   <Panel class="fsd" title="Frame shift drive" aside={f.supercruise ? 'supercruise' : 'normal space'}>
     <div class="fsd-body">
-      {@render gauge()}
-      {@render readouts(true)}
+      {#if vp === 'desktop-landscape'}
+        {@render cockpit()}
+      {:else}
+        {@render gauge()}
+        {@render readouts(true)}
+      {/if}
       {@render targetCard()}
     </div>
 
@@ -593,6 +617,26 @@
     gap: 12px;
     align-items: center;
   }
+  .flight.desktop-landscape .fsd-body { grid-template-columns: minmax(0, 1fr) minmax(190px, 230px); }
+  .cockpit { display: grid; grid-template-columns: minmax(130px, 1fr) minmax(170px, 250px) minmax(130px, 1fr); gap: 14px 34px; align-items: center; min-width: 0; }
+  .side { display: grid; gap: 10px; min-width: 0; }
+  .cell {
+    position: relative; display: grid; gap: 2px; padding: 7px 11px 8px; min-width: 0;
+    background: linear-gradient(180deg, var(--rail), transparent); border: 1px solid var(--rule);
+    clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+  }
+  .cell .k { font-size: 9px; letter-spacing: 0.2em; color: var(--dim); }
+  .cell .v { font-size: 15px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.15; }
+  .cell .v.big { font-size: 24px; }
+  .cell .v.next { color: var(--telemetry); }
+  .cell .v small { font-size: 12px; color: var(--muted); margin-left: 2px; }
+  .cell.bad .v { color: var(--danger); }
+  /* a tick towards the gauge, like the leader lines of an instrument panel */
+  .cell::after { content: ''; position: absolute; top: 50%; width: 10px; height: 1px; background: var(--hud); }
+  .side.l .cell { text-align: right; border-right-color: var(--hud); }
+  .side.l .cell::after { right: -1px; }
+  .side.r .cell { border-left-color: var(--hud); }
+  .side.r .cell::after { left: -1px; }
   .gauge { min-width: 0; }
   .readouts { gap: 5px 10px; }
   .readouts dd { font-size: 14px; }
