@@ -388,11 +388,21 @@ app.post('/api/sync', async () => {
 app.get('/api/carrier/last-route', async (_req, reply) => lastCarrierRoute ?? reply.code(204).send());
 app.get('/api/colony/last', async (_req, reply) => colony.last ?? reply.code(204).send());
 app.post('/api/colony/depot', async (req, reply) => {
-  const { marketId, deadline } = req.body as { marketId: number; deadline: string };
+  const { marketId, deadline, complete } = req.body as { marketId: number; deadline?: string; complete?: boolean };
   const d = reader.state.colony.depots.find((x) => x.marketId === Number(marketId));
-  if (!d || Number.isNaN(Date.parse(deadline))) return reply.code(400).send({ error: 'unknown site or date' });
-  d.deadline = new Date(deadline).toISOString();
-  d.deadlineSet = true;
+  if (!d) return reply.code(400).send({ error: 'unknown site' });
+  if (typeof complete === 'boolean') {
+    // the deliveries were made on a machine whose journal this one cannot read: the player says it is done (or undoes it)
+    d.complete = complete;
+    if (complete) {
+      d.progress = 1;
+      for (const r of d.resources) r.provided = r.required;
+    }
+    d.updatedAt = new Date().toISOString();
+  } else if (deadline && !Number.isNaN(Date.parse(deadline))) {
+    d.deadline = new Date(deadline).toISOString();
+    d.deadlineSet = true;
+  } else return reply.code(400).send({ error: 'unknown site or date' });
   saveDepots();
   scheduleBroadcast();
   return d;

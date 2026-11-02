@@ -86,6 +86,15 @@
     editing = false;
   }
 
+  // deliveries made where this journal cannot be read: the player says the site is done
+  async function setComplete(complete: boolean) {
+    if (!depot) return;
+    await fetch('/api/colony/depot', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ marketId: depot.marketId, complete }),
+    }).catch(() => null);
+  }
+
   // --- where to buy ---
   // the frontier has few markets, often with old prices: wide radii and any price age
   const RADII = [50, 100, 250, 500];
@@ -225,6 +234,9 @@
         <header><span>REWARD</span><i></i><em>paid for deliveries</em></header>
         <div class="pay"><b class="num ok">{short(paid)} Cr</b><span class="dim">· {short(toBePaid)} Cr still to earn</span></div>
       </section>
+      <button class="mark" onclick={() => setComplete(!depot.complete)}
+        title="The game only reports a site to whoever is docked there: use this when the deliveries were made on another machine">
+        {depot.complete ? 'UNDO COMPLETE' : 'MARK COMPLETE'}</button>
       <div class="dim seen">list from {ageLabel((now - Date.parse(depot.updatedAt)) / 3.6e6)} ago · it refreshes while docked there</div>
     {/if}
   </Panel>
@@ -406,19 +418,21 @@
   }
   .hauler input::-webkit-outer-spin-button, .hauler input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
   .deadline {
-    display: flex; justify-content: space-between; align-items: center; gap: 6px 10px; padding: 6px 8px;
+    display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px 10px; padding: 6px 8px;
     border: 1px solid var(--rule); background: var(--rail);
   }
   .deadline b { font-size: 17px; color: var(--hud-hi); }
   .deadline .dim { font-size: 10px; }
   .deadline.late { border-color: var(--danger); }
   .deadline.late b { color: var(--danger); }
-  .set, .edit button {
+  .set, .mark, .edit button {
     padding: 5px 8px; font: inherit; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; cursor: pointer;
     color: var(--muted); background: var(--steel); border: 1px solid var(--rule);
   }
   .set { grid-column: 1 / -1; color: var(--hud-hi); }
-  .edit { grid-column: 1 / -1; display: flex; gap: 4px; }
+  .mark { display: block; width: 100%; margin-top: 8px; color: var(--hud-hi); }
+  .edit { grid-column: 1 / -1; display: flex; gap: 4px; flex: 1 1 100%; }
+  .deadline > div { white-space: nowrap; }
   .edit input { flex: 1; min-width: 0; font: 700 11px var(--mono); color: var(--telemetry); background: var(--void); border: 1px solid var(--rule); padding: 4px; }
   .pay { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; font-size: 11px; }
   .pay b { font-size: 14px; }
