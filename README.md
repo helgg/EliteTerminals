@@ -197,6 +197,8 @@ a second.
   show one page at a time, picked from a bar at the bottom (or down the left on its side).
 - **SYNC** (the status strip, or the ≡ menu on phones) reads the journals and the game's files again and reports what
   the carrier holds against what the game says.
+- **? HOW TO USE** (status strip, or the ≡ menu on phones; also the `?` and F1 keys) opens a short tutorial for the
+  screen you are on: what to set up, what each panel does and where the data comes from.
 - Tap the logo for a QR code of the PC's LAN address, so any device can connect without typing an IP.
 - Installable as a full-screen web app (Android, iPadOS and iOS "Add to Home Screen"), with a reload button
   since home-screen apps have no browser bar.

@@ -18,22 +18,29 @@
   import { copied } from './lib/copy.svelte.ts';
   import ConnectQr from './lib/ConnectQr.svelte';
   import About from './lib/About.svelte';
+  import Help from './lib/Help.svelte';
+  import HelpButton from './lib/HelpButton.svelte';
+  import { HELP } from './lib/help/index.ts';
+  import { TABS, type Tab } from './lib/tabs.ts';
   import Feedback from './lib/Feedback.svelte';
   import FullScreen from './lib/FullScreen.svelte';
   import { viewport } from './lib/viewport.svelte.ts';
   import { short } from './lib/format.ts';
 
-  const TABS = ['FLIGHT', 'COMBAT', 'EXPLORE', 'MINING', 'TRADE', 'COLONY', 'CARRIER', 'ENGINEERING'] as const;
-  type Tab = (typeof TABS)[number];
-  // Screens still being built: what each one will bring.
-  const SOON: Partial<Record<Tab, string[]>> = {
-    MINING: ['prospector readout and asteroid history', 'ring hotspots and finder', 'refined tons, limpets and where to sell'],
-  };
-
   let tab = $state<Tab>(readTab());
   let now = $state(Date.now());
   let showQr = $state(false);
+  // the QR hint pulses hard until it has been opened once on this browser, softly after that
+  const QR_KEY = 'et.qr.seen';
+  let qrSeen = $state(false);
+  try { qrSeen = localStorage.getItem(QR_KEY) === '1'; } catch { /* not remembered */ }
+  function openQr() {
+    showQr = true;
+    qrSeen = true;
+    try { localStorage.setItem(QR_KEY, '1'); } catch { /* not remembered */ }
+  }
   let showAbout = $state(false);
+  let showHelp = $state(false);
   let showFeedback = $state(false);
   let menu = $state(false);
   const phone = $derived(viewport.device === 'phone');
@@ -49,6 +56,14 @@
   $effect(() => {
     if (exploreRequest.seq > 0) pick('EXPLORE');
   });
+
+  // "?" or F1 opens the tutorial, unless the key is going into a text box
+  function onkey(e: KeyboardEvent) {
+    const el = e.target as HTMLElement | null;
+    if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === 'F1' || e.key === '?') { e.preventDefault(); showHelp = true; }
+  }
 
   onMount(() => {
     connect();
@@ -116,6 +131,8 @@
 
 </script>
 
+<svelte:window onkeydown={onkey} />
+
 <div class="shell" class:wide={!side} class:phone>
   {#if phone}
   <!-- phones: one slim bar; the screen tabs live in the ≡ menu -->
@@ -137,9 +154,9 @@
   </header>
   {:else}
   <header class="top">
-    <button class="brand" onclick={() => (showQr = true)} title="Open the panel on a phone or tablet (QR code)">
+    <button class="brand" onclick={openQr} title="Open the panel on a phone or tablet (QR code)">
       <span class="logo">ED·ET</span>
-      <span class="sub dim">TERMINALS <span class="qr-hint">▣</span></span>
+      <span class="sub dim">TERMINALS <span class="qr-hint" class:fresh={!qrSeen}>▣</span></span>
     </button>
     <div class="where">
       <div class="sys"><Name value={s.location.system} system /> <span class="dim">/</span> <span class="muted">{where}</span></div>
@@ -205,7 +222,7 @@
     {:else if tab === 'ENGINEERING'}
       <Engineering {s} />
     {:else}
-      <ComingSoon title={tab} plans={SOON[tab] ?? []} />
+      <ComingSoon title={tab} plans={HELP[tab]?.soon ?? []} />
     {/if}
   </main>
 
@@ -229,6 +246,7 @@
       title="Read the journals and the game's files again now. The carrier's cargo is only as good as the moves the journal showed: type what it holds in the BUILD list.">
       {syncing ? '⟳ SYNCING…' : '⟳ SYNC'}
     </button>
+    <HelpButton {tab} onopen={() => (showHelp = true)} />
     <button class="sync" onclick={() => (showFeedback = true)} title="Report a bug or suggest an idea">✎ FEEDBACK</button>
     <button class="sync" onclick={() => (showAbout = true)} title="About EliteTerminals">ⓘ ABOUT</button>
     <span class="dim right">
@@ -252,6 +270,7 @@
       <!-- opened from the home screen there is no browser bar: this is the only way to load a new version -->
       <button class="reload" onclick={() => location.reload()}>⟳ RELOAD</button>
       <button class="reload" disabled={syncing} onclick={() => { menu = false; void sync(); }}>⟳ SYNC THE JOURNAL</button>
+      <button class="reload" onclick={() => { menu = false; showHelp = true; }}>? HOW TO USE</button>
       <button class="reload" onclick={() => { menu = false; showFeedback = true; }}>✎ REPORT A BUG · SUGGEST</button>
       <button class="reload" onclick={() => { menu = false; showAbout = true; }}>ⓘ ABOUT</button>
       <div class="meta dim">
@@ -263,6 +282,7 @@
 {/if}
 
 <ConnectQr bind:open={showQr} />
+<Help bind:open={showHelp} {tab} />
 <About bind:open={showAbout} onfeedback={() => (showFeedback = true)} />
 <Feedback bind:open={showFeedback} {s} {tab} />
 
@@ -293,7 +313,16 @@
     background: none; border: 0; text-align: left; cursor: pointer;
   }
   .brand:active .logo { filter: brightness(1.4); }
-  .qr-hint { color: var(--hud); }
+  .qr-hint { position: relative; display: inline-block; color: var(--hud); }
+  /* the same ring as the ? button: soft every 6 s, strong and quick until the QR has been opened once */
+  .qr-hint::after {
+    content: ''; position: absolute; inset: -2px; border: 1px solid var(--hud); opacity: 0; animation: qr-ping 6s ease-out infinite;
+  }
+  .qr-hint.fresh { text-shadow: var(--glow); }
+  .qr-hint.fresh::after { animation: qr-ping-fresh 1.8s ease-out infinite; }
+  @keyframes qr-ping { 0% { opacity: 0.6; transform: scale(1); } 22%, 100% { opacity: 0; transform: scale(2.2); } }
+  @keyframes qr-ping-fresh { 0% { opacity: 0.9; transform: scale(1); } 70%, 100% { opacity: 0; transform: scale(2.8); } }
+  @media (prefers-reduced-motion: reduce) { .qr-hint::after { animation: none; } }
   .logo { color: var(--hud); font-size: 20px; font-weight: 700; letter-spacing: 0.08em; text-shadow: var(--glow); }
   .sub { font-size: 9px; letter-spacing: 0.15em; }
   .where { min-width: 0; flex: 1; }
