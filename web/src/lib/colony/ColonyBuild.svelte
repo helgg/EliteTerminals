@@ -255,7 +255,11 @@
                 class:full={!!r.toBuy && covered.get(r.label) === 'full'} class:part={!!r.toBuy && covered.get(r.label) === 'part'} onclick={() => (highlight = highlight === r.label ? '' : r.label)}
                 title="Tap to show only the markets with {r.label}">
                 <td class="cn">{r.label}</td>
-                <td class="r num left">{r.left ? cr(r.left) : '✓'}</td>
+                <td class="r num left">
+                  <!-- once some is in the hold or on the carrier: what is still to buy, Left − (Hold + Carrier) -->
+                  {#if r.left && (r.hold || r.carrier)}<span class="tb" class:ok={!r.toBuy} title="Still to buy: Left − (Hold + Carrier)">{r.toBuy ? `→${cr(r.toBuy)}` : '✓'}</span>{/if}
+                  {r.left ? cr(r.left) : '✓'}
+                </td>
                 <td class="r num tele">{r.hold ? cr(r.hold) : ''}</td>
                 <td class="r num fcc">
                   <!-- what the carrier holds is only as good as the moves the journal showed: type the real figure here -->
@@ -455,6 +459,8 @@
   tr.part td:first-child { box-shadow: inset 3px 0 rgb(255 214 64); }
   .cn { font-weight: 700; color: var(--text); white-space: normal; }
   .left { color: var(--hud); font-weight: 800; }
+  .tb { margin-right: 6px; color: var(--hud-hi); font-size: 10px; font-weight: 600; opacity: 0.8; }
+  .tb.ok { color: var(--ok); }
   td.bar, th.bar { width: 22%; }
   /* a phone standing up: the progress bar gives way so Need and Cr/t are not cut off */
   @media (max-width: 520px) { td.bar, th.bar { display: none; } td { padding: 5px 3px; } }
