@@ -1,5 +1,8 @@
 <script lang="ts">
-  import { LANDMARKS, REGION_GRID, REGION_NAMES, distance, regionAt, regionGrid, type Pos } from '@et/shared';
+  import { LANDMARKS, POI_WINDOWED, REGION_GRID, REGION_NAMES, distance, regionAt, regionGrid, type Pos, type PoiKind, type PoiResult } from '@et/shared';
+  import { copyName } from '../copy.svelte.ts';
+  import PlotButton from '../trade/PlotButton.svelte';
+  import ExpButton from './ExpButton.svelte';
 
   // The galaxy seen from above (x right, z up: the core is at the top): the 42 codex regions with their borders, the
   // well-known places, the system on show, where you are and the route you plotted. Drag to move, wheel or pinch to zoom.
@@ -29,6 +32,86 @@
   let hover = $state<{ x: number; z: number; region: string } | null>(null);
   let dirty = true;
   let fitted = false;
+
+  // ---- layers: stars worth a detour and sites worth a trip (Spansh). Tap a point for its card.
+  const LAYERS: { id: PoiKind; label: string; colour: string; hint: string }[] = [
+    { id: 'neutron', label: 'NEUTRON', colour: '#7fe3ff', hint: 'Neutron stars: the nearest 500 around the centre of the map, more as you zoom in' },
+    { id: 'blackhole', label: 'BLACK HOLE', colour: '#c58cff', hint: 'Black holes: the nearest 500 around the centre of the map, more as you zoom in' },
+    { id: 'guardian', label: 'GUARDIAN', colour: '#9af070', hint: 'Bodies with Guardian sites, the whole galaxy' },
+    { id: 'thargoid', label: 'THARGOID', colour: '#ff5a4a', hint: 'Bodies with Thargoid signals, the whole galaxy' },
+  ];
+  const WINDOW_MAX_LY = 1500; // a window wider than this is not asked for: zoom in
+  let on = $state<Record<PoiKind, boolean>>(readLayers());
+  function readLayers(): Record<PoiKind, boolean> {
+    const d = { neutron: false, blackhole: false, guardian: false, thargoid: false };
+    try { return { ...d, ...JSON.parse(localStorage.getItem('et.galaxy.layers') ?? '{}') }; } catch { return d; }
+  }
+  $effect(() => {
+    const v = JSON.stringify(on);
+    try { localStorage.setItem('et.galaxy.layers', v); } catch { /* not remembered */ }
+  });
+  let data = $state<Partial<Record<PoiKind, PoiResult>>>({});
+  let loading = $state<Partial<Record<PoiKind, boolean>>>({});
+  let failed = $state('');
+  let tooWide = $state(false);
+  const asked: Partial<Record<PoiKind, string>> = {};
+
+  const windowOf = () => {
+    const radius = 0.55 * Math.hypot(w, h) / view.k;
+    return { radius, centre: [view.x, system[1], view.z] as Pos };
+  };
+  async function load(kind: PoiKind) {
+    let body: { kind: PoiKind; center?: Pos; radius?: number } = { kind };
+    let key: string = kind;
+    if (POI_WINDOWED.includes(kind)) {
+      const win = windowOf();
+      if (win.radius > WINDOW_MAX_LY) return;
+      body = { kind, center: win.centre, radius: win.radius };
+      // the server snaps the window; asking again for what is already on show only costs a look at its cache
+      key = `${Math.round(win.radius / 25)}|${win.centre.map((v) => Math.round(v / Math.max(10, win.radius / 4))).join(',')}`;
+    }
+    if (asked[kind] === key) return;
+    asked[kind] = key;
+    loading[kind] = true;
+    try {
+      const res = await fetch('/api/explore/pois', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const out = await res.json();
+      if (!res.ok) throw new Error(out.error ?? `HTTP ${res.status}`);
+      if (asked[kind] === key) { data[kind] = out; failed = ''; dirty = true; }
+    } catch (err) {
+      failed = (err as Error).message;
+      delete asked[kind]; // ask again next time
+    } finally {
+      loading[kind] = false;
+    }
+  }
+  let settle: ReturnType<typeof setTimeout> | undefined;
+  $effect(() => {
+    // after the map has been still for a moment, ask for what the layers on show are missing
+    void view.x; void view.z; void view.k; void on.neutron; void on.blackhole; void on.guardian; void on.thargoid;
+    clearTimeout(settle);
+    tooWide = (on.neutron || on.blackhole) && windowOf().radius > WINDOW_MAX_LY;
+    settle = setTimeout(() => { for (const l of LAYERS) if (on[l.id]) void load(l.id); }, 450);
+    return () => clearTimeout(settle);
+  });
+  const shown = (k: PoiKind) => (on[k] ? data[k]?.points ?? [] : []);
+  const count = (k: PoiKind) => data[k]?.points.length ?? 0;
+
+  // the point under a tap, and its card
+  type Picked = { name: string; system: string; pos: Pos; kind: string; colour: string; detail: string };
+  let picked = $state<Picked | null>(null);
+  function pickAt(px: number, py: number) {
+    let best: Picked | null = null, bd = 14;
+    const test = (p: Picked) => {
+      const d = Math.hypot(sx(p.pos[0]) - px, sz(p.pos[2]) - py);
+      if (d < bd) { bd = d; best = p; }
+    };
+    for (const l of LAYERS) for (const p of shown(l.id)) test({ ...p, kind: l.label, colour: l.colour });
+    for (const l of LANDMARKS) test({ name: l.name, system: l.name, pos: l.pos, kind: 'LANDMARK', colour: '#e9dccd', detail: '' });
+    picked = best;
+    dirty = true;
+  }
+  const lyTo = (a: Pos, b: Pos) => { const d = distance(a, b); return d < 10 ? `${d.toFixed(1)} ly` : `${Math.round(d).toLocaleString('en-US')} ly`; };
 
   // ---- region layers, built once and shared by every map on screen
   const TILE = 128; // cells per border tile: only the tiles in view are stroked
@@ -175,6 +258,36 @@
       c.fillStyle = own ? 'rgb(255 181 69 / 0.95)' : 'rgb(233 220 205 / 0.55)';
       c.fillText(l.name.toUpperCase(), px, py);
     }
+    // layers: glowing points, the sites a little larger; names once there is room for them
+    c.globalCompositeOperation = 'lighter';
+    for (const l of LAYERS) {
+      const pts = shown(l.id);
+      if (!pts.length) continue;
+      const r = l.id === 'guardian' || l.id === 'thargoid' ? 2.6 : 1.8;
+      c.fillStyle = l.colour;
+      for (const p of pts) {
+        const px = sx(p.pos[0]), py = sz(p.pos[2]);
+        if (px < -4 || px > w + 4 || py < -4 || py > h + 4) continue;
+        c.globalAlpha = 0.9; c.beginPath(); c.arc(px, py, r, 0, Math.PI * 2); c.fill();
+        c.globalAlpha = pts.length > 150 ? 0.08 : 0.16; c.beginPath(); c.arc(px, py, r * 3.2, 0, Math.PI * 2); c.fill();
+      }
+    }
+    c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';
+    if (view.k > 0.12) {
+      c.font = `10px ${getComputedStyle(box).getPropertyValue('--mono') || 'monospace'}`; c.textAlign = 'left';
+      for (const l of LAYERS) {
+        const pts = shown(l.id).filter((p) => { const px = sx(p.pos[0]), py = sz(p.pos[2]); return px > 0 && px < w && py > 0 && py < h; });
+        if (pts.length > 60) continue;
+        c.fillStyle = l.colour;
+        for (const p of pts) c.fillText(p.system, sx(p.pos[0]) + 7, sz(p.pos[2]) + 3);
+      }
+    }
+    // the picked point
+    if (picked) {
+      const px = sx(picked.pos[0]), py = sz(picked.pos[2]);
+      c.strokeStyle = picked.colour; c.lineWidth = 1.5;
+      c.beginPath(); c.arc(px, py, 9, 0, Math.PI * 2); c.stroke();
+    }
     // route
     if (route.length > 1) {
       c.strokeStyle = 'rgb(55 198 212 / 0.9)'; c.lineWidth = 1.5; c.setLineDash([4, 3]); c.beginPath();
@@ -223,7 +336,7 @@
   }
 
   $effect(() => {
-    void system; void here; void route; void name; void view;
+    void system; void here; void route; void name; void view; void data; void on.neutron; void on.blackhole; void on.guardian; void on.thargoid; void picked;
     dirty = true;
   });
   $effect(() => {
@@ -243,8 +356,10 @@
   // ---- pointer: drag, pinch, wheel
   const pts = new Map<number, { x: number; y: number }>();
   let last = 0;
+  let press: { x: number; y: number; moved: number } | null = null;
   function down(e: PointerEvent) {
     canvas.setPointerCapture(e.pointerId);
+    press = pts.size === 0 ? { x: e.offsetX, y: e.offsetY, moved: 0 } : null;
     pts.set(e.pointerId, { x: e.offsetX, y: e.offsetY });
     last = pts.size === 2 ? pinchDist() : 0;
   }
@@ -263,10 +378,17 @@
       last = d;
       return;
     }
+    if (press) press.moved = Math.max(press.moved, Math.hypot(e.offsetX - press.x, e.offsetY - press.y));
     view = { ...view, x: view.x - (e.offsetX - p.x) / view.k, z: view.z + (e.offsetY - p.y) / view.k };
     pts.set(e.pointerId, { x: e.offsetX, y: e.offsetY });
   }
-  const up = (e: PointerEvent) => { pts.delete(e.pointerId); last = 0; };
+  const up = (e: PointerEvent) => {
+    // a tap (hardly moved, nothing else touching) picks the point under it; a tap on empty map drops the card
+    if (press && pts.size === 1 && press.moved < 5 && e.type === 'pointerup') pickAt(e.offsetX, e.offsetY);
+    press = null;
+    pts.delete(e.pointerId);
+    last = 0;
+  };
   const wheel = (e: WheelEvent) => { e.preventDefault(); zoom(Math.exp(-e.deltaY * 0.0016), e.offsetX, e.offsetY); };
 </script>
 
@@ -280,6 +402,34 @@
   ></canvas>
   {#if hover}
     <div class="tip"><b>{hover.region.toUpperCase()}</b><span>{Math.round(hover.x).toLocaleString('en-US')} · {Math.round(hover.z).toLocaleString('en-US')}</span></div>
+  {/if}
+  <div class="layers" role="group" aria-label="Layers">
+    {#each LAYERS as l (l.id)}
+      <button class:on={on[l.id]} style:--c={l.colour} title={l.hint} onclick={() => (on[l.id] = !on[l.id])}>
+        <i aria-hidden="true"></i>{l.label}{#if on[l.id] && count(l.id)}<em>{count(l.id).toLocaleString('en-US')}</em>{/if}{#if loading[l.id]}<b class="spin" aria-label="loading"></b>{/if}
+      </button>
+    {/each}
+    {#if tooWide}<span class="note">ZOOM IN TO LOAD STARS</span>
+    {:else if (on.neutron && data.neutron?.more) || (on.blackhole && data.blackhole?.more)}<span class="note">NEAREST 500 TO THE CENTRE · ZOOM IN FOR MORE</span>{/if}
+    {#if failed}<span class="note bad" title={failed}>SPANSH NOT ANSWERING</span>{/if}
+  </div>
+  {#if picked}
+    <div class="card" style:--c={picked.colour} role="dialog" aria-label={picked.system}>
+      <header><i></i><span class="kind">{picked.kind}</span><button class="x" onclick={() => { picked = null; dirty = true; }} aria-label="Close">✕</button></header>
+      <b class="sys">{picked.system.toUpperCase()}</b>
+      {#if picked.name !== picked.system}<span class="dim">{picked.name}</span>{/if}
+      {#if picked.detail}<span class="muted">{picked.detail}</span>{/if}
+      <span class="dim">{regionAt(picked.pos[0], picked.pos[2])?.name ?? 'outside the region map'}</span>
+      <span class="far">
+        {#if here}<span>FROM YOU <b>{lyTo(here, picked.pos)}</b></span>{/if}
+        {#if !here || distance(here, system) > 0.5}<span>FROM {name.toUpperCase()} <b>{lyTo(system, picked.pos)}</b></span>{/if}
+      </span>
+      <div class="acts">
+        <button class="copy" onclick={() => copyName(picked!.system)} title="Copy the system name (to the PC's clipboard too)">COPY</button>
+        <PlotButton system={picked.system} />
+        <ExpButton system={picked.system} />
+      </div>
+    </div>
   {/if}
   <div class="tools">
     <button onclick={() => zoom(1.6)} aria-label="Zoom in">＋</button>
@@ -301,6 +451,38 @@
   }
   .tip b { color: var(--hud-hi); font-size: 11px; letter-spacing: 0.08em; }
   .tools { position: absolute; right: 6px; top: 6px; display: flex; gap: 3px; }
+  .layers { position: absolute; right: 6px; bottom: 6px; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 3px; max-width: calc(100% - 12px); }
+  .layers button {
+    display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 8px; background: rgb(21 16 11 / 0.88); border: 1px solid var(--rule);
+    color: var(--muted); font: inherit; font-size: 10px; letter-spacing: 0.08em; cursor: pointer;
+  }
+  .layers button i { width: 7px; height: 7px; border-radius: 50%; border: 1px solid var(--c); }
+  .layers button.on { color: var(--text); border-color: var(--c); }
+  .layers button.on i { background: var(--c); box-shadow: 0 0 6px var(--c); }
+  .layers em { font-style: normal; color: var(--dim); font-variant-numeric: tabular-nums; }
+  .layers .spin { width: 8px; height: 8px; border: 1px solid var(--c); border-right-color: transparent; border-radius: 50%; animation: gm-spin 0.8s linear infinite; }
+  .note { align-self: center; padding: 0 6px; font-size: 10px; letter-spacing: 0.08em; color: var(--hud-hi); background: rgb(11 7 5 / 0.8); }
+  .note.bad { color: var(--danger); }
+  @keyframes gm-spin { to { transform: rotate(360deg); } }
+  .card {
+    position: absolute; left: 8px; bottom: 30px; width: min(260px, calc(100% - 16px)); display: flex; flex-direction: column; gap: 3px; padding: 8px 10px 10px;
+    background: rgb(21 16 11 / 0.96); border: 1px solid var(--c); box-shadow: 0 0 14px color-mix(in srgb, var(--c) 35%, transparent); font-size: 11px;
+    clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+  }
+  .card header { display: flex; align-items: center; gap: 6px; }
+  .card header i { width: 7px; height: 7px; border-radius: 50%; background: var(--c); box-shadow: 0 0 6px var(--c); }
+  .card .kind { font-size: 10px; letter-spacing: 0.12em; color: var(--c); }
+  .card .x { margin-left: auto; width: 24px; height: 22px; background: var(--steel); border: 1px solid var(--rule); color: var(--hud-hi); font-size: 11px; cursor: pointer; }
+  .card .sys { font-size: 14px; letter-spacing: 0.06em; color: var(--text); overflow-wrap: anywhere; }
+  .card .far { display: flex; flex-wrap: wrap; gap: 2px 12px; color: var(--dim); font-size: 10px; letter-spacing: 0.06em; }
+  .card .far b { color: var(--telemetry); font-weight: 700; }
+  .card .acts { display: flex; gap: 6px; margin-top: 5px; }
+  .card .copy {
+    flex: none; min-width: 58px; padding: 5px 7px 4px; font: inherit; font-size: 9px; font-weight: 700; letter-spacing: 0.1em; cursor: pointer; border: 0;
+    color: var(--hud-hi); background: color-mix(in srgb, var(--hud-hi) 14%, var(--steel)); box-shadow: inset 0 2px var(--hud-hi);
+    clip-path: polygon(0 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%);
+  }
+  .card .copy:hover { background: color-mix(in srgb, var(--hud-hi) 24%, var(--steel)); }
   .tools button {
     min-width: 30px; height: 28px; padding: 0 7px; background: rgb(36 26 16 / 0.9); border: 1px solid var(--rule); color: var(--hud-hi);
     font: inherit; font-size: 10px; letter-spacing: 0.08em; cursor: pointer;

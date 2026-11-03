@@ -1317,4 +1317,5 @@ export const carrierUntracked = (c: CarrierState): number =>
   c.statsAt ? Math.max(0, c.space.cargo + c.sinceStats - c.cargo.reduce((n, x) => n + x.count, 0)) : 0;
 export * from './galaxy.ts';
 export * from './engineerSites.ts';
+export * from './pois.ts';
 export * from './colonyPlan.ts';

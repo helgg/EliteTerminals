@@ -12,7 +12,9 @@ export const explore: HelpDoc = {
     { title: 'MAP', text: 'The orbits drawn like the game\'s system map: stars, planets and moons in the game\'s numbering, rings and asteroid belts at their real distance. Marks show scanned, first discovery and mapped. Drag or scroll sideways in a long system.' },
     { title: 'Highlights', text: 'ALL, LAND, BIO, GEO, WORLDS and RINGS dim everything else. WORTH A STOP ranks the bodies that pay most for a first scan and mapping.' },
     { title: 'Body sheet', text: 'Tap a body: size, gravity, atmosphere, signals and genera, the organic samples you took (1 to 3), rings with hotspots and its materials next to what you hold. A belt shows its type and what it orbits.' },
-    { title: 'GALAXY', text: 'The galaxy map around the system and its Location panel. Drag to move, wheel to zoom.' },
+    { title: 'GALAXY', text: 'The galaxy map around the system and its Location panel. Drag to move, wheel or pinch to zoom.' },
+    { title: 'Layers', text: 'The chips at the bottom right of the map switch NEUTRON stars, BLACK HOLE, GUARDIAN and THARGOID sites on and off (remembered). Guardian and Thargoid show the whole galaxy. Neutron stars and black holes are too many for that: they load around the centre of the map, the nearest 500, once you have zoomed in enough, and more come as you zoom in or drag. The count on each chip is what is loaded.' },
+    { title: 'Point card', text: 'Tap a point (or a landmark) for its card: the system, what it is, the codex region and the distance from you and from the system on show. COPY puts the system name on the PC\'s clipboard (and on this device), PLOT sends the route to the game, EXP opens it in EXPLORE.' },
     { title: 'FIND', text: 'Places worth a trip around any system: exobiology with the species other commanders logged and what a sample pays, the most valuable bodies, Earth-like, water and ammonia worlds, terraformable bodies and geology. MAP opens the system here, PLOT routes to it.' },
   ],
   tips: [

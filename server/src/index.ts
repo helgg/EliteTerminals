@@ -7,7 +7,7 @@ import Fastify from 'fastify';
 import fastifyStatic from '@fastify/static';
 import fastifyWebsocket from '@fastify/websocket';
 import { carrierUntracked } from '@et/shared';
-import type { CarrierRoute, CarrierRouteQuery, ClientMessage, ColonyQuery, ExploreFindQuery, ExplorePreset, MiningSellQuery, ServerMessage, TradePathQuery, TradeQuery, TradeWatch } from '@et/shared';
+import type { CarrierRoute, CarrierRouteQuery, ClientMessage, ColonyQuery, ExploreFindQuery, ExplorePreset, MiningSellQuery, PoiKind, PoiQuery, ServerMessage, TradePathQuery, TradeQuery, TradeWatch } from '@et/shared';
 import { JournalReader } from './reader.ts';
 import { Controls } from './controls.ts';
 import { findGameDir } from './binds.ts';
@@ -589,6 +589,20 @@ app.post('/api/explore/find', async (req, reply) => {
     });
   } catch (err) {
     app.log.warn({ error: (err as Error).message }, 'explore search failed');
+    return reply.code(502).send({ error: (err as Error).message });
+  }
+});
+
+app.post('/api/explore/pois', async (req, reply) => {
+  const q = req.body as Partial<PoiQuery>;
+  const kinds: PoiKind[] = ['neutron', 'blackhole', 'guardian', 'thargoid'];
+  if (!kinds.includes(q?.kind as PoiKind)) return reply.code(400).send({ error: 'Unknown layer' });
+  const c = Array.isArray(q.center) ? q.center.map(Number) : [];
+  const center = c.length === 3 && c.every(Number.isFinite) ? ([c[0], c[1], c[2]] as [number, number, number]) : undefined;
+  try {
+    return await explore.pois({ kind: q.kind as PoiKind, center, radius: Math.min(Math.max(Number(q.radius) || 200, 25), 1500) });
+  } catch (err) {
+    app.log.warn({ error: (err as Error).message }, 'explore pois failed');
     return reply.code(502).send({ error: (err as Error).message });
   }
 });

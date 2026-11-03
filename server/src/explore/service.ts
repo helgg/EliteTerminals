@@ -1,8 +1,9 @@
 // EXPLORE service: a system's bodies from Spansh (the dump for the detail, the system record for the scan values)
 // and the search for places to go (Spansh's body search). Cached in memory; Spansh is a free service, so one at a time.
-import type { ExploreFindQuery, ExploreFindResult, ExploreSystem } from '@et/shared';
+import { POI_WINDOWED, POI_WINDOW_MAX, type ExploreFindQuery, type ExploreFindResult, type ExploreSystem, type PoiQuery, type PoiResult } from '@et/shared';
 import { findBody, fromDump, fromSearchHit, infoOf } from './bodies.ts';
 import { isBody } from '../colony/finder.ts';
+import { poiBody, pointsOf, snapWindow } from './pois.ts';
 
 const DUMP = 'https://spansh.co.uk/api/dump/';
 const RECORD = 'https://spansh.co.uk/api/system/';
@@ -12,6 +13,9 @@ const USER_AGENT = 'EliteTerminals/0.1 (personal second-screen tool)';
 const SYSTEM_TTL_MS = 6 * 3600e3;
 const FIND_TTL_MS = 30 * 60e3;
 const MAX_CACHED = 60;
+const POI_TTL_MS = 12 * 3600e3;
+/** Sites come whole, a page of 100 at a time: more pages than the sets need (Guardian 4, Thargoid 6 on 2026-11-03). */
+const SITE_PAGES = 10;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -30,6 +34,7 @@ export class ExploreService {
   private systems = new Map<number, { at: number; value: ExploreSystem }>();
   private names = new Map<string, number>();
   private finds = new Map<string, { at: number; value: ExploreFindResult }>();
+  private poiCache = new Map<string, { at: number; value: PoiResult }>();
   /** Calls to Spansh go one after the other. */
   private chain: Promise<unknown> = Promise.resolve();
 
@@ -97,6 +102,39 @@ export class ExploreService {
       };
       this.finds.set(key, { at: Date.now(), value });
       if (this.finds.size > MAX_CACHED) this.finds.delete(this.finds.keys().next().value!);
+      return value;
+    });
+  }
+
+  /** Stars (a window around a point) or sites (the whole set) for the galaxy map. Kept in memory for 12 hours. */
+  pois(q: PoiQuery): Promise<PoiResult> {
+    const windowed = POI_WINDOWED.includes(q.kind);
+    const window = windowed ? snapWindow(q.center ?? [0, 0, 0], q.radius ?? 200) : null;
+    const key = windowed ? `${q.kind}|${window!.center.join(',')}|${window!.radius}` : q.kind;
+    const hit = this.poiCache.get(key);
+    if (hit && Date.now() - hit.at < POI_TTL_MS) return Promise.resolve(hit.value);
+    return this.queue(async () => {
+      let total = 0;
+      let rows: unknown[] = [];
+      for (let page = 0; page < (windowed ? 1 : SITE_PAGES); page++) {
+        const res = await request(SEARCH, poiBody(q, page));
+        const got = Array.isArray(res?.results) ? res.results : [];
+        total = Number(res?.count) || total;
+        rows = rows.concat(got);
+        if (got.length < (windowed ? POI_WINDOW_MAX : 100)) break;
+        if (!windowed) await sleep(300);
+      }
+      const points = pointsOf(q.kind, rows);
+      const value: PoiResult = {
+        kind: q.kind,
+        points,
+        total: windowed ? total : points.length,
+        more: windowed && rows.length >= POI_WINDOW_MAX,
+        window,
+        fetchedAt: new Date().toISOString(),
+      };
+      this.poiCache.set(key, { at: Date.now(), value });
+      if (this.poiCache.size > MAX_CACHED) this.poiCache.delete(this.poiCache.keys().next().value!);
       return value;
     });
   }
