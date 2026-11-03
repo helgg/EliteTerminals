@@ -42,7 +42,7 @@
   .q {
     position: relative; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; width: 15px; height: 15px;
     border-radius: 50%; border: 1px solid var(--hud); color: var(--hud-hi); font-size: 10px; font-weight: 800; line-height: 1;
-    padding: 0 0 0 3px;
+    padding: 0 0 0 2px;
   }
   /* the ring that grows and fades: a soft one every 6 s, a stronger and quicker one while the screen's tutorial is unread */
   .q::after {
