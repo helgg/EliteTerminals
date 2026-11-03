@@ -1,7 +1,10 @@
 <script lang="ts">
-  import type { EdState, MaterialCategory, MaterialStock } from '@et/shared';
+  import { distance, engineerSite, type EdState, type MaterialCategory, type MaterialStock } from '@et/shared';
   import Panel from '../lib/Panel.svelte';
   import PhonePages from '../lib/PhonePages.svelte';
+  import Name from '../lib/Name.svelte';
+  import PlotButton from '../lib/trade/PlotButton.svelte';
+  import ExpButton from '../lib/explore/ExpButton.svelte';
   import { viewport } from '../lib/viewport.svelte.ts';
 
   // ENGINEERING: the materials the commander holds (from the journal's Materials event and what changes them),
@@ -45,6 +48,13 @@
     ),
   );
   const order = (p: string) => ['Unlocked', 'Invited', 'Known'].indexOf(p) + 1 || 9;
+  // where an engineer lives (a fixed table: the journal does not say) and how far that is from the ship
+  const here = $derived(s.location.system ? s.location.pos : null);
+  const away = (pos: readonly [number, number, number]) => {
+    if (!here) return '';
+    const d = distance(here, pos);
+    return d < 1 ? '0 ly' : d < 10 ? `${d.toFixed(1)} ly` : `${Math.round(d).toLocaleString('en-US')} ly`;
+  };
   const unlocked = $derived(s.engineering.engineers.filter((e) => e.progress === 'Unlocked').length);
 
   // phones: one list at a time, picked from the bar at the bottom
@@ -76,6 +86,7 @@
 {#snippet engineersPanel()}
   <Panel title="Engineers" aside={`${unlocked} unlocked of ${engineers.length}`}>
     {#each engineers as e (e.id)}
+      {@const site = engineerSite(e.name)}
       <div class="eg" class:locked={e.progress !== 'Unlocked'}>
         <span class="name">{e.name}</span>
         <span class="st {e.progress.toLowerCase()}">{e.progress.toUpperCase()}</span>
@@ -84,6 +95,16 @@
             {#each [1, 2, 3, 4, 5] as g (g)}<b class:on={g <= (e.rank ?? 0)}></b>{/each}
           </span>
           <span class="dim pct">{e.rank >= 5 ? 'MAX' : `${e.rankProgress ?? 0}%`}</span>
+        {/if}
+        <!-- the base is a fixed fact of the game (shared/engineerSites.ts); tap the system to copy it, PLOT sends the route -->
+        {#if site}
+          <span class="where">
+            <span class="sys"><Name value={site.system} system /></span>
+            <span class="dim base" title="the engineer's base">{site.base}</span>
+            <span class="dim away">{away(site.pos)}</span>
+            <ExpButton system={site.system} />
+            <PlotButton system={site.system} />
+          </span>
         {/if}
       </div>
     {:else}
@@ -188,7 +209,12 @@
   .mat.near .n { color: var(--hud-hi); }
   .empty { padding: 8px 6px; font-size: 12px; }
 
+  .eg { flex-wrap: wrap; row-gap: 3px; padding-top: 4px; padding-bottom: 4px; }
   .eg.locked .name { color: var(--muted); }
+  .where { flex: 1 0 100%; display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .where .sys { flex: none; font-weight: 700; }
+  .where .base { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+  .where .away { flex: none; font-size: 11px; font-variant-numeric: tabular-nums; }
   .st { flex: none; font-size: 10px; letter-spacing: 0.1em; color: var(--dim); }
   .st.unlocked { color: var(--ok); }
   .st.invited { color: var(--hud-hi); }

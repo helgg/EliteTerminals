@@ -187,7 +187,8 @@ a second.
 
 - Your **materials** (raw, manufactured, encoded) by grade with the storage limit of each grade, read from the game
   and kept up to date as you collect, trade, craft and synthesise; search, and sort by grade, name or count.
-- The **engineers** with their state (known, invited, unlocked) and the grade reached.
+- The **engineers** with their state (known, invited, unlocked) and the grade reached, each with the system and base
+  where they live, the distance from you, a tap-to-copy system name, **PLOT** and **EXP**.
 
 **Everywhere**
 
