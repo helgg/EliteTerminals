@@ -1,5 +1,5 @@
 // Local server: reads the game's journals and serves state + the web UI to the LAN.
-import { existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -17,6 +17,7 @@ import { MarketScanner } from './trade/markets.ts';
 import { TradeService } from './trade/service.ts';
 import { ColonyService } from './colony/service.ts';
 import { mergeDepots } from './colony/depots.ts';
+import { sanitizePlan } from './colony/plans.ts';
 import { commodityKey } from './trade/engine.ts';
 import { searchSystems } from './trade/reference.ts';
 import { checkWatch, watchedMarkets } from './prices/watch.ts';
@@ -91,6 +92,14 @@ const saveDepots = () => {
   savedDepots = now;
   void writeFile(DEPOTS_FILE, now).catch((err: Error) => app.log.warn({ error: err.message }, 'colony depots not saved'));
 };
+// COLONY › PLAN settings by system (lower-case name), kept on disk
+const PLANS_FILE = join(CACHE_DIR, 'colony-plans.json');
+let plans: Record<string, unknown> = {};
+try {
+  plans = JSON.parse(readFileSync(PLANS_FILE, 'utf8'));
+} catch {
+  // none yet
+}
 // The carrier too: CarrierStats only comes when its management opens, CarrierLocation only at login.
 const CARRIER_FILE = join(CACHE_DIR, 'carrier.json');
 try {
@@ -406,6 +415,22 @@ app.post('/api/colony/depot', async (req, reply) => {
   saveDepots();
   scheduleBroadcast();
   return d;
+});
+app.get('/api/colony/plans', async () => plans);
+app.post('/api/colony/plan', async (req, reply) => {
+  const { system, config } = req.body as { system?: string; config?: unknown };
+  const key = String(system ?? '').trim().toLowerCase();
+  if (!key || key.length > 120) return reply.code(400).send({ error: 'system missing' });
+  plans[key] = sanitizePlan(config);
+  // one copy of the file per day, made before the first write of that day: a bad save can never take everything
+  const day = new Date().toISOString().slice(0, 10);
+  try {
+    if (existsSync(PLANS_FILE) && !existsSync(`${PLANS_FILE}.${day}.bak`)) copyFileSync(PLANS_FILE, `${PLANS_FILE}.${day}.bak`);
+  } catch {
+    // the backup is a courtesy, the save goes on
+  }
+  void writeFile(PLANS_FILE, JSON.stringify(plans)).catch((err: Error) => app.log.warn({ error: err.message }, 'colony plans not saved'));
+  return plans[key];
 });
 app.post('/api/colony/markets', async (req, reply) => {
   // near the site (default), or near the player: buy in the bubble, the carrier brings it all in one jump

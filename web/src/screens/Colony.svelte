@@ -4,6 +4,8 @@
   import ReferencePicker from '../lib/trade/ReferencePicker.svelte';
   import ColonyDetail from '../lib/colony/ColonyDetail.svelte';
   import ColonyBuild from '../lib/colony/ColonyBuild.svelte';
+  import ColonyPlan from '../lib/colony/ColonyPlan.svelte';
+  import ColonyAll from '../lib/colony/ColonyAll.svelte';
   import Name from '../lib/Name.svelte';
   import ScoopIcon from '../lib/ScoopIcon.svelte';
   import { link } from '../lib/link.svelte.ts';
@@ -15,12 +17,21 @@
   // reach of populated space; each is scored by what its bodies hold, weighted by the profile picked.
   let { s, now }: { s: EdState; now: number } = $props();
 
-  // FINDER: the system to colonise · BUILD: the construction site being supplied (opens on BUILD while one is open)
+  // ALL SYSTEMS: every system with a construction site, where one is picked · FIND A SYSTEM: the next system to colonise
+  // (neither depends on a picked system) · BUILD and PLAN: the site being supplied / what to build next, in the picked system
+  const q = new URLSearchParams(location.search).get('view');
+  const nameList = (ds: typeof s.colony.depots) => [...new Set(ds.map((d) => d.system).filter(Boolean))];
+  const allSystems = $derived(nameList(s.colony.depots));
+  let sysPick = $state('');
   // svelte-ignore state_referenced_locally
-  let mode = $state<'find' | 'build'>(
-    new URLSearchParams(location.search).get('view') === 'build' || s.colony.depots.some((d) => !d.complete && !d.failed) ? 'build' : 'find',
-  );
-  const openSites = $derived(s.colony.depots.filter((d) => !d.complete && !d.failed).length);
+  let mode = $state<'all' | 'find' | 'build' | 'plan'>(q === 'plan' || q === 'build' || q === 'find' || q === 'all' ? q : allSystems.length ? 'all' : 'find');
+  // until one is picked: the system being supplied, else the first built (the state arrives after the screen opens)
+  const system = $derived(allSystems.includes(sysPick) ? sysPick : (nameList(s.colony.depots.filter((d) => !d.complete && !d.failed))[0] ?? nameList(s.colony.depots.filter((d) => d.complete))[0] ?? ''));
+  const sysDepots = $derived(s.colony.depots.filter((d) => d.system === system));
+  const openSites = $derived(sysDepots.filter((d) => !d.complete && !d.failed).length);
+  const openAll = $derived(s.colony.depots.filter((d) => !d.complete && !d.failed).length);
+  const built = $derived(sysDepots.some((d) => d.complete));
+  const pickSystem = (name: string, to: 'build' | 'plan') => { sysPick = name; mode = to; };
 
   type Filters = Omit<ColonyQuery, 'reference'> & { reference: string };
   const DEFAULTS: Filters = { reference: '', radius: 250, maxPopulatedLy: 15, minBodies: 5, profile: 'balanced' };
@@ -303,12 +314,45 @@
 
 <div class="colwrap">
   <nav class="modes" aria-label="Colony">
+    <button class:on={mode === 'all'} onclick={() => (mode = 'all')}>ALL SYSTEMS{#if openAll}<b class="num"> · {openAll} open</b>{/if}</button>
     <button class:on={mode === 'find'} onclick={() => (mode = 'find')}>FIND A SYSTEM</button>
-    <button class:on={mode === 'build'} onclick={() => (mode = 'build')}>BUILD{#if openSites}<b class="num"> · {openSites}</b>{/if}</button>
+    <span class="sep" aria-hidden="true"></span>
+    {#if system}
+      <span class="cur" title="The system BUILD and PLAN work on: pick another in ALL SYSTEMS">◆ {system.toUpperCase()}</span>
+      <button class:on={mode === 'build'} onclick={() => (mode = 'build')}>BUILD{#if openSites}<b class="num"> · {openSites}</b>{/if}</button>
+      <button class:on={mode === 'plan'} class:locked={!built} onclick={() => (mode = 'plan')}
+        title={built ? 'What to build next in this system' : 'Opens when the first construction of this system is complete'}>{built ? '' : '🔒 '}PLAN</button>
+    {:else}
+      <span class="cur dim">pick a system in ALL SYSTEMS for BUILD and PLAN</span>
+    {/if}
   </nav>
   <div class="modebody">
-  {#if mode === 'build'}
-    <ColonyBuild {s} {now} />
+  {#if mode === 'all'}
+    <ColonyAll {s} {now} onpick={pickSystem} />
+  {:else if mode === 'build' || mode === 'plan'}
+    {#if !system}
+      <Panel title={mode === 'plan' ? 'Plan' : 'Build'}>
+        <div class="locked">
+          <b>PICK A SYSTEM FIRST</b>
+          <p>BUILD and PLAN work on one system at a time. Open ALL SYSTEMS and pick it there.</p>
+          <button onclick={() => (mode = 'all')}>GO TO ALL SYSTEMS</button>
+        </div>
+      </Panel>
+    {:else if mode === 'build'}
+      <ColonyBuild {s} {now} {system} />
+    {:else if built}
+      <ColonyPlan {system} hub={sysDepots.find((d) => d.complete)?.body ?? ''} />
+    {:else}
+      <Panel title="Plan">
+        <div class="locked">
+          <b>THE PLAN OPENS AFTER THE FIRST BUILD</b>
+          <p>Once the first construction of {system} is complete, PLAN works out what to build next there: which facilities,
+            on which bodies, in what order, with the Tier 2 and Tier 3 points counted after each step (kept per system).</p>
+          <p>If you delivered it on a machine whose journal this one cannot read, open BUILD and press MARK COMPLETE on the site.</p>
+          {#if openSites}<button onclick={() => (mode = 'build')}>GO TO BUILD · {openSites} OPEN</button>{/if}
+        </div>
+      </Panel>
+    {/if}
   {:else}
 {#if vp === 'desktop-landscape'}
   <div class="colony wide">
@@ -361,6 +405,14 @@
     font-size: 11px; font-weight: 800; letter-spacing: 0.1em;
   }
   .modes button.on { background: var(--hud); border-color: var(--hud); color: var(--void); }
+  .modes button.locked:not(.on) { color: var(--dim); }
+  .sep { width: 1px; margin: 2px 8px; background: var(--rule); }
+  .cur { align-self: center; padding: 0 6px; font-size: 11px; font-weight: 800; letter-spacing: 0.1em; color: var(--hud-hi); }
+  .cur.dim { font-weight: 400; color: var(--dim); }
+  .locked { max-width: 560px; display: flex; flex-direction: column; gap: 8px; font-size: 12px; color: var(--muted); }
+  .locked b { color: var(--hud-hi); letter-spacing: 0.1em; font-size: 12px; }
+  .locked p { margin: 0; line-height: 1.5; }
+  .locked button { align-self: flex-start; padding: 6px 14px; background: var(--steel); border: 1px solid var(--rule); color: var(--hud-hi); font: inherit; font-size: 11px; letter-spacing: 0.1em; cursor: pointer; }
   .colony { display: grid; gap: 8px; height: 100%; min-height: 0; position: relative; }
   .colony.wide { grid-template-columns: 260px minmax(0, 1fr) minmax(360px, 30%); }
   .colony :global(.center .body), .colony :global(.right .body) { flex: 1; display: flex; flex-direction: column; min-height: 0; }

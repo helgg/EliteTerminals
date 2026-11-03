@@ -1,7 +1,7 @@
 // EXPLORE service: a system's bodies from Spansh (the dump for the detail, the system record for the scan values)
 // and the search for places to go (Spansh's body search). Cached in memory; Spansh is a free service, so one at a time.
 import type { ExploreFindQuery, ExploreFindResult, ExploreSystem } from '@et/shared';
-import { findBody, fromDump, fromSearchHit } from './bodies.ts';
+import { findBody, fromDump, fromSearchHit, infoOf } from './bodies.ts';
 import { isBody } from '../colony/finder.ts';
 
 const DUMP = 'https://spansh.co.uk/api/dump/';
@@ -72,6 +72,7 @@ export class ExploreService {
         id64,
         name: String(sys?.name ?? ''),
         pos: [Number(sys?.coords?.x) || 0, Number(sys?.coords?.y) || 0, Number(sys?.coords?.z) || 0],
+        info: infoOf(record?.record),
         bodies,
         bodyCount: Number(sys?.bodyCount) || bodies.length,
         fetchedAt: new Date().toISOString(),

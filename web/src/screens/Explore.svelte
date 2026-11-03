@@ -9,6 +9,9 @@
   import SystemMap from '../lib/explore/SystemMap.svelte';
   import BodyInspector from '../lib/explore/BodyInspector.svelte';
   import ExploreFind from '../lib/explore/ExploreFind.svelte';
+  import GalaxyMap from '../lib/explore/GalaxyMap.svelte';
+  import SystemLocation from '../lib/explore/SystemLocation.svelte';
+  import { regionAt, distance, type Pos } from '@et/shared';
   import ReferencePicker from '../lib/trade/ReferencePicker.svelte';
   import { exploreRequest } from '../lib/explore/nav.svelte.ts';
   import { beltOf, credits, distanceLabel, isBelt, orbitTree, ringTone, shortName } from '../lib/explore/explore.ts';
@@ -17,15 +20,15 @@
   // detail beside it, and FIND for places worth a trip: biology, worlds, geology.
   let { s }: { s: EdState } = $props();
 
-  type View = 'MAP' | 'FIND';
+  type View = 'MAP' | 'GALAXY' | 'FIND';
   let view = $state<View>(read('et.explore.view', 'MAP') as View);
   function read(key: string, dflt: string): string {
     try { return localStorage.getItem(key) ?? dflt; } catch { return dflt; }
   }
   // phones: FILTER holds the system pick, the highlight and FIND; SYSTEM the map and the body
-  type Page = 'filter' | 'system';
+  type Page = 'filter' | 'system' | 'galaxy';
   const PAGES: { id: Page; label: string; icon: string }[] = [
-    { id: 'filter', label: 'FILTER', icon: '⚙' }, { id: 'system', label: 'SYSTEM', icon: '◎' },
+    { id: 'filter', label: 'FILTER', icon: '⚙' }, { id: 'system', label: 'SYSTEM', icon: '◎' }, { id: 'galaxy', label: 'GALAXY', icon: '✦' },
   ];
   // svelte-ignore state_referenced_locally
   let page = $state<Page>(read('et.explore.page', view === 'FIND' ? 'filter' : 'system') as Page);
@@ -35,7 +38,7 @@
   const phone = $derived(viewport.device === 'phone');
   function setView(v: View) {
     view = v;
-    page = v === 'FIND' ? 'filter' : 'system';
+    page = v === 'FIND' ? 'filter' : v === 'GALAXY' ? 'galaxy' : 'system';
     try { localStorage.setItem('et.explore.view', v); } catch {}
   }
 
@@ -122,6 +125,11 @@
     return owner && belt ? { owner, belt } : null;
   });
   const held = $derived(new Map(s.engineering.materials.map((m) => [m.name, m])));
+  // where the system lies, and where you are (the plotted route is drawn too)
+  const here = $derived<Pos | null>(s.location.pos && (s.location.pos[0] || s.location.pos[2]) ? (s.location.pos as Pos) : null);
+  const region = $derived(sys ? regionAt(sys.pos[0], sys.pos[2])?.name ?? '' : '');
+  const solLy = $derived(sys ? distance(sys.pos, [0, 0, 0]) : 0);
+  const hops = $derived(s.route.hops.map((h) => ({ system: h.system, pos: h.pos as Pos })));
 
   const matches = (b: ExploreBody) => {
     const o = own.get(b.id);
@@ -184,6 +192,11 @@
       <span class="v"><Name value={shownName} system /></span>
       {#if shownName && shownName !== s.location.system}<PlotButton system={shownName} />{/if}
     </div>
+    {#if region}
+      <button class="n reg" onclick={() => setView('GALAXY')} title="Show it on the galaxy map">
+        <span class="k">REGION</span><span class="v">{region}<em> · {Math.round(solLy).toLocaleString('en-US')} ly from Sol</em></span>
+      </button>
+    {/if}
     <div class="n"><span class="k">BODIES</span><span class="v">{stat.bodies}{stat.total > stat.bodies ? ` of ${stat.total}` : ''}</span></div>
     {#if mineHere}
       <div class="n"><span class="k">SCANNED</span><span class="v">{stat.seen}<em>/{stat.bodies}</em></span></div>
@@ -270,6 +283,23 @@
   {/if}
 {/snippet}
 
+{#snippet galaxyBody()}
+  {#if error}
+    <Panel title="Galaxy"><p class="err">{error}</p></Panel>
+  {:else if !sys}
+    <Panel title="Galaxy"><Loading block label="LOADING SYSTEM" /></Panel>
+  {:else}
+    <div class="cols gal">
+      <Panel title="Galaxy map" aside="{region || 'outside the region map'} · drag to move, wheel to zoom" scroll={false}>
+        <div class="galbox"><GalaxyMap system={sys.pos as Pos} name={sys.name} {here} hereName={s.location.system} route={hops} height="100%" /></div>
+      </Panel>
+      <Panel title="Location" aside={sys.name}>
+        <SystemLocation {sys} {here} hereName={s.location.system} />
+      </Panel>
+    </div>
+  {/if}
+{/snippet}
+
 {#if phone}
   <!-- PHONES: FILTER (which system, what to highlight, FIND) and SYSTEM (the map and the body), from the bar -->
   <PhonePages pages={PAGES} bind:page>
@@ -281,6 +311,9 @@
         <Panel title="Find" aside="Spansh body search">
           <ExploreFind current={s.location.system} onopen={open} />
         </Panel>
+      {:else if page === 'galaxy'}
+        {@render strip()}
+        {@render galaxyBody()}
       {:else}
         {@render strip()}
         {@render focusBar()}
@@ -292,17 +325,20 @@
 <div class="ex">
   <div class="bar">
     <div class="views" role="group" aria-label="View">
-      {#each ['MAP', 'FIND'] as v (v)}
+      {#each ['MAP', 'GALAXY', 'FIND'] as v (v)}
         <button class:on={view === v} onclick={() => setView(v as View)}>{v}</button>
       {/each}
     </div>
-    {#if view === 'MAP'}{@render pins()}{/if}
+    {#if view !== 'FIND'}{@render pins()}{/if}
   </div>
 
   {#if view === 'FIND'}
     <Panel title="Find" aside="Spansh body search · places worth a trip">
       <ExploreFind current={s.location.system} onopen={open} />
     </Panel>
+  {:else if view === 'GALAXY'}
+    {@render strip()}
+    {@render galaxyBody()}
   {:else}
     {@render strip()}
     {@render focusBar()}
@@ -354,6 +390,12 @@
   .v.bio { color: #9af070; }
   .v.geo { color: #ff9a5a; }
   .worth .v { color: var(--hud-hi); }
+  .reg { display: flex; flex-direction: column; justify-content: center; gap: 0; background: transparent; border: 0; border-right: 1px solid var(--rule); color: inherit; font: inherit; text-align: left; cursor: pointer; letter-spacing: 0; padding: 6px 14px; }
+  .reg:hover { background: color-mix(in srgb, var(--hud) 9%, transparent); }
+  .reg .v { font-size: 13px; color: var(--hud-hi); }
+  .galbox { height: 100%; min-height: 380px; }
+  .cols.gal { grid-template-columns: minmax(0, 1fr) 380px; }
+  .ex.phone .galbox { height: 340px; min-height: 0; }
 
   .focus { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
   .focus .k { margin-right: 6px; }

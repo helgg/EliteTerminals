@@ -22,6 +22,14 @@
   );
   const grav = $derived(body.gravity);
   const hot = $derived(grav !== null && grav > 2);
+  /** Days → "20.0 h", "1.21 days", "12.8 weeks", "2.4 years". */
+  const dur = (d: number) => {
+    const a = Math.abs(d);
+    return a < 1 ? `${(a * 24).toFixed(1)} h` : a < 14 ? `${a.toFixed(2)} days` : a < 365 ? `${(a / 7).toFixed(1)} weeks` : `${(a / 365.25).toFixed(1)} years`;
+  };
+  /** AU → km round a small orbit (a moon), light-seconds round a wide one. */
+  const axis = (au: number) => (au < 0.01 ? `${Math.round(au * 149597870.7).toLocaleString('en-US')} km` : `${(au * 499.005).toFixed(au < 1 ? 1 : 0)} ls`);
+  const orbit = $derived(body.orbit && body.orbit.period > 0 ? body.orbit : null);
   const status = $derived(
     own?.mapped ? 'MAPPED' : own?.scan === 'detailed' ? 'SCANNED' : own?.scan === 'auto' ? 'SEEN ON ARRIVAL' : 'NOT SCANNED YET',
   );
@@ -50,12 +58,36 @@
     {#if !star}<div><i>GRAVITY</i><b class:warn={hot}>{gravityLabel(grav)}</b></div>{/if}
     <div><i>TEMPERATURE</i><b>{k(body.temperature)} K</b></div>
     {#if !star && body.pressure !== null && body.pressure > 0}<div><i>PRESSURE</i><b>{body.pressure.toFixed(2)} atm</b></div>{/if}
+    {#if body.rotation}<div><i>ROTATION</i><b>{dur(body.rotation)}{body.rotation < 0 ? ' · retrograde' : ''}</b></div>{/if}
+    {#if !star && body.rotation}<div><i>AXIAL TILT</i><b>{body.tilt.toFixed(1)}°</b></div>{/if}
+    {#if body.tidalLock}<div class="wide"><i>LOCKED</i><b>tidally locked to its parent</b></div>{/if}
     {#if body.volcanism}<div class="wide"><i>VOLCANISM</i><b>{body.volcanism}</b></div>{/if}
     {#if body.scanValue || body.mapValue}
       <div><i>SCAN WORTH</i><b class="gold">{credits(body.scanValue)} Cr</b></div>
       {#if !star}<div><i>MAP WORTH</i><b class="gold">{credits(body.mapValue)} Cr</b></div>{/if}
     {/if}
   </div>
+
+  {#if orbit}
+    <section class="sec">
+      <header><span>ORBIT</span><i></i><em>round {body.parent < 0 ? 'the system centre' : 'its parent'}</em></header>
+      <div class="grid">
+        <div><i>PERIOD</i><b>{dur(orbit.period)}</b></div>
+        <div><i>SEMI-MAJOR AXIS</i><b>{axis(orbit.semiMajorAu)}</b></div>
+        <div><i>ECCENTRICITY</i><b>{orbit.eccentricity.toFixed(4)}</b></div>
+        <div><i>INCLINATION</i><b>{orbit.inclination.toFixed(2)}°</b></div>
+      </div>
+    </section>
+  {/if}
+
+  {#if body.composition.length}
+    <section class="sec">
+      <header><span>COMPOSITION</span><i></i><em>solid</em></header>
+      {#each body.composition as c (c.name)}
+        <div class="row"><span class="label">{c.name}</span><span class="bar"><s style:width="{c.pct}%"></s></span><span class="v">{c.pct.toFixed(1)}%</span></div>
+      {/each}
+    </section>
+  {/if}
 
   {#if body.atmosphere}
     <section class="sec">

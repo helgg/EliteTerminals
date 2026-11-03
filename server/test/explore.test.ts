@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { compareOrbit, designation, initialState } from '@et/shared';
 import { applyEvent, type JournalEvent } from '../src/reducer.ts';
-import { beltsOf, findBody, fromDump, fromSearchHit, genusName, mixOf } from '../src/explore/bodies.ts';
+import { beltsOf, findBody, fromDump, fromSearchHit, genusName, infoOf, mixOf } from '../src/explore/bodies.ts';
 
 const planet = {
   bodyId: 1, name: 'Col 359 Sector BL-O d6-72 1', type: 'Planet', subType: 'High metal content world',
@@ -205,4 +205,30 @@ test('a wide binary: each true star keeps its own line; pairs under a star group
   assert.deepEqual(tree[1].centre.map(nm), ['B']);
   assert.deepEqual(tree[1].cols.map((c) => c.map((n) => nm(n.body))), [['B 1'], ['B 5', 'B 6']]);
   assert.deepEqual(tree[1].cols[1][1].kids.map((n) => nm(n.body)), ['B 6 a']);
+});
+
+test('fromDump carries the orbit, rotation, tilt and composition of a moon (Col 359 Sector FM-M d7-90 B 9 a)', () => {
+  const b = fromDump({
+    bodyId: 100, name: 'Col 359 Sector FM-M d7-90 B 9 a', type: 'Planet', subType: 'Icy body', isLandable: true, distanceToArrival: 122946.99,
+    parents: [{ Planet: 98 }, { Star: 2 }, { Null: 0 }], orbitalPeriod: 0.778354925, semiMajorAxis: 0.001365, orbitalEccentricity: 0.000157,
+    orbitalInclination: 0.001928, rotationalPeriod: -0.778409, rotationalPeriodTidallyLocked: false, axialTilt: 2.56528,
+    solidComposition: { Ice: 82.0396, Metal: 1.6098, Rock: 16.3506 }, volcanismType: 'Major Water Geysers',
+  });
+  assert.equal(b.orbit?.period, 0.778354925);
+  assert.equal(b.orbit?.semiMajorAu, 0.001365);
+  assert.equal(b.rotation < 0, true); // retrograde
+  assert.equal(b.tidalLock, false);
+  assert.ok(Math.abs(b.tilt - 146.98) < 0.01, `tilt ${b.tilt}`); // radians in the dump, degrees for us (the portal shows 146.98°)
+  assert.deepEqual(b.composition.map((c) => c.name), ['Ice', 'Rock', 'Metal']);
+});
+
+test('a star has no orbit when Spansh gives none', () => {
+  assert.equal(fromDump({ bodyId: 0, name: 'X', type: 'Star', subType: 'A (Blue-White) Star' }).orbit, null);
+});
+
+test('infoOf reads the system record: permit, freshness and the empty economies', () => {
+  const i = infoOf({ population: 0, government: 'None', security: 'Anarchy', primary_economy: 'None', secondary_economy: 'None', needs_permit: false, updated_at: '2026-06-04T05:37:17Z' });
+  assert.deepEqual(i, { population: 0, allegiance: '', government: '', security: 'Anarchy', economy: '', secondaryEconomy: '', permit: false, updatedAt: '2026-06-04T05:37:17Z' });
+  assert.equal(infoOf(null).updatedAt, '');
+  assert.equal(infoOf({ needs_permit: true }).permit, true);
 });

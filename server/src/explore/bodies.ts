@@ -1,6 +1,6 @@
 // EXPLORE: Spansh's records of a system's bodies and of body-search hits → our models, and the search itself.
 // Pure, for tests: no I/O.
-import type { ExploreBelt, ExploreBody, ExploreFindQuery, ExploreTarget } from '@et/shared';
+import type { ExploreBelt, ExploreBody, ExploreFindQuery, ExploreOrbit, ExploreSystemInfo, ExploreTarget } from '@et/shared';
 import { fromDumpBody } from '../colony/finder.ts';
 import { MATERIALS } from '../engineeringData.ts';
 
@@ -88,6 +88,33 @@ export function fromDump(b: any, values?: { scan: number; map: number }): Explor
     scanValue: values?.scan ?? 0,
     mapValue: values?.map ?? 0,
     stations: stations.map((s: any) => ({ name: str(s?.name), type: str(s?.type) })),
+    orbit: b?.orbitalPeriod === undefined && b?.semiMajorAxis === undefined ? null : orbitOf(b),
+    rotation: num(b?.rotationalPeriod),
+    tidalLock: b?.rotationalPeriodTidallyLocked === true,
+    // Spansh gives the tilt in radians, like the journal
+    tilt: (num(b?.axialTilt) * 180) / Math.PI,
+    composition: Object.entries((b?.solidComposition ?? {}) as Record<string, number>)
+      .map(([name, pct]) => ({ name, pct: num(pct) }))
+      .filter((x) => x.pct > 0)
+      .sort((x, y) => y.pct - x.pct),
+  };
+}
+
+function orbitOf(b: any): ExploreOrbit {
+  return { period: num(b?.orbitalPeriod), semiMajorAu: num(b?.semiMajorAxis), eccentricity: num(b?.orbitalEccentricity), inclination: num(b?.orbitalInclination) };
+}
+
+/** A system record of Spansh → what we show of the system as a whole. A missing record gives empty values. */
+export function infoOf(r: any): ExploreSystemInfo {
+  return {
+    population: num(r?.population),
+    allegiance: str(r?.allegiance),
+    government: /^none$/i.test(str(r?.government)) ? '' : str(r?.government),
+    security: str(r?.security),
+    economy: /^none$/i.test(str(r?.primary_economy)) ? '' : str(r?.primary_economy),
+    secondaryEconomy: /^none$/i.test(str(r?.secondary_economy)) ? '' : str(r?.secondary_economy),
+    permit: r?.needs_permit === true,
+    updatedAt: str(r?.updated_at),
   };
 }
 

@@ -12,9 +12,10 @@
 
   // COLONY v2 (docs/design/COLONY.md): the construction site being supplied. What is left, the pace the deadline
   // asks for, what the hold carries now, and the markets near the site that stock most of the list.
-  let { s, now }: { s: EdState; now: number } = $props();
+  let { s, now, system = '' }: { s: EdState; now: number; system?: string } = $props();
 
-  const depots = $derived(s.colony.depots);
+  // `system`: only that system's sites (blank = all)
+  const depots = $derived(system ? s.colony.depots.filter((d) => d.system === system) : s.colony.depots);
   let pickedId = $state(0);
   const depot = $derived<ColonyDepot | null>(depots.find((d) => d.marketId === pickedId) ?? depots.find((d) => !d.complete && !d.failed) ?? depots[0] ?? null);
 

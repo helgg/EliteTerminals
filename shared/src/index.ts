@@ -504,12 +504,43 @@ export interface ExploreBody {
   scanValue: number;
   mapValue: number;
   stations: { name: string; type: string }[];
+  /** Its orbit round the parent; null for the system's own centre. */
+  orbit: ExploreOrbit | null;
+  /** Rotation in days (negative = retrograde), 0 when unknown; and whether it is tidally locked to its parent. */
+  rotation: number;
+  tidalLock: boolean;
+  /** Axial tilt in degrees. */
+  tilt: number;
+  /** What the body is made of (Spansh's solid composition: Ice / Rock / Metal), by share. */
+  composition: { name: string; pct: number }[];
+}
+export interface ExploreOrbit {
+  /** Days. */
+  period: number;
+  /** AU. */
+  semiMajorAu: number;
+  eccentricity: number;
+  /** Degrees. */
+  inclination: number;
+}
+/** What Spansh knows of the system as a whole (its record): who lives there, whether it needs a permit, how fresh the data is. */
+export interface ExploreSystemInfo {
+  population: number;
+  allegiance: string;
+  government: string;
+  security: string;
+  economy: string;
+  secondaryEconomy: string;
+  permit: boolean;
+  /** When Spansh last had news of the system (ISO), '' when unknown. */
+  updatedAt: string;
 }
 
 export interface ExploreSystem {
   id64: number;
   name: string;
   pos: [number, number, number];
+  info: ExploreSystemInfo;
   bodies: ExploreBody[];
   /** Spansh's own count of the system's bodies and how many it has data for. */
   bodyCount: number;
@@ -1284,3 +1315,5 @@ export interface ColonyResult {
  */
 export const carrierUntracked = (c: CarrierState): number =>
   c.statsAt ? Math.max(0, c.space.cargo + c.sinceStats - c.cargo.reduce((n, x) => n + x.count, 0)) : 0;
+export * from './galaxy.ts';
+export * from './colonyPlan.ts';
