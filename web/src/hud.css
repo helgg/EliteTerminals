@@ -89,3 +89,7 @@ button {
 .sec > header { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; font-size: 10px; font-weight: 800; letter-spacing: 0.16em; color: var(--hud); }
 .sec > header i { flex: 1; height: 1px; background: linear-gradient(to right, var(--hud), var(--rule)); opacity: 0.6; }
 .sec > header em { font-style: normal; font-weight: 400; letter-spacing: 0.06em; color: var(--dim); }
+
+/* number fields never show the up/down arrows (house rule): they are typed, not stepped */
+input[type='number'] { appearance: textfield; -moz-appearance: textfield; }
+input[type='number']::-webkit-inner-spin-button, input[type='number']::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }

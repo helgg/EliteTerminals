@@ -460,8 +460,8 @@
     let raf = 0;
     let lastDraw = 0;
     const loop = (now: number) => {
-      // the ring and the road move: about 30 frames a second, none for those who asked for calm
-      if (dirty || (animated && !calm && now - lastDraw > 33)) { draw(); lastDraw = now; }
+      // the ring and the road move: about 15 frames a second (each one redraws the whole map), none for those who asked for calm
+      if (dirty || (animated && !calm && now - lastDraw > 66)) { draw(); lastDraw = now; }
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
@@ -539,7 +539,7 @@
       <span class="dim">A loop from {hereName || 'where you are'}, planned by Spansh</span>
       <div class="row">
         <label>RANGE<input type="number" min="5" max="100" step="0.5" bind:value={rRange} /><u>ly</u></label>
-        <label>STOPS<select bind:value={rStops}>{#each [8, 15, 25, 40] as n (n)}<option value={n}>{n}</option>{/each}</select></label>
+        <label>STOPS<input type="number" min="3" max="40" step="1" bind:value={rStops} /></label>
       </div>
       <button class="go" disabled={richesBusy} onclick={planRiches}>{richesBusy ? 'PLANNING…' : riches ? 'RECALCULATE' : 'CALCULATE'}</button>
       {#if richesBusy}<span class="dim">Spansh takes a few seconds</span>{/if}
@@ -588,7 +588,7 @@
   .gm { position: relative; width: 100%; background: #070402; border: 1px solid var(--rule); overflow: hidden; touch-action: none; }
   canvas { display: block; cursor: grab; }
   canvas:active { cursor: grabbing; }
-  .tip {
+  .tip { z-index: 2;
     position: absolute; left: 8px; top: 8px; display: flex; flex-direction: column; gap: 1px; padding: 4px 8px; pointer-events: none;
     background: rgb(11 7 5 / 0.85); border: 1px solid var(--rule); font-size: 11px; color: var(--muted);
   }
@@ -627,7 +627,7 @@
   }
   .card .copy:hover { background: color-mix(in srgb, var(--hud-hi) 24%, var(--steel)); }
   .rich {
-    position: absolute; left: 8px; top: 46px; width: min(230px, calc(100% - 16px)); max-height: calc(100% - 96px); overflow-y: auto; display: flex; flex-direction: column; gap: 5px;
+    position: absolute; left: 8px; top: 58px; width: min(230px, calc(100% - 16px)); max-height: calc(100% - 108px); overflow-y: auto; display: flex; flex-direction: column; gap: 5px;
     padding: 8px 10px 10px; background: rgb(21 16 11 / 0.95); border: 1px solid #ffd24a; box-shadow: 0 0 14px rgb(255 210 74 / 0.25); font-size: 11px;
   }
   .rich header { display: flex; align-items: center; gap: 6px; }
@@ -635,8 +635,7 @@
   .rich .x { margin-left: auto; width: 24px; height: 22px; background: var(--steel); border: 1px solid var(--rule); color: var(--hud-hi); font-size: 11px; cursor: pointer; }
   .rich .row { display: flex; gap: 8px; }
   .rich label { display: flex; align-items: center; gap: 4px; font-size: 9px; letter-spacing: 0.1em; color: var(--dim); }
-  .rich input, .rich select { width: 52px; height: 24px; padding: 0 4px; background: #0b0705; border: 1px solid var(--rule); color: var(--text); font: inherit; font-size: 11px; }
-  .rich select { width: 48px; }
+  .rich input { width: 52px; height: 24px; padding: 0 4px; background: #0b0705; border: 1px solid var(--rule); color: var(--text); font: inherit; font-size: 11px; }
   .rich u { text-decoration: none; }
   .rich .go {
     padding: 6px 8px 5px; font: inherit; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; cursor: pointer; border: 0; color: #ffd24a;
