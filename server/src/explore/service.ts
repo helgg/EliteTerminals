@@ -1,9 +1,10 @@
 // EXPLORE service: a system's bodies from Spansh (the dump for the detail, the system record for the scan values)
 // and the search for places to go (Spansh's body search). Cached in memory; Spansh is a free service, so one at a time.
-import { POI_WINDOWED, POI_WINDOW_MAX, type ExploreFindQuery, type ExploreFindResult, type ExploreSystem, type PoiQuery, type PoiResult } from '@et/shared';
+import { POI_WINDOWED, POI_WINDOW_MAX, type ExploreFindQuery, type ExploreFindResult, type ExploreSystem, type PoiQuery, type PoiResult, type Pos, type RichesQuery, type RichesResult } from '@et/shared';
 import { findBody, fromDump, fromSearchHit, infoOf } from './bodies.ts';
 import { isBody } from '../colony/finder.ts';
 import { poiBody, pointsOf, snapWindow } from './pois.ts';
+import { richesForm, richesResult } from './riches.ts';
 
 const DUMP = 'https://spansh.co.uk/api/dump/';
 const RECORD = 'https://spansh.co.uk/api/system/';
@@ -14,6 +15,11 @@ const SYSTEM_TTL_MS = 6 * 3600e3;
 const FIND_TTL_MS = 30 * 60e3;
 const MAX_CACHED = 60;
 const POI_TTL_MS = 12 * 3600e3;
+const RICHES = 'https://spansh.co.uk/api/riches/route';
+const RESULTS = 'https://spansh.co.uk/api/results/';
+const RICHES_TTL_MS = 30 * 60e3;
+/** A route takes Spansh a few seconds; it is looked at every 2 s for this long. */
+const RICHES_WAIT_MS = 60e3;
 /** Sites come whole, a page of 100 at a time: more pages than the sets need (Guardian 4, Thargoid 6 on 2026-11-03). */
 const SITE_PAGES = 10;
 
@@ -35,6 +41,8 @@ export class ExploreService {
   private names = new Map<string, number>();
   private finds = new Map<string, { at: number; value: ExploreFindResult }>();
   private poiCache = new Map<string, { at: number; value: PoiResult }>();
+  private riches_ = new Map<string, { at: number; value: RichesResult }>();
+  private positions = new Map<string, Pos>();
   /** Calls to Spansh go one after the other. */
   private chain: Promise<unknown> = Promise.resolve();
 
@@ -136,6 +144,54 @@ export class ExploreService {
       this.poiCache.set(key, { at: Date.now(), value });
       if (this.poiCache.size > MAX_CACHED) this.poiCache.delete(this.poiCache.keys().next().value!);
       return value;
+    });
+  }
+
+  /** A system's coordinates from its name (Spansh's search record); null when Spansh knows no such system. */
+  position(name: string): Promise<Pos | null> {
+    const q = name.trim();
+    const hit = this.positions.get(q.toLowerCase());
+    if (hit) return Promise.resolve(hit);
+    return this.queue(async () => {
+      const res = await request(NAMES + encodeURIComponent(q));
+      const r = (Array.isArray(res?.results) ? res.results : []).find(
+        (x: any) => x?.type === 'system' && String(x?.record?.name ?? '').toLowerCase() === q.toLowerCase(),
+      )?.record;
+      if (!r || ![r.x, r.y, r.z].every((v) => Number.isFinite(Number(v)))) return null;
+      const pos: Pos = [Number(r.x), Number(r.y), Number(r.z)];
+      this.positions.set(q.toLowerCase(), pos);
+      return pos;
+    });
+  }
+
+  /** A road to riches (a loop from the system): Spansh plans it as a job, so the answer is waited for. */
+  riches(q: RichesQuery): Promise<RichesResult> {
+    const key = JSON.stringify(q);
+    const hit = this.riches_.get(key);
+    if (hit && Date.now() - hit.at < RICHES_TTL_MS) return Promise.resolve(hit.value);
+    return this.queue(async () => {
+      const res = await fetch(RICHES, {
+        method: 'POST',
+        headers: { 'User-Agent': USER_AGENT, Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: richesForm(q).toString(),
+        signal: AbortSignal.timeout(30000),
+      });
+      const job = res.ok ? ((await res.json()) as any)?.job : '';
+      if (!job) throw new Error(res.status === 400 || res.status === 422 ? 'Spansh does not know this system' : `Spansh answered ${res.status}`);
+      const until = Date.now() + RICHES_WAIT_MS;
+      while (Date.now() < until) {
+        await sleep(2000);
+        const out = await request(RESULTS + job);
+        if (out?.error) throw new Error(String(out.error));
+        if (Array.isArray(out?.result)) {
+          const value = richesResult(q, out.result);
+          if (value.stops.length < 2) throw new Error('Spansh found no road to riches from there');
+          this.riches_.set(key, { at: Date.now(), value });
+          if (this.riches_.size > MAX_CACHED) this.riches_.delete(this.riches_.keys().next().value!);
+          return value;
+        }
+      }
+      throw new Error('Spansh is taking too long to plan the route');
     });
   }
 }

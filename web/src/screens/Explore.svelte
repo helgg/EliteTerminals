@@ -131,6 +131,21 @@
   const solLy = $derived(sys ? distance(sys.pos, [0, 0, 0]) : 0);
   const hops = $derived(s.route.hops.map((h) => ({ system: h.system, pos: h.pos as Pos })));
 
+  // the carrier's place for the ring on the galaxy map: where you are when it is parked in this system, else asked of Spansh
+  let carrierPos = $state<Pos | null>(null);
+  $effect(() => {
+    const sysName = s.carrier.system;
+    if (!sysName) { carrierPos = null; return; }
+    if (sysName === s.location.system && here) { carrierPos = here; return; }
+    let live = true;
+    fetch('/api/explore/position', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: sysName }) })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (live) carrierPos = j?.pos ?? null; })
+      .catch(() => { if (live) carrierPos = null; });
+    return () => { live = false; };
+  });
+  const carrier = $derived(carrierPos ? { name: s.carrier.name || s.carrier.callsign || 'CARRIER', system: s.carrier.system, pos: carrierPos } : null);
+
   const matches = (b: ExploreBody) => {
     const o = own.get(b.id);
     switch (focus) {
@@ -291,7 +306,7 @@
   {:else}
     <div class="cols gal">
       <Panel title="Galaxy map" aside="{region || 'outside the region map'} · drag to move, wheel to zoom" scroll={false}>
-        <div class="galbox"><GalaxyMap system={sys.pos as Pos} name={sys.name} {here} hereName={s.location.system} route={hops} height="100%" /></div>
+        <div class="galbox"><GalaxyMap system={sys.pos as Pos} name={sys.name} {here} hereName={s.location.system} route={hops} {carrier} jumpRange={s.ship.maxJumpRange} height="100%" /></div>
       </Panel>
       <Panel title="Location" aside={sys.name}>
         <SystemLocation {sys} {here} hereName={s.location.system} />

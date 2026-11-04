@@ -7,7 +7,7 @@ import Fastify from 'fastify';
 import fastifyStatic from '@fastify/static';
 import fastifyWebsocket from '@fastify/websocket';
 import { carrierUntracked } from '@et/shared';
-import type { CarrierRoute, CarrierRouteQuery, ClientMessage, ColonyQuery, ExploreFindQuery, ExplorePreset, MiningSellQuery, PoiKind, PoiQuery, ServerMessage, TradePathQuery, TradeQuery, TradeWatch } from '@et/shared';
+import type { CarrierRoute, CarrierRouteQuery, ClientMessage, ColonyQuery, ExploreFindQuery, ExplorePreset, MiningSellQuery, PoiKind, PoiQuery, RichesQuery, ServerMessage, TradePathQuery, TradeQuery, TradeWatch } from '@et/shared';
 import { JournalReader } from './reader.ts';
 import { Controls } from './controls.ts';
 import { findGameDir } from './binds.ts';
@@ -30,6 +30,7 @@ import { Favorites, toFavorite } from './favorites.ts';
 import { TradePins, toPin } from './tradePins.ts';
 import { HOTSPOT_COMMODITIES, Rings, type HotspotQuery } from './rings.ts';
 import { ExploreService } from './explore/service.ts';
+import { cleanRiches } from './explore/riches.ts';
 import { systemRings } from './mining.ts';
 import { mergeCarrier, setCarrierCargo } from './carrier/state.ts';
 import { carrierRoute } from './carrier/route.ts';
@@ -603,6 +604,32 @@ app.post('/api/explore/pois', async (req, reply) => {
     return await explore.pois({ kind: q.kind as PoiKind, center, radius: Math.min(Math.max(Number(q.radius) || 200, 25), 1500) });
   } catch (err) {
     app.log.warn({ error: (err as Error).message }, 'explore pois failed');
+    return reply.code(502).send({ error: (err as Error).message });
+  }
+});
+
+// a system's coordinates (the carrier's ring on the galaxy map)
+app.post('/api/explore/position', async (req, reply) => {
+  const name = String((req.body as { name?: string })?.name ?? '').trim();
+  if (!name) return reply.code(400).send({ error: 'No system name' });
+  try {
+    const pos = await explore.position(name);
+    return pos ? { name, pos } : reply.code(404).send({ error: `Spansh knows no system called "${name}"` });
+  } catch (err) {
+    app.log.warn({ error: (err as Error).message }, 'explore position failed');
+    return reply.code(502).send({ error: (err as Error).message });
+  }
+});
+
+// a road to riches from Spansh, as a loop from a system (the galaxy map's RICHES layer)
+app.post('/api/explore/riches', async (req, reply) => {
+  const q = cleanRiches({ ...(req.body as Partial<RichesQuery>) });
+  const from = q.from || reader.state.location.system;
+  if (!from) return reply.code(400).send({ error: 'No system: the game has not told where the ship is' });
+  try {
+    return await explore.riches({ ...q, from });
+  } catch (err) {
+    app.log.warn({ error: (err as Error).message }, 'explore riches failed');
     return reply.code(502).send({ error: (err as Error).message });
   }
 });

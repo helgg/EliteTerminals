@@ -1,17 +1,22 @@
 <script lang="ts">
-  import { LANDMARKS, POI_WINDOWED, REGION_GRID, REGION_NAMES, distance, regionAt, regionGrid, type Pos, type PoiKind, type PoiResult } from '@et/shared';
+  import { LANDMARKS, POI_WINDOWED, REGION_GRID, REGION_NAMES, distance, regionAt, regionGrid, type Pos, type PoiKind, type PoiResult, type RichesResult, type RichesStop } from '@et/shared';
   import { copyName } from '../copy.svelte.ts';
   import PlotButton from '../trade/PlotButton.svelte';
   import ExpButton from './ExpButton.svelte';
+  import { credits } from './explore.ts';
 
   // The galaxy seen from above (x right, z up: the core is at the top): the 42 codex regions with their borders, the
   // well-known places, the system on show, where you are and the route you plotted. Drag to move, wheel or pinch to zoom.
-  let { system, name, here = null, hereName = '', route = [], height = 320, onexpand }: {
+  let { system, name, here = null, hereName = '', route = [], carrier = null, jumpRange = 0, height = 320, onexpand }: {
     system: Pos;
     name: string;
     here?: Pos | null;
     hereName?: string;
     route?: { system: string; pos: Pos }[];
+    /** Your fleet carrier, for its jump ring. */
+    carrier?: { name: string; system: string; pos: Pos } | null;
+    /** The ship's jump range (ly): what the road to riches is planned for, to start with. */
+    jumpRange?: number;
     height?: number | string;
     /** Shown as a ⤢ button when given (the card version opens the big one). */
     onexpand?: () => void;
@@ -97,8 +102,72 @@
   const shown = (k: PoiKind) => (on[k] ? data[k]?.points ?? [] : []);
   const count = (k: PoiKind) => data[k]?.points.length ?? 0;
 
+  // ---- the carrier's jump ring (a carrier jumps 500 ly at most) and a road to riches (Spansh's route planner)
+  const CARRIER_JUMP = 500;
+  const RICH = '#ffd24a';
+  const flag = (key: string) => { try { return localStorage.getItem(key) === '1'; } catch { return false; } };
+  const remember = (key: string, v: boolean) => { try { localStorage.setItem(key, v ? '1' : '0'); } catch { /* not remembered */ } };
+  let ring = $state(flag('et.galaxy.ring'));
+  let richesOn = $state(flag('et.galaxy.riches'));
+  $effect(() => remember('et.galaxy.ring', ring));
+  $effect(() => remember('et.galaxy.riches', richesOn));
+  let rRange = $state(0);
+  let rStops = $state(15);
+  $effect(() => { if (!rRange && jumpRange > 0) rRange = Math.round(jumpRange * 10) / 10; });
+  let riches = $state<RichesResult | null>(null);
+  let richesBusy = $state(false);
+  let richesErr = $state('');
+  async function planRiches() {
+    richesBusy = true; richesErr = '';
+    try {
+      const res = await fetch('/api/explore/riches', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from: hereName, range: rRange || 30, stops: rStops }),
+      });
+      const out = await res.json();
+      if (!res.ok) throw new Error(out.error ?? `HTTP ${res.status}`);
+      riches = out; dirty = true;
+      const b = bounds(out.stops.map((st: RichesStop) => st.pos));
+      if (b) view = b;
+    } catch (err) {
+      richesErr = (err as Error).message;
+    } finally {
+      richesBusy = false;
+    }
+  }
+  /** A view that holds all the points, a little loose. */
+  function bounds(ps: Pos[]) {
+    if (!ps.length) return null;
+    const xs = ps.map((p) => p[0]), zs = ps.map((p) => p[2]);
+    const [x0, x1, z0, z1] = [Math.min(...xs), Math.max(...xs), Math.min(...zs), Math.max(...zs)];
+    const k = Math.min(MAX_SCALE, Math.max(MIN_SCALE, Math.min(w / Math.max(60, (x1 - x0) * 1.5), h / Math.max(60, (z1 - z0) * 1.5))));
+    return { x: (x0 + x1) / 2, z: (z0 + z1) / 2, k };
+  }
+  const stopsShown = $derived((riches?.stops ?? []).map((st, i) => ({ st, i })).filter((x) => x.i > 0 && x.st.bodies.length));
+  function stopCard(st: RichesStop, i: number): Picked {
+    return {
+      name: st.system, system: st.system, pos: st.pos, kind: `ROAD TO RICHES · STOP ${i}`, colour: RICH,
+      detail: `${st.bodies.length} ${st.bodies.length === 1 ? 'body' : 'bodies'} · ${credits(st.value)} Cr`,
+      lines: st.bodies.map((b) => `${b.name.startsWith(st.system) ? b.name.slice(st.system.length).trim() || b.name : b.name} · ${b.subtype}${b.terraformable ? ' (terraformable)' : ''} · ${credits(b.value)}`),
+    };
+  }
+  function focusStop(st: RichesStop, i: number) {
+    view = { x: st.pos[0], z: st.pos[2], k: Math.max(view.k, 0.3) };
+    picked = stopCard(st, i);
+    dirty = true;
+  }
+  const toCarrier = () => carrier && (view = { x: carrier.pos[0], z: carrier.pos[2], k: Math.min(w, h) / (2.4 * CARRIER_JUMP) });
+  /** What the layers on show hold within one jump of the carrier (true distance, the height counts). */
+  const inRange = $derived(
+    carrier && ring
+      ? LAYERS.map((l) => ({ l, n: shown(l.id).filter((p) => distance(p.pos, carrier.pos) <= CARRIER_JUMP).length })).filter((x) => x.n)
+      : [],
+  );
+  const animated = $derived(!!(carrier && ring) || !!(richesOn && riches));
+  const calm = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
   // the point under a tap, and its card
-  type Picked = { name: string; system: string; pos: Pos; kind: string; colour: string; detail: string };
+  type Picked = { name: string; system: string; pos: Pos; kind: string; colour: string; detail: string; lines?: string[] };
   let picked = $state<Picked | null>(null);
   function pickAt(px: number, py: number) {
     let best: Picked | null = null, bd = 14;
@@ -107,6 +176,7 @@
       if (d < bd) { bd = d; best = p; }
     };
     for (const l of LAYERS) for (const p of shown(l.id)) test({ ...p, kind: l.label, colour: l.colour });
+    if (richesOn && riches) riches.stops.forEach((st, i) => { if (i > 0 && st.bodies.length) test(stopCard(st, i)); });
     for (const l of LANDMARKS) test({ name: l.name, system: l.name, pos: l.pos, kind: 'LANDMARK', colour: '#e9dccd', detail: '' });
     picked = best;
     dirty = true;
@@ -288,6 +358,46 @@
       c.strokeStyle = picked.colour; c.lineWidth = 1.5;
       c.beginPath(); c.arc(px, py, 9, 0, Math.PI * 2); c.stroke();
     }
+    // the carrier's jump ring: a pulse leaving the carrier and a slowly turning dashed edge
+    const t = performance.now();
+    if (carrier && ring) {
+      const cx = sx(carrier.pos[0]), cy = sz(carrier.pos[2]), R = CARRIER_JUMP * view.k;
+      c.globalCompositeOperation = 'lighter';
+      c.fillStyle = 'rgb(255 181 69 / 0.045)'; c.beginPath(); c.arc(cx, cy, R, 0, Math.PI * 2); c.fill();
+      const ph = (t % 3200) / 3200;
+      c.strokeStyle = `rgb(255 181 69 / ${(0.35 * (1 - ph)).toFixed(3)})`; c.lineWidth = 2;
+      c.beginPath(); c.arc(cx, cy, R * (0.55 + 0.45 * ph), 0, Math.PI * 2); c.stroke();
+      c.strokeStyle = 'rgb(255 181 69 / 0.9)'; c.lineWidth = 1.5; c.setLineDash([10, 6]); c.lineDashOffset = -(t / 60) % 16;
+      c.beginPath(); c.arc(cx, cy, R, 0, Math.PI * 2); c.stroke(); c.setLineDash([]);
+      c.globalCompositeOperation = 'source-over';
+      c.fillStyle = '#ffb545'; c.shadowColor = '#ffb545'; c.shadowBlur = 8;
+      c.fillRect(cx - 3, cy - 3, 6, 6); c.shadowBlur = 0;
+      if (R > 40) {
+        c.font = `700 10px ${getComputedStyle(box).getPropertyValue('--mono') || 'monospace'}`; c.textAlign = 'center';
+        const lab = `${carrier.name} · ${CARRIER_JUMP} LY`; const lw = c.measureText(lab).width;
+        c.fillStyle = 'rgb(11 7 5 / 0.75)'; c.fillRect(cx - lw / 2 - 4, cy - R - 17, lw + 8, 14);
+        c.fillStyle = '#ffb545'; c.fillText(lab, cx, cy - R - 6);
+      }
+    }
+    // the road to riches: a glowing line with a stop for every system that pays
+    if (richesOn && riches && riches.stops.length > 1) {
+      const pts = riches.stops.map((p) => [sx(p.pos[0]), sz(p.pos[2])] as const);
+      const trace = () => { c.beginPath(); pts.forEach(([x, y], i) => (i ? c.lineTo(x, y) : c.moveTo(x, y))); };
+      c.globalCompositeOperation = 'lighter'; c.lineJoin = 'round';
+      c.strokeStyle = 'rgb(255 210 74 / 0.12)'; c.lineWidth = 8; trace(); c.stroke();
+      c.strokeStyle = 'rgb(255 210 74 / 0.95)'; c.lineWidth = 1.6; c.setLineDash([9, 5]); c.lineDashOffset = -(t / 45) % 14; trace(); c.stroke(); c.setLineDash([]);
+      c.globalCompositeOperation = 'source-over';
+      c.font = `700 10px ${getComputedStyle(box).getPropertyValue('--mono') || 'monospace'}`; c.textAlign = 'center'; c.textBaseline = 'middle';
+      riches.stops.forEach((st, i) => {
+        if (!i || !st.bodies.length) return;
+        const [x, y] = pts[i];
+        if (x < -20 || x > w + 20 || y < -20 || y > h + 20) return;
+        const r = 4 + Math.min(4, st.value / 1.5e6);
+        c.fillStyle = RICH; c.shadowColor = RICH; c.shadowBlur = 8; c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.fill(); c.shadowBlur = 0;
+        if (r >= 6 || view.k > 0.05) { c.fillStyle = '#1a0f05'; c.fillText(String(i), x, y + 0.5); }
+      });
+      c.textBaseline = 'alphabetic';
+    }
     // route
     if (route.length > 1) {
       c.strokeStyle = 'rgb(55 198 212 / 0.9)'; c.lineWidth = 1.5; c.setLineDash([4, 3]); c.beginPath();
@@ -336,7 +446,7 @@
   }
 
   $effect(() => {
-    void system; void here; void route; void name; void view; void data; void on.neutron; void on.blackhole; void on.guardian; void on.thargoid; void picked;
+    void system; void here; void route; void name; void view; void data; void on.neutron; void on.blackhole; void on.guardian; void on.thargoid; void picked; void carrier; void ring; void riches; void richesOn;
     dirty = true;
   });
   $effect(() => {
@@ -348,7 +458,12 @@
     });
     ro.observe(box);
     let raf = 0;
-    const loop = () => { if (dirty) draw(); raf = requestAnimationFrame(loop); };
+    let lastDraw = 0;
+    const loop = (now: number) => {
+      // the ring and the road move: about 30 frames a second, none for those who asked for calm
+      if (dirty || (animated && !calm && now - lastDraw > 33)) { draw(); lastDraw = now; }
+      raf = requestAnimationFrame(loop);
+    };
     raf = requestAnimationFrame(loop);
     return () => { ro.disconnect(); cancelAnimationFrame(raf); };
   });
@@ -409,16 +524,43 @@
         <i aria-hidden="true"></i>{l.label}{#if on[l.id] && count(l.id)}<em>{count(l.id).toLocaleString('en-US')}</em>{/if}{#if loading[l.id]}<b class="spin" aria-label="loading"></b>{/if}
       </button>
     {/each}
+    {#if carrier}
+      <button class:on={ring} style:--c="#ffb545" title="The {CARRIER_JUMP} ly a carrier jumps at most, around {carrier.name} in {carrier.system}" onclick={() => (ring = !ring)}><i aria-hidden="true"></i>CARRIER {CARRIER_JUMP} LY</button>
+    {/if}
+    <button class:on={richesOn} style:--c={RICH} title="A road to riches planned by Spansh: systems whose worlds pay most for a scan and a mapping" onclick={() => (richesOn = !richesOn)}><i aria-hidden="true"></i>RICHES{#if richesOn && riches}<em>{stopsShown.length}</em>{/if}</button>
+    {#if inRange.length}<span class="note">IN {CARRIER_JUMP} LY OF THE CARRIER · {inRange.map((x) => `${x.n.toLocaleString('en-US')} ${x.l.label}`).join(' · ')}</span>{/if}
     {#if tooWide}<span class="note">ZOOM IN TO LOAD STARS</span>
     {:else if (on.neutron && data.neutron?.more) || (on.blackhole && data.blackhole?.more)}<span class="note">NEAREST 500 TO THE CENTRE · ZOOM IN FOR MORE</span>{/if}
     {#if failed}<span class="note bad" title={failed}>SPANSH NOT ANSWERING</span>{/if}
   </div>
+  {#if richesOn}
+    <div class="rich" role="group" aria-label="Road to riches">
+      <header><b>ROAD TO RICHES</b><button class="x" onclick={() => (richesOn = false)} aria-label="Close">✕</button></header>
+      <span class="dim">A loop from {hereName || 'where you are'}, planned by Spansh</span>
+      <div class="row">
+        <label>RANGE<input type="number" min="5" max="100" step="0.5" bind:value={rRange} /><u>ly</u></label>
+        <label>STOPS<select bind:value={rStops}>{#each [8, 15, 25, 40] as n (n)}<option value={n}>{n}</option>{/each}</select></label>
+      </div>
+      <button class="go" disabled={richesBusy} onclick={planRiches}>{richesBusy ? 'PLANNING…' : riches ? 'RECALCULATE' : 'CALCULATE'}</button>
+      {#if richesBusy}<span class="dim">Spansh takes a few seconds</span>{/if}
+      {#if richesErr}<span class="bad">{richesErr}</span>{/if}
+      {#if riches && !richesBusy}
+        <span class="sum">{stopsShown.length} SYSTEMS · <b>{credits(riches.value)}</b> CR</span>
+        <ol>
+          {#each stopsShown as { st, i } (i)}
+            <li><button onclick={() => focusStop(st, i)} title="Show {st.system}"><span class="n">{i}</span><span class="nm">{st.system}</span><em>{credits(st.value)}</em></button></li>
+          {/each}
+        </ol>
+      {/if}
+    </div>
+  {/if}
   {#if picked}
     <div class="card" style:--c={picked.colour} role="dialog" aria-label={picked.system}>
       <header><i></i><span class="kind">{picked.kind}</span><button class="x" onclick={() => { picked = null; dirty = true; }} aria-label="Close">✕</button></header>
       <b class="sys">{picked.system.toUpperCase()}</b>
       {#if picked.name !== picked.system}<span class="dim">{picked.name}</span>{/if}
       {#if picked.detail}<span class="muted">{picked.detail}</span>{/if}
+      {#if picked.lines?.length}<ul class="lines">{#each picked.lines as ln (ln)}<li>{ln}</li>{/each}</ul>{/if}
       <span class="dim">{regionAt(picked.pos[0], picked.pos[2])?.name ?? 'outside the region map'}</span>
       <span class="far">
         {#if here}<span>FROM YOU <b>{lyTo(here, picked.pos)}</b></span>{/if}
@@ -435,6 +577,7 @@
     <button onclick={() => zoom(1.6)} aria-label="Zoom in">＋</button>
     <button onclick={() => zoom(1 / 1.6)} aria-label="Zoom out">－</button>
     <button onclick={() => toSystem()} title="Centre on {name}">SYS</button>
+    {#if carrier}<button onclick={toCarrier} title="Centre on {carrier.name}">CAR</button>{/if}
     {#if here}<button onclick={toHere} title="Centre on {hereName || 'your position'}">YOU</button>{/if}
     <button onclick={fit} title="The whole galaxy">ALL</button>
     {#if onexpand}<button onclick={onexpand} aria-label="Open the big map" title="Open the big map">⤢</button>{/if}
@@ -483,6 +626,33 @@
     clip-path: polygon(0 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%);
   }
   .card .copy:hover { background: color-mix(in srgb, var(--hud-hi) 24%, var(--steel)); }
+  .rich {
+    position: absolute; left: 8px; top: 46px; width: min(230px, calc(100% - 16px)); max-height: calc(100% - 96px); overflow-y: auto; display: flex; flex-direction: column; gap: 5px;
+    padding: 8px 10px 10px; background: rgb(21 16 11 / 0.95); border: 1px solid #ffd24a; box-shadow: 0 0 14px rgb(255 210 74 / 0.25); font-size: 11px;
+  }
+  .rich header { display: flex; align-items: center; gap: 6px; }
+  .rich header b { font-size: 10px; letter-spacing: 0.12em; color: #ffd24a; }
+  .rich .x { margin-left: auto; width: 24px; height: 22px; background: var(--steel); border: 1px solid var(--rule); color: var(--hud-hi); font-size: 11px; cursor: pointer; }
+  .rich .row { display: flex; gap: 8px; }
+  .rich label { display: flex; align-items: center; gap: 4px; font-size: 9px; letter-spacing: 0.1em; color: var(--dim); }
+  .rich input, .rich select { width: 52px; height: 24px; padding: 0 4px; background: #0b0705; border: 1px solid var(--rule); color: var(--text); font: inherit; font-size: 11px; }
+  .rich select { width: 48px; }
+  .rich u { text-decoration: none; }
+  .rich .go {
+    padding: 6px 8px 5px; font: inherit; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; cursor: pointer; border: 0; color: #ffd24a;
+    background: color-mix(in srgb, #ffd24a 14%, var(--steel)); box-shadow: inset 0 2px #ffd24a;
+  }
+  .rich .go:disabled { opacity: 0.6; cursor: progress; }
+  .rich .bad { color: var(--danger); }
+  .rich .sum { font-size: 10px; letter-spacing: 0.08em; color: var(--dim); }
+  .rich .sum b { color: #ffd24a; }
+  .rich ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+  .rich ol button { display: flex; align-items: center; gap: 6px; width: 100%; padding: 3px 4px; background: transparent; border: 0; color: var(--text); font: inherit; font-size: 11px; text-align: left; cursor: pointer; }
+  .rich ol button:hover { background: rgb(255 210 74 / 0.12); }
+  .rich .n { flex: none; width: 18px; height: 18px; display: grid; place-items: center; border-radius: 50%; background: #ffd24a; color: #1a0f05; font-size: 10px; font-weight: 700; }
+  .rich .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rich em { font-style: normal; color: var(--telemetry); font-variant-numeric: tabular-nums; }
+  .card .lines { margin: 2px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 1px; max-height: 110px; overflow-y: auto; color: var(--dim); font-size: 10px; }
   .tools button {
     min-width: 30px; height: 28px; padding: 0 7px; background: rgb(36 26 16 / 0.9); border: 1px solid var(--rule); color: var(--hud-hi);
     font: inherit; font-size: 10px; letter-spacing: 0.08em; cursor: pointer;

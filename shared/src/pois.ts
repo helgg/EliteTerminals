@@ -35,3 +35,39 @@ export interface PoiResult {
   window: { center: Pos; radius: number } | null;
   fetchedAt: string;
 }
+
+/** A road to riches: Spansh's route through systems whose bodies pay the most for a scan and a mapping. */
+export interface RichesQuery {
+  /** The system the route starts from. */
+  from: string;
+  /** Jump range of the ship (ly), as the route is planned for it. */
+  range: number;
+  /** How many systems the route may have (Spansh's max_results). */
+  stops: number;
+}
+
+export interface RichesBody {
+  name: string;
+  subtype: string;
+  terraformable: boolean;
+  /** Ls from the arrival star. */
+  ls: number;
+  /** Credits for scanning plus mapping it (Spansh's estimate). */
+  value: number;
+}
+
+export interface RichesStop {
+  system: string;
+  pos: Pos;
+  bodies: RichesBody[];
+  /** Sum of the bodies' values (Cr). */
+  value: number;
+}
+
+export interface RichesResult {
+  query: RichesQuery;
+  stops: RichesStop[];
+  /** Sum of every stop's value (Cr). */
+  value: number;
+  fetchedAt: string;
+}

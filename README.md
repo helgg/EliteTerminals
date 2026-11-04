@@ -180,6 +180,9 @@ a second.
 - **GALAXY** map with the 42 codex regions and switchable **layers**: neutron stars and black holes (the nearest 500
   around the centre of the map, more as you zoom in), and every body with a Guardian or Thargoid site, from Spansh. Tap
   a point for its card (region, distance, **COPY**, **PLOT**, **EXP**).
+  The **CARRIER 500 LY** layer draws your fleet carrier's jump ring (and counts what the layers hold inside it), and
+  **RICHES** asks Spansh for a road to riches, a loop from where you are for your jump range, drawn as a glowing line with a
+  stop per system and what its worlds pay.
 - An **EXP** button next to PLOT in FLIGHT and COLONY opens the system you are looking at in EXPLORE.
 
 ![EXPLORE and ENGINEERING on an iPad and two iPhone pages](docs/images/devices-explore.jpg)
