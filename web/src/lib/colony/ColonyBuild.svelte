@@ -1,6 +1,6 @@
 <script lang="ts">
   import { carrierUntracked } from '@et/shared';
-  import type { ColonyDepot, ColonyMarkets, EdState } from '@et/shared';
+  import type { ColonyDepot, ColonyMarkets, ColonyResource, EdState } from '@et/shared';
   import Panel from '../Panel.svelte';
   import Name from '../Name.svelte';
   import PadBadge from '../PadBadge.svelte';
@@ -17,7 +17,32 @@
   // `system`: only that system's sites (blank = all)
   const depots = $derived(system ? s.colony.depots.filter((d) => d.system === system) : s.colony.depots);
   let pickedId = $state(0);
-  const depot = $derived<ColonyDepot | null>(depots.find((d) => d.marketId === pickedId) ?? depots.find((d) => !d.complete && !d.failed) ?? depots[0] ?? null);
+  /** The choice "ALL OPEN BUILDS": every site not yet complete, the lists summed as one. */
+  const ALL = -1;
+  const open = $derived(depots.filter((d) => !d.complete && !d.failed));
+  const merged = $derived.by<ColonyDepot | null>(() => {
+    if (pickedId !== ALL || open.length < 2) return null;
+    const by = new Map<string, ColonyResource>();
+    for (const d of open) {
+      for (const r of d.resources) {
+        const k = key(r.name);
+        const a = by.get(k);
+        by.set(k, a ? { ...a, required: a.required + r.required, provided: a.provided + r.provided } : { ...r });
+      }
+    }
+    const resources = [...by.values()];
+    const req = resources.reduce((t, r) => t + r.required, 0);
+    const got = resources.reduce((t, r) => t + Math.min(r.provided, r.required), 0);
+    const first = [...open].sort((a, b) => Date.parse(a.deadline) - Date.parse(b.deadline))[0];
+    const oldest = [...open].sort((a, b) => Date.parse(a.updatedAt) - Date.parse(b.updatedAt))[0];
+    return {
+      ...first, marketId: ALL, station: `${open.length} open builds`, body: '', progress: req ? got / req : 0, complete: false, failed: false,
+      resources, deadlineSet: open.every((d) => d.deadlineSet), updatedAt: oldest.updatedAt,
+    };
+  });
+  const depot = $derived<ColonyDepot | null>(merged ?? depots.find((d) => d.marketId === pickedId) ?? depots.find((d) => !d.complete && !d.failed) ?? depots[0] ?? null);
+  const everyBuild = $derived(depot?.marketId === ALL);
+  const oneSystem = $derived(open.every((d) => d.system === open[0]?.system));
 
   /** Same commodity key as the server: "$steel_name;", "Steel" and "steel" are one commodity. */
   const key = (n: string) => n.toLowerCase().replace(/^\$/, '').replace(/_name;$/, '').replace(/[^a-z0-9]/g, '');
@@ -131,6 +156,7 @@
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           marketId: depot.marketId,
+          marketIds: everyBuild ? open.map((d) => d.marketId) : undefined,
           near,
           query: {
             radius, maxAgeH: 0, pad, planetary, carriers, exportHere: false, importHere: false, states: [], hops: 2,
@@ -140,7 +166,7 @@
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error ?? res.statusText);
-      markets = body as ColonyMarkets;
+      markets = { ...(body as ColonyMarkets), marketId: depot.marketId };
     } catch (e) {
       error = (e as Error).message;
     } finally {
@@ -176,17 +202,25 @@
     {:else}
       {#if depots.length > 1}
         <select class="pick" bind:value={pickedId}>
+          {#if open.length > 1}<option value={ALL}>ALL OPEN BUILDS · {open.length}</option>{/if}
           {#each depots as d (d.marketId)}<option value={d.marketId}>{d.system} · {d.station}{d.complete ? ' · done' : ''}</option>{/each}
         </select>
       {/if}
       <div class="where">
-        <span class="sys"><Name value={depot.system} system /></span>
-        <span class="dim">{depot.station}</span>
-        <span class="dim">{depot.body.replace(depot.system, '').trim()}</span>
+        {#if everyBuild && !oneSystem}
+          <span class="sys">SEVERAL SYSTEMS</span>
+          <span class="dim">{depot.station} · the place shown is the nearest deadline's</span>
+        {:else}
+          <span class="sys"><Name value={depot.system} system /></span>
+          <span class="dim">{depot.station}</span>
+          <span class="dim">{depot.body.replace(depot.system, '').trim()}</span>
+        {/if}
         <ExpButton system={depot.system} />
         <PlotButton system={depot.system} />
-        <a class="raven" href="https://ravencolonial.com/#sys={encodeURIComponent(depot.system)}" target="_blank" rel="noopener"
-          title="Plan this system in RavenColonial">PLAN ↗</a>
+        {#if !everyBuild}
+          <a class="raven" href="https://ravencolonial.com/#sys={encodeURIComponent(depot.system)}" target="_blank" rel="noopener"
+            title="Plan this system in RavenColonial">PLAN ↗</a>
+        {/if}
       </div>
       <section class="sec">
         <header><span>PROGRESS</span><i></i><em>{cr(provided)} of {cr(required)} t delivered</em></header>
@@ -223,7 +257,9 @@
             <span class="k">TIME LEFT {depot.deadlineSet ? '' : '· ESTIMATED'}</span>
             <b class="num">{countdown}</b>
           </div>
-          {#if editing}
+          {#if everyBuild}
+            <span class="dim" title="The nearest of the open builds' deadlines: pick a build to change it">nearest deadline</span>
+          {:else if editing}
             <span class="edit"><input type="datetime-local" bind:value={deadlineText} /><button onclick={saveDeadline}>SET</button><button onclick={() => (editing = false)}>✕</button></span>
           {:else}
             <button class="set" onclick={startEdit} title="The journal does not give the time limit: set the one the game shows">{depot.deadlineSet ? 'EDIT' : 'SET'} DEADLINE</button>
@@ -235,9 +271,11 @@
         <header><span>REWARD</span><i></i><em>paid for deliveries</em></header>
         <div class="pay"><b class="num ok">{short(paid)} Cr</b><span class="dim">· {short(toBePaid)} Cr still to earn</span></div>
       </section>
-      <button class="mark" onclick={() => setComplete(!depot.complete)}
-        title="The game only reports a site to whoever is docked there: use this when the deliveries were made on another machine">
-        {depot.complete ? 'UNDO COMPLETE' : 'MARK COMPLETE'}</button>
+      {#if !everyBuild}
+        <button class="mark" onclick={() => setComplete(!depot.complete)}
+          title="The game only reports a site to whoever is docked there: use this when the deliveries were made on another machine">
+          {depot.complete ? 'UNDO COMPLETE' : 'MARK COMPLETE'}</button>
+      {/if}
       <div class="dim seen">list from {ageLabel((now - Date.parse(depot.updatedAt)) / 3.6e6)} ago · it refreshes while docked there</div>
     {/if}
   </Panel>

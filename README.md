@@ -131,7 +131,8 @@ a second.
 - **BUILD** follows each construction site you dock at, from the journal, in sections: **progress** (delivered, left,
   in the hold, **on your carrier**, still to buy), **delivery** (your delivery ship's hold, trips left, the pace
   needed), the **deadline** and the **reward** paid so far. Sites are kept on the PC, so they stay up to date when
-  you play elsewhere.
+  you play elsewhere. With two or more open builds, **ALL OPEN BUILDS** in the selector sums their lists into one
+  shopping list (and one search for where to buy).
 - **Shopping list** with what is left, in the hold and on the carrier per commodity. What the carrier holds comes
   from your own moves, so cargo moved while playing on another machine is not seen: the game's total (from the
   carrier management) shows the tons not assigned to a commodity, and you type the real figure in the Carrier column.

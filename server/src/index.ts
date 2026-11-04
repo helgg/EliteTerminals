@@ -435,8 +435,11 @@ app.post('/api/colony/plan', async (req, reply) => {
 });
 app.post('/api/colony/markets', async (req, reply) => {
   // near the site (default), or near the player: buy in the bubble, the carrier brings it all in one jump
-  const { marketId, query, near } = req.body as { marketId: number; query: TradeQuery; near?: 'site' | 'me' | 'carrier' };
-  const d = reader.state.colony.depots.find((x) => x.marketId === Number(marketId));
+  // `marketIds`: several sites at once (ALL OPEN BUILDS): their lists are summed, the first one gives the place
+  const { marketId, marketIds, query, near } = req.body as { marketId: number; marketIds?: number[]; query: TradeQuery; near?: 'site' | 'me' | 'carrier' };
+  const ids = (Array.isArray(marketIds) && marketIds.length ? marketIds : [marketId]).map(Number);
+  const sites = ids.map((id) => reader.state.colony.depots.find((x) => x.marketId === id)).filter((x): x is NonNullable<typeof x> => !!x);
+  const d = sites[0];
   if (!d) return reply.code(404).send({ error: 'unknown construction site' });
   // what is already in the hold or on the carrier is not to be bought again
   const have = new Map<string, number>();
@@ -444,8 +447,17 @@ app.post('/api/colony/markets', async (req, reply) => {
     const k = commodityKey(x.name);
     have.set(k, (have.get(k) ?? 0) + x.count);
   }
-  const needs = d.resources
-    .map((r) => ({ name: r.label, tons: r.required - r.provided - (have.get(commodityKey(r.name)) ?? 0) }))
+  const wanted = new Map<string, { name: string; key: string; tons: number }>();
+  for (const site of sites) {
+    for (const r of site.resources) {
+      const k = commodityKey(r.name);
+      const w = wanted.get(k) ?? { name: r.label, key: k, tons: 0 };
+      w.tons += Math.max(0, r.required - r.provided);
+      wanted.set(k, w);
+    }
+  }
+  const needs = [...wanted.values()]
+    .map((w) => ({ name: w.name, tons: w.tons - (have.get(w.key) ?? 0) }))
     .filter((r) => r.tons > 0);
   try {
     // 'carrier': the carrier parked where the shopping is done (its system's position, from the price database)
