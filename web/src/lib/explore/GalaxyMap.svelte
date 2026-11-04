@@ -312,9 +312,14 @@
     c.setTransform(dpr, 0, 0, dpr, 0, 0);
     // the galactic centre
     const cx = sx(25.2), cz = sz(25900);
-    const glow = c.createRadialGradient(cx, cz, 0, cx, cz, Math.max(10, 1500 * view.k));
-    glow.addColorStop(0, 'rgb(255 220 150 / 0.55)'); glow.addColorStop(1, 'rgb(255 160 60 / 0)');
-    c.fillStyle = glow; c.fillRect(cx - 400, cz - 400, 800, 800);
+    // a soft glow that stays small on screen and fades out as you zoom in (a 500 ly view is no place for a haze)
+    const gr = Math.min(90, Math.max(10, 1500 * view.k));
+    const fade = Math.min(1, Math.max(0, 1 - (view.k - 0.03) / 0.07));
+    if (fade > 0) {
+      const glow = c.createRadialGradient(cx, cz, 0, cx, cz, gr);
+      glow.addColorStop(0, `rgb(255 220 150 / ${(0.55 * fade).toFixed(3)})`); glow.addColorStop(1, 'rgb(255 160 60 / 0)');
+      c.fillStyle = glow; c.fillRect(cx - gr, cz - gr, gr * 2, gr * 2);
+    }
     // region names: only those with room for them
     c.textAlign = 'center'; c.textBaseline = 'middle';
     for (const l of L.labels) {
