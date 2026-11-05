@@ -662,4 +662,8 @@
     font: inherit; font-size: var(--fs-xs); letter-spacing: 0.08em; cursor: pointer;
   }
   .tools button:hover { background: var(--hud); color: #1a0f05; }
+  :global(html[data-device='tablet']) .layers button, :global(html[data-device='phone']) .layers button { height: 36px; }
+  :global(html[data-device='tablet']) .tools button, :global(html[data-device='phone']) .tools button { min-width: 40px; height: 40px; }
+  :global(html[data-device='phone']) .layers button { height: 32px; }
+  :global(html[data-device='phone']) .tools button { min-width: 36px; height: 36px; }
 </style>

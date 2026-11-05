@@ -174,4 +174,6 @@
   .worth { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 11px; color: var(--hud-hi); font-variant-numeric: tabular-nums; }
   .worth i { font-style: normal; font-size: var(--fs-2xs); letter-spacing: 0.1em; color: var(--dim); margin-right: 3px; }
   .acts { display: flex; gap: 6px; align-items: center; flex: none; }
+  :global(html[data-device='tablet']) .presets button, :global(html[data-device='phone']) .presets button, :global(html[data-device='tablet']) .tog, :global(html[data-device='phone']) .tog, :global(html[data-device='tablet']) .go, :global(html[data-device='phone']) .go, :global(html[data-device='tablet']) .mini, :global(html[data-device='phone']) .mini { min-height: 36px; }
+  :global(html[data-device='tablet']) label, :global(html[data-device='phone']) label { min-height: 32px; }
 </style>

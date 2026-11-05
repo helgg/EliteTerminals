@@ -370,6 +370,7 @@
   .ex.phone :global(.panel) { flex: none; }
   .ex.phone .strip { flex-wrap: nowrap; overflow-x: auto; flex: none; }
   .ex.phone .strip > div { flex: none; padding: 5px 10px; }
+  .ex.phone .strip, .ex.phone .strip * { white-space: nowrap; }
   .ex.phone .who { flex: none; max-width: 70%; }
   .ex.phone .v { font-size: 13px; }
   /* the highlight sits above the map it acts on: a row of chips that slides sideways, the legend under it */
@@ -448,4 +449,8 @@
   .wv em { font-style: normal; font-size: var(--fs-2xs); letter-spacing: 0.1em; color: var(--dim); }
   .err { color: var(--danger); font-size: 13px; }
   .dim { color: var(--dim); font-size: 12px; }
+  :global(html[data-device='tablet']) .bar button, :global(html[data-device='phone']) .bar button { min-height: 40px; }
+  :global(html[data-device='tablet']) .focus button, :global(html[data-device='phone']) .focus button { min-height: 36px; }
+  :global(html[data-device='tablet']) .mini, :global(html[data-device='phone']) .mini { min-height: 32px; }
+  :global(html[data-device='tablet']) .wrow, :global(html[data-device='phone']) .wrow { min-height: 36px; }
 </style>
