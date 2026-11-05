@@ -107,4 +107,6 @@
   .bad, .bad b { color: var(--alert, #ff5a3c); }
   .warn { color: var(--amber, #ffb545); font-weight: 800; }
   .legal { margin: 0; font-size: var(--fs-xs); color: var(--dim); }
+  :global(html[data-device='tablet']) a, :global(html[data-device='phone']) a { display: inline-block; padding-block: 8px; margin-block: -8px; }
+  :global(html[data-device='tablet']) .share, :global(html[data-device='phone']) .share { min-height: 36px; align-items: center; }
 </style>

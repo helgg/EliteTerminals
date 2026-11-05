@@ -459,10 +459,11 @@
   .burger.on { border-color: var(--hud); }
   .sheet-bg {
     position: fixed; inset: 0; z-index: 40; background: rgb(5 3 2 / 0.7);
-    padding: calc(max(6px, env(safe-area-inset-top)) + 52px) max(8px, env(safe-area-inset-right)) 0 max(8px, env(safe-area-inset-left));
+    padding: calc(max(6px, env(safe-area-inset-top)) + 52px) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+    display: flex; flex-direction: column;
   }
   .sheet {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 10px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 10px; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
     background: var(--panel); border: 1px solid var(--hud); box-shadow: var(--glow);
   }
   .sheet button {
@@ -484,4 +485,6 @@
     background: var(--rail); border: 1px solid currentColor; font-size: 12px; font-weight: 700;
     pointer-events: none;
   }
+  :global(html[data-vp='phone-landscape']) .sheet { grid-template-columns: repeat(3, 1fr); }
+  :global(html[data-vp='phone-landscape']) .sheet .meta { display: none; }
 </style>

@@ -105,4 +105,5 @@
   .warn { margin: 0; color: var(--danger); font-size: 11px; }
   .dim { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
   .dim b { color: var(--text); }
+  :global(html[data-device='tablet']) button, :global(html[data-device='phone']) button { min-height: 36px; }
 </style>

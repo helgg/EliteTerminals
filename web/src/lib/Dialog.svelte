@@ -36,4 +36,5 @@
   .bar { width: 3px; height: 13px; background: var(--hud); box-shadow: var(--glow); }
   .title { color: var(--hud-hi); font-weight: 700; letter-spacing: 0.12em; font-size: 12px; }
   .x { margin-left: auto; width: 36px; height: 32px; background: var(--steel); border: 1px solid var(--rule); color: var(--hud-hi); font-size: 14px; cursor: pointer; }
+  :global(html[data-device='tablet']) .x, :global(html[data-device='phone']) .x { width: 44px; height: 44px; }
 </style>
