@@ -105,8 +105,11 @@ export interface TreeNode {
   cols: TreeNode[][];
 }
 
-/** Brown dwarfs (L, T, Y) are drawn like planets: a place on the line, not a star of the centre. */
-const isBrownDwarf = (b: ExploreBody) => /brown dwarf/i.test(b.subType);
+/**
+ * A brown dwarf (L, T, Y) that the game numbers in the planets' sequence (`AB 7`, `AB 9`) is a place on the line, drawn like a
+ * planet. One it names with a star letter (`B`, `C`) is a star: it keeps its own planets (own row) or stands in a centre.
+ */
+const isBrownDwarf = (b: ExploreBody, system: string) => /brown dwarf/i.test(b.subType) && /\d/.test(shortName(b.name, system));
 
 /**
  * The system as the game's map lays it out, from the barycentre tree Spansh gives in `parents` (rules: docs/design/SYSTEM-MAP.md):
@@ -139,12 +142,15 @@ export function orbitTree(bodies: ExploreBody[], system = ''): TreeNode[] {
   };
   const walk = (n: TreeNode) => (n.kids.sort(order), n.kids.forEach(walk));
 
-  const stars = loose.filter((n) => n.body.type === 'Star' && !isBrownDwarf(n.body));
+  const stars = loose.filter((n) => n.body.type === 'Star' && !isBrownDwarf(n.body, system));
   const main = stars.find((n) => n.body.mainStar) ?? stars[0];
   if (!main) return loose.sort(order);
   const own = stars.filter((n) => n !== main && n.kids.length);
-  const mates = stars.filter((n) => n !== main && !n.kids.length);
-  const rest = loose.filter((n) => n !== main && !own.includes(n) && !mates.includes(n));
+  const bare = stars.filter((n) => n !== main && !n.kids.length);
+  // a bare star that shares its barycentre with a star of its own row (B and C of Guttun) stands in that row's centre
+  const partner = (n: TreeNode) => (n.body.bary === -1 ? undefined : own.find((o) => o.body.bary === n.body.bary));
+  const mates = bare.filter((n) => !partner(n));
+  const rest = loose.filter((n) => n !== main && !own.includes(n) && !bare.includes(n));
 
   const section = (star: TreeNode, centre: TreeNode[], line: TreeNode[]) => {
     star.cols = places(line);
@@ -154,7 +160,7 @@ export function orbitTree(bodies: ExploreBody[], system = ''): TreeNode[] {
     return star;
   };
   const roots = [section(main, [main, ...mates], [...main.kids, ...rest])];
-  for (const s of own.sort(order)) roots.push(section(s, [s], s.kids));
+  for (const s of own.sort(order)) roots.push(section(s, [s, ...bare.filter((n) => partner(n) === s)], s.kids));
   return roots;
 }
 

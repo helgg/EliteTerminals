@@ -215,6 +215,32 @@ test('a wide binary: each true star keeps its own line; pairs under a star group
   assert.deepEqual(tree[1].cols[1][1].kids.map((n) => nm(n.body)), ['B 6 a']);
 });
 
+test('a brown dwarf named with a star letter is a star: B with planets is its own row, C (its pair) stands with it (Guttun)', async () => {
+  const { orbitTree } = await import('../../web/src/lib/explore/explore.ts');
+  const sys = 'Guttun';
+  const b = (id: number, name: string, type: string, parents: object[], extra: object = {}) =>
+    fromDump({ bodyId: id, name: `${sys} ${name}`.trim(), type, subType: type === 'Star' ? 'L (Brown dwarf) Star' : 'Icy body', distanceToArrival: id * 10, parents, ...extra });
+  const bodies = [
+    b(1, 'A', 'Star', [{ Null: 0 }], { mainStar: true, subType: 'M (Red dwarf) Star' }),
+    b(3, 'B', 'Star', [{ Null: 2 }, { Null: 0 }]),
+    b(4, 'C', 'Star', [{ Null: 2 }, { Null: 0 }], { subType: 'T (Brown dwarf) Star' }),
+    b(12, 'A 1', 'Planet', [{ Star: 1 }, { Null: 0 }]),
+    b(25, 'A 12', 'Planet', [{ Star: 1 }, { Null: 0 }]),
+    b(26, 'A 12 a', 'Planet', [{ Planet: 25 }, { Star: 1 }, { Null: 0 }]),
+    b(34, 'B 1', 'Planet', [{ Null: 33 }, { Star: 3 }, { Null: 2 }, { Null: 0 }]),
+    b(35, 'B 2', 'Planet', [{ Null: 33 }, { Star: 3 }, { Null: 2 }, { Null: 0 }]),
+    b(36, 'B 3', 'Planet', [{ Star: 3 }, { Null: 2 }, { Null: 0 }]),
+  ];
+  const nm = (x: { name: string }) => x.name.slice(sys.length + 1);
+  const tree = orbitTree(bodies, sys);
+  assert.deepEqual(tree.map((r) => nm(r.body)), ['A', 'B']);
+  assert.deepEqual(tree[0].centre.map(nm), ['A']);
+  assert.deepEqual(tree[0].cols.map((c) => c.map((n) => nm(n.body))), [['A 1'], ['A 12']]);
+  assert.deepEqual(tree[1].centre.map(nm), ['B', 'C']);
+  assert.deepEqual(tree[1].cols.map((c) => c.map((n) => nm(n.body))), [['B 1', 'B 2'], ['B 3']]);
+  assert.deepEqual(tree[1].cols.flat().flatMap((n) => n.kids), []);
+});
+
 test('fromDump carries the orbit, rotation, tilt and composition of a moon (Col 359 Sector FM-M d7-90 B 9 a)', () => {
   const b = fromDump({
     bodyId: 100, name: 'Col 359 Sector FM-M d7-90 B 9 a', type: 'Planet', subType: 'Icy body', isLandable: true, distanceToArrival: 122946.99,
