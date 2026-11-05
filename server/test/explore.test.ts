@@ -60,6 +60,14 @@ test('bodies that share a parent follow the game numbering, not the snapshot dis
   const moons = [body('A 9 c', 2033.5, 35), body('A 9 b', 2029.6, 34), body('A 9 a', 2029.9, 33)].sort((a, b) => compareOrbit(a, b, sys));
   assert.deepEqual(moons.map((b) => b.name.slice(-1)), ['a', 'b', 'c']);
   assert.deepEqual([designation(`${sys} A 9 a`, sys), designation(`${sys} B`, sys), designation('Earth', 'Sol'), designation('Sol A 3', 'Sol')], ['A 9 a', 'B', null, 'A 3']);
+  // a one-star system names its bodies without the star letter ("d7-19 6 a"): same numbering, never the snapshot distance
+  const one = 'Col 359 Sector FM-M d7-19';
+  const nb = (n: string, ls: number, id: number) => ({ name: `${one} ${n}`, ls, id });
+  assert.deepEqual([designation(`${one} 6 a`, one), designation(`${one} 12`, one), designation(one, one)], ['6 a', '12', null]);
+  const pair = [nb('5', 307, 10), nb('4', 308, 7), nb('12', 2231, 39), nb('6', 559, 14)].sort((a, b) => compareOrbit(a, b, one));
+  assert.deepEqual(pair.map((b) => b.name.slice(one.length + 1)), ['4', '5', '6', '12']);
+  const sm = [nb('6 b', 558, 18), nb('6 a', 558, 17)].sort((a, b) => compareOrbit(a, b, one));
+  assert.deepEqual(sm.map((b) => b.name.slice(-1)), ['a', 'b']);
   // named bodies (Sol) keep the distance order, and a mix never throws
   const named = [{ name: 'Mars', ls: 824, id: 6 }, { name: 'Earth', ls: 506, id: 5 }, { name: 'Venus', ls: 363, id: 4 }].sort((a, b) => compareOrbit(a, b, 'Sol'));
   assert.deepEqual(named.map((b) => b.name), ['Venus', 'Earth', 'Mars']);

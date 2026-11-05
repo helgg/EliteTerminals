@@ -650,7 +650,8 @@ export interface ExploreFindResult {
  */
 export function designation(name: string, system: string): string | null {
   const rest = system && name.startsWith(system + ' ') ? name.slice(system.length + 1) : '';
-  return /^[A-Z]{1,2}( \d+)?( [a-z])*$/.test(rest) ? rest : null;
+  // with a star letter ("A 9 a", "B") or, in a one-star system, without it ("6 a")
+  return /^([A-Z]{1,2}( \d+)?|\d+)( [a-z])*$/.test(rest) ? rest : null;
 }
 
 /** Orbit order of two bodies around the same parent: by designation when both have one, else by distance. */
