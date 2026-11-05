@@ -50,6 +50,8 @@ a second.
 - Monitors split the right-hand column between the route and the favourites; tablets open the favourites from the
   route strip (★ FAV), and phones switch between ROUTE and FAVORITES on the route page.
 
+![FLIGHT on an iPad lying down and on an iPhone](docs/images/devices.jpg)
+
 **COMBAT**
 
 ![COMBAT screen: contacts ranked by bounty beside the console](docs/images/combat.jpg)
@@ -198,11 +200,13 @@ a second.
   100 stops, drawn as a glowing line with a stop per system and what its worlds pay.
 - An **EXP** button next to PLOT in FLIGHT and COLONY opens the system you are looking at in EXPLORE.
 
-![EXPLORE and ENGINEERING on an iPad and two iPhone pages](docs/images/devices-explore.jpg)
+![EXPLORE on an iPad and an iPhone: the system map and its body list](docs/images/devices-explore.jpg)
 
 **ENGINEERING**
 
 ![ENGINEERING: raw, manufactured and encoded materials by grade with the storage limit, and the engineers](docs/images/engineering.jpg)
+
+![ENGINEERING on an iPad and two iPhone pages: the materials and the engineers](docs/images/devices-engineering.jpg)
 
 - Your **materials** (raw, manufactured, encoded) by grade with the storage limit of each grade, read from the game
   and kept up to date as you collect, trade, craft and synthesise; search, and sort by grade, name or count.
@@ -210,8 +214,6 @@ a second.
   where they live, the distance from you, a tap-to-copy system name, **PLOT** and **EXP**.
 
 **Everywhere**
-
-![The same panel on an iPad and an iPhone](docs/images/devices.jpg)
 
 - Six layout classes (phone, tablet and monitor, each in landscape and portrait) with no cut-off text. Phones
   show one page at a time, picked from a bar at the bottom (or down the left on its side).
