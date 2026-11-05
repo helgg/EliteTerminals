@@ -127,7 +127,9 @@ a second.
   station, a controlling faction or allegiance, or a Thargoid or Guardian site. Human signals only warn, and you can
   hide a system the game refused (NOT ALLOWED / CLAIMED). The age of each system's data is shown.
 - **Claim at**: the nearest stations offering System Colonisation within 15 ly, with PLOT.
-- **PLAN ↗** opens the system in [RavenColonial](https://ravencolonial.com) for the build plan.
+- **PLAN ↗** opens the system in [RavenColonial](https://ravencolonial.com) for its own build plan.
+- **ALL SYSTEMS** lists every system with a construction site, one row each; picking one makes it the system BUILD and
+  PLAN work on. FIND A SYSTEM and ALL SYSTEMS are independent tabs.
 
 ![COLONY build tracker: what the construction site still needs, what the carrier holds, and the markets that sell the rest](docs/images/colony-build.jpg)
 
@@ -136,11 +138,16 @@ a second.
 - **BUILD** follows each construction site you dock at, from the journal, in sections: **progress** (delivered, left,
   in the hold, **on your carrier**, still to buy), **delivery** (your delivery ship's hold, trips left, the pace
   needed), the **deadline** and the **reward** paid so far. Sites are kept on the PC, so they stay up to date when
-  you play elsewhere. With two or more open builds, **ALL OPEN BUILDS** in the selector sums their lists into one
+  you play elsewhere; **MARK COMPLETE** closes a site whose deliveries were made on a machine whose journal this PC
+  cannot read (UNDO COMPLETE brings it back). With two or more open builds, **ALL OPEN BUILDS** in the selector sums their lists into one
   shopping list (and one search for where to buy).
 - **Shopping list** with what is left, in the hold and on the carrier per commodity. What the carrier holds comes
   from your own moves, so cargo moved while playing on another machine is not seen: the game's total (from the
   carrier management) shows the tons not assigned to a commodity, and you type the real figure in the Carrier column.
+- **PLAN** (unlocked once the system's first construction is complete): a catalogue of the facilities with the tier
+  points each costs or gives, the body slots as the game's map shows them with a **total** to check against the game,
+  priorities, and a vocation finder. The catalogue's stats are read by eye from [RavenColonial](https://ravencolonial.com);
+  check the numbers in the game before you commit.
 - **Where to buy**: markets around the site, around you or around **your carrier** (park it where the shopping is
   and buy there) that stock what is still to buy, those carrying most of the list first. Surface ports and other
   players' **fleet carriers** can each be included or left out; your own carrier is never listed. Tap a market to mark the list: green for what it covers in full, yellow for part of it.
@@ -187,8 +194,8 @@ a second.
   around the centre of the map, more as you zoom in), and every body with a Guardian or Thargoid site, from Spansh. Tap
   a point for its card (region, distance, **COPY**, **PLOT**, **EXP**).
   The **CARRIER 500 LY** layer draws your fleet carrier's jump ring (and counts what the layers hold inside it), and
-  **RICHES** asks Spansh for a road to riches, a loop from where you are for your jump range, drawn as a glowing line with a
-  stop per system and what its worlds pay.
+  **RICHES** asks Spansh for a road to riches, a loop from where you are for your jump range (5 to 500 ly) and up to
+  100 stops, drawn as a glowing line with a stop per system and what its worlds pay.
 - An **EXP** button next to PLOT in FLIGHT and COLONY opens the system you are looking at in EXPLORE.
 
 ![EXPLORE and ENGINEERING on an iPad and two iPhone pages](docs/images/devices-explore.jpg)
@@ -346,13 +353,15 @@ clipped text. Add `?tab=combat` (and `&page=survive` for a phone page) to open e
 - [x] COLONY: system finder, claim stations, construction sites with carrier stock and where to buy
 - [x] CARRIER: status, tracked cargo, jump planner with tritium per jump
 - [x] CARRIER: stop cards, sectioned status sheet, weekly upkeep with coverage, balance history and income goal
+- [x] COLONY: ALL SYSTEMS, BUILD per system with ALL OPEN BUILDS, PLAN with the facility catalogue and slot totals
+- [x] EXPLORE: GALAXY map with layers, the carrier's 500 ly ring and a road to riches; ENGINEERING: where each engineer lives
+- [x] A short tutorial for every screen (? HOW TO USE)
 - [ ] PVP: commanders flagged in the contacts, encounter history, a direct-keys console page
 - [ ] MINING screen (ship first, then surface vehicles)
 - [x] EXPLORE: system map with belts, body sheet, FIND for exobiology and worlds; ENGINEERING: materials and engineers
 - [x] Phone pages for ENGINEERING, EXPLORE and CARRIER
 - [ ] Review of every screen on every viewport
 - [ ] CARRIER: carrier market and orders, where to park and what to stock
-- [ ] COLONY: a light build planner (tier points, build queue)
 
 ## Feedback and contributing
 
