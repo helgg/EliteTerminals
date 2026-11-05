@@ -231,7 +231,7 @@ export interface EdState {
   explore: ExploreState;
   cargo: { items: CargoItem[]; count: number };
   /** Construction sites the player docked at (COLONY v2), newest first; kept on disk across sessions. */
-  colony: { depots: ColonyDepot[] };
+  colony: { depots: ColonyDepot[]; sites: ColonySite[] };
   /** The player's fleet carrier (id 0 = none known); kept on disk across sessions. */
   carrier: CarrierState;
   market: MarketSnapshot;
@@ -739,7 +739,7 @@ export function initialState(): EdState {
     engineering: initialEngineering(),
     explore: initialExplore(),
     cargo: { items: [], count: 0 },
-    colony: { depots: [] },
+    colony: { depots: [], sites: [] },
     carrier: {
       id: 0, callsign: '', name: '', system: '', systemAddress: 0, fuel: 0,
       space: { total: 0, crew: 0, cargo: 0, reserved: 0, packs: 0, free: 0 },
@@ -1186,6 +1186,14 @@ export interface ColonyResource {
   provided: number;
   /** Credits paid per ton delivered. */
   payment: number;
+}
+
+/** A construction site the system lists as a signal, not docked at yet (no needs list in the journal until then). */
+export interface ColonySite {
+  system: string;
+  /** "Planetary Construction Site: Konovalets Mines" (same text as ColonyDepot.station once docked). */
+  name: string;
+  seenAt: string;
 }
 
 /** A construction site: the colonisation ship of a new system, or a later build. */

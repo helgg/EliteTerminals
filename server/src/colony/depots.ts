@@ -19,6 +19,25 @@ export function siteName(raw: string): string {
     .join(' · ');
 }
 
+/**
+ * Construction sites the system lists as signals (FSSSignalDiscovered "Planetary Construction Site: Name"), before the
+ * player docks at one. The journal gives no needs list until then, so this is only "it exists". Kept for the current
+ * system (cleared when the player jumps or logs in elsewhere).
+ */
+export function applySites(state: EdState, e: JournalEvent): void {
+  if (e.event === 'Location' || e.event === 'FSDJump' || e.event === 'CarrierJump') {
+    state.colony.sites = [];
+    return;
+  }
+  if (e.event !== 'FSSSignalDiscovered' || !state.location.system) return;
+  const name = siteName(str(e.SignalName_Localised) || str(e.SignalName));
+  if (!/construction site/i.test(name) || /beacon/i.test(name)) return;
+  const sites = state.colony.sites;
+  if (!sites.some((x) => x.system === state.location.system && x.name === name)) {
+    sites.push({ system: state.location.system, name, seenAt: str(e.timestamp) });
+  }
+}
+
 export function applyColony(state: EdState, e: JournalEvent): void {
   const at = str(e.timestamp);
   const depots = state.colony.depots;

@@ -73,3 +73,19 @@ test('the real first delivery (OBSERVED 2026-10-30): CamelCase names match the d
   assert.equal(r.reduce((t, x) => t + x.provided, 0), 1018);
   assert.equal(r.find((x) => x.label === 'Computer Components')!.provided, 205);
 });
+
+test('construction sites listed as signals show before docking and clear when the player jumps away', () => {
+  const s = initialState();
+  applyEvent(s, { event: 'Location', timestamp: '2026-11-05T15:20:00Z', Docked: false, StarSystem: 'Col 359 Sector FM-M d7-90', SystemAddress: 3102736353715, StarPos: [0, 0, 0] });
+  for (const n of ['Konovalets Mines', 'Yao Dredging Reserve']) {
+    applyEvent(s, { event: 'FSSSignalDiscovered', timestamp: '2026-11-05T15:27:58Z', SystemAddress: 3102736353715, SignalName: `Planetary Construction Site: ${n}`, SignalType: 'Installation' });
+  }
+  applyEvent(s, { event: 'FSSSignalDiscovered', timestamp: '2026-11-05T15:27:58Z', SystemAddress: 3102736353715, SignalName: '$EXT_PANEL_ColonisationBeacon_Site:#index=1;', SignalName_Localised: 'System Colonisation Beacon', SignalType: 'Installation' });
+  applyEvent(s, { event: 'FSSSignalDiscovered', timestamp: '2026-11-05T15:27:58Z', SystemAddress: 3102736353715, SignalName: 'Harris Enterprise', SignalType: 'StationCoriolis' });
+  assert.deepEqual(s.colony.sites.map((x) => x.name), ['Planetary Construction Site: Konovalets Mines', 'Planetary Construction Site: Yao Dredging Reserve']);
+  // the same signal again (a new scan) keeps one entry
+  applyEvent(s, { event: 'FSSSignalDiscovered', timestamp: '2026-11-05T15:30:00Z', SystemAddress: 3102736353715, SignalName: 'Planetary Construction Site: Konovalets Mines', SignalType: 'Installation' });
+  assert.equal(s.colony.sites.length, 2);
+  applyEvent(s, { event: 'FSDJump', timestamp: '2026-11-05T16:00:00Z', StarSystem: 'Sol', SystemAddress: 10477373803, StarPos: [0, 0, 0] });
+  assert.equal(s.colony.sites.length, 0);
+});

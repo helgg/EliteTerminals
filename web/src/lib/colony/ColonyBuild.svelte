@@ -42,6 +42,10 @@
   });
   const depot = $derived<ColonyDepot | null>(merged ?? depots.find((d) => d.marketId === pickedId) ?? depots.find((d) => !d.complete && !d.failed) ?? depots[0] ?? null);
   const everyBuild = $derived(depot?.marketId === ALL);
+  // sites the current system lists as signals that the player has not docked at (no needs list until then)
+  const pending = $derived(
+    s.colony.sites.filter((x) => (!system || x.system === system) && !s.colony.depots.some((d) => d.system === x.system && d.station === x.name)),
+  );
   const oneSystem = $derived(open.every((d) => d.system === open[0]?.system));
 
   /** Same commodity key as the server: "$steel_name;", "Steel" and "steel" are one commodity. */
@@ -196,6 +200,13 @@
 
 {#snippet site()}
   <Panel class="site" title="Construction" aside={depot ? (depot.complete ? 'COMPLETE' : depot.failed ? 'FAILED' : `${(depot.progress * 100).toFixed(1)}%`) : ''}>
+    {#if pending.length}
+      <div class="pending">
+        <span class="k">NOT DOCKED YET · {pending.length}</span>
+        {#each pending as p (p.name)}<span class="dim">{p.system} · {p.name}</span>{/each}
+        <span class="dim">Dock at one: the journal gives its shopping list only then.</span>
+      </div>
+    {/if}
     {#if !depot}
       <p class="dim">No construction site yet. Dock at a colonisation ship or construction site with the game running on
         this PC: the journal lists what it needs, and it is kept here from then on (also when you play elsewhere).</p>
@@ -421,6 +432,8 @@
   .build :global(.center .body), .build :global(.right .body) { flex: 1; display: flex; flex-direction: column; min-height: 0; }
   .k { color: var(--dim); font-size: 10px; letter-spacing: 0.1em; }
   .pick { width: 100%; margin-bottom: 6px; padding: 5px; font: 700 11px var(--mono); color: var(--hud-hi); background: var(--void); border: 1px solid var(--rule); }
+  .pending { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; padding: 6px 8px; font-size: 11px; border: 1px dashed var(--rule); }
+  .pending .k { font-weight: 800; color: var(--hud-hi); letter-spacing: .06em; }
   .where { display: flex; flex-wrap: wrap; gap: 2px 8px; align-items: center; margin-bottom: 6px; font-size: 11px; }
   .where .sys { font-weight: 800; color: var(--telemetry); font-size: 14px; }
   .where :global(.text) { white-space: normal; overflow-wrap: anywhere; }

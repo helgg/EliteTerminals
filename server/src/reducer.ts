@@ -5,7 +5,7 @@ import { applyCombat } from './combat.ts';
 import { applyMining } from './mining.ts';
 import { applyEngineering } from './engineering.ts';
 import { applyExplore } from './explore/journal.ts';
-import { applyColony } from './colony/depots.ts';
+import { applyColony, applySites } from './colony/depots.ts';
 import { applyCarrier } from './carrier/state.ts';
 
 export type JournalEvent = { event: string; timestamp?: string; [key: string]: any };
@@ -82,6 +82,7 @@ export function applyEvent(state: EdState, e: JournalEvent): void {
     case 'CarrierJump':
       if (e.event === 'CarrierJump') applyCarrier(state, e);
       setSystem(state, e);
+      applySites(state, e);
       state.location.body = str(e.Body);
       state.location.station = e.Docked ? str(e.StationName) : '';
       state.location.stationType = e.Docked ? str(e.StationType) : '';
@@ -176,6 +177,10 @@ export function applyEvent(state: EdState, e: JournalEvent): void {
     case 'ColonisationConstructionDepot':
     case 'ColonisationContribution':
       applyColony(state, e);
+      break;
+
+    case 'FSSSignalDiscovered':
+      applySites(state, e);
       break;
 
     case 'Status':
