@@ -163,5 +163,7 @@
     flex: none; padding: 6px 8px; font: 700 var(--fs-xs) var(--mono); letter-spacing: 0.06em; color: var(--hud);
     background: var(--steel); border: 1px solid var(--rule); cursor: pointer;
   }
+  /* touch screens (viewport-review T2): fields, the station list and the suggestions are at least 36 px high */
+  :global(html[data-device='tablet']) .station, :global(html[data-device='tablet']) input, :global(html[data-device='tablet']) .here, :global(html[data-device='tablet']) .list button, :global(html[data-device='phone']) .station, :global(html[data-device='phone']) input, :global(html[data-device='phone']) .here, :global(html[data-device='phone']) .list button { min-height: 36px; }
   .here.on { color: var(--dim); cursor: default; }
 </style>

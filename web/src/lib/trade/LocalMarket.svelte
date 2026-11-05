@@ -157,6 +157,7 @@
     margin-left: auto; padding: 4px 8px; background: var(--steel); border: 1px solid var(--rule);
     color: var(--hud-hi); font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.08em;
   }
+  :global(html[data-device='tablet']) .pick, :global(html[data-device='phone']) .pick { min-height: 32px; padding: 4px 10px; }
   .pick.on { border-color: var(--hud); color: var(--hud); }
   .visited {
     list-style: none; margin: 0 0 6px; padding: 0; max-height: 45%; overflow-y: auto;
