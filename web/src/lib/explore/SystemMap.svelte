@@ -78,7 +78,7 @@
    * The line the bodies sit on leaves from the middle between the centre's stars (a binary's stars are stacked at the left,
    * joined by a bracket). A single star is its own middle, so the line runs through it as before.
    */
-  function align(row: HTMLElement) {
+  function align(row: HTMLElement, anchor = -1) {
     const AXIS = 81; // the middle of a body drawn on the line (see .axis)
     const set = () => {
       const stack = row.querySelector<HTMLElement>('.stack');
@@ -86,14 +86,16 @@
       if (!stack || !orbs.length) return;
       const top = orbs[0].offsetTop + AXIS;
       const bottom = orbs[orbs.length - 1].offsetTop + AXIS;
-      row.style.setProperty('--lead', `${Math.max(0, (top + bottom) / 2 - AXIS)}px`);
+      // the line leaves from the star the places orbit, or from the middle between the stars when they orbit the barycentre
+      const mid = anchor >= 0 && orbs[anchor] ? orbs[anchor].offsetTop + AXIS : (top + bottom) / 2;
+      row.style.setProperty('--lead', `${Math.max(0, mid - AXIS)}px`);
       stack.style.setProperty('--t', `${top}px`);
       stack.style.setProperty('--h', `${bottom - top}px`);
     };
     set();
     const ro = new ResizeObserver(set);
     row.querySelectorAll('.stack').forEach((st) => ro.observe(st));
-    return { destroy: () => ro.disconnect() };
+    return { update(next = -1) { anchor = next; set(); }, destroy: () => ro.disconnect() };
   }
 
   const SAT = 108; // the width one moon takes beside its parent moon
@@ -187,7 +189,7 @@
 <div class="map" style:--sun={tree[0] ? look(tree[0].body).glow : '#ff7a18'}>
   {#each tree as root (root.body.id)}
     <section class="system">
-      <div class="row" use:align>
+      <div class="row" use:align={root.anchor}>
         <div class="axis" aria-hidden="true"></div>
         <div class="col centre" class:pair={root.centre.length > 1}>
           <div class="stack">{#each root.centre as m (m.id)}{@render orb(m, true)}{/each}</div>

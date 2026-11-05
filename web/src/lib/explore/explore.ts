@@ -103,6 +103,8 @@ export interface TreeNode {
   centre: ExploreBody[];
   /** Root only: what lies along the line, in orbit order. A column with several bodies is a group that orbits one barycentre. */
   cols: TreeNode[][];
+  /** Root only: the index in `centre` of the star the line starts from, when every place on it orbits that one star; -1 = the middle of the centre (circumbinary). */
+  anchor: number;
 }
 
 /**
@@ -120,7 +122,7 @@ const isBrownDwarf = (b: ExploreBody, system: string) => /brown dwarf/i.test(b.s
  * - moons hang under their parent (and the moons of moons beside it).
  */
 export function orbitTree(bodies: ExploreBody[], system = ''): TreeNode[] {
-  const nodes = new Map<number, TreeNode>(bodies.map((b) => [b.id, { body: b, kids: [], centre: [], cols: [] }]));
+  const nodes = new Map<number, TreeNode>(bodies.map((b) => [b.id, { body: b, kids: [], centre: [], cols: [], anchor: -1 }]));
   const loose: TreeNode[] = [];
   for (const n of nodes.values()) {
     const parent = nodes.get(n.body.parent);
@@ -156,6 +158,10 @@ export function orbitTree(bodies: ExploreBody[], system = ''): TreeNode[] {
     star.cols = places(line);
     star.centre = centre.sort((a, b) => Number(b.body.mainStar) - Number(a.body.mainStar) || order(a, b)).map((n) => n.body);
     star.cols.flat().forEach(walk);
+    // places that all orbit one star of the centre (B's planets with its pair C beside it) start the line at that star;
+    // parentless places (they orbit the barycentre) start it at the middle between the stars
+    const onLine = star.cols.flat();
+    star.anchor = onLine.length ? star.centre.findIndex((c) => onLine.every((p) => p.body.parent === c.id)) : -1;
     star.kids = [];
     return star;
   };

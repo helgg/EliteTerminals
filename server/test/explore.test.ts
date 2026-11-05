@@ -174,6 +174,7 @@ test('a binary: the planets of the pair share the main star\'s line, a bare comp
   assert.equal(tree.length, 1);
   // the centre: A and its bare companion B, stacked
   assert.deepEqual(tree[0].centre.map(nm), ['A', 'B']);
+  assert.equal(tree[0].anchor, -1); // AB 1.. orbit the barycentre of A and B: the line leaves from the middle
   // one line, in the game's order; bodies around one barycentre (AB 2 + AB 3, AB 7 + AB 8) share a place; AB 9 is on the line too
   assert.deepEqual(tree[0].cols.map((c) => c.map((n) => nm(n.body))), [['AB 1'], ['AB 2', 'AB 3'], ['AB 7', 'AB 8'], ['AB 9']]);
   assert.deepEqual(tree[0].cols[0][0].kids.map((n) => nm(n.body)), ['AB 1 a']);
@@ -239,6 +240,9 @@ test('a brown dwarf named with a star letter is a star: B with planets is its ow
   assert.deepEqual(tree[1].centre.map(nm), ['B', 'C']);
   assert.deepEqual(tree[1].cols.map((c) => c.map((n) => nm(n.body))), [['B 1', 'B 2'], ['B 3']]);
   assert.deepEqual(tree[1].cols.flat().flatMap((n) => n.kids), []);
+  // B's planets orbit the star B, not the barycentre it shares with C: the line leaves from B (index 0 of the centre), not from the middle
+  assert.equal(tree[1].anchor, 0);
+  assert.equal(tree[0].anchor, 0);
 });
 
 test('fromDump carries the orbit, rotation, tilt and composition of a moon (Col 359 Sector FM-M d7-90 B 9 a)', () => {
