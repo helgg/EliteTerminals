@@ -39,7 +39,7 @@
     display: inline-flex; align-items: center; gap: 6px; background: none; border: 1px solid var(--rule);
     color: var(--muted); font: inherit; font-size: 11px; letter-spacing: 0.08em; padding: 0 8px; cursor: pointer;
   }
-  :global(html[data-device='tablet']) .help { min-height: 32px; padding: 0 10px; }
+  :global(html[data-device='tablet']) .help { min-height: 28px; padding: 0 10px; }
   .q {
     position: relative; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; width: 15px; height: 15px;
     border-radius: 50%; border: 1px solid var(--hud); color: var(--hud-hi); font-size: var(--fs-xs); font-weight: 800; line-height: 1;

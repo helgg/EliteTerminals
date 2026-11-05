@@ -380,7 +380,7 @@
   :global(html[data-device='tablet']) nav button { min-height: 44px; }
   :global(html[data-device='tablet']) nav .reload { min-width: 44px; min-height: 44px; padding: 0; }
   :global(html[data-vp$='-portrait']) .top nav .reload { flex: 0 0 44px; }
-  :global(html[data-device='tablet']) .status .sync { min-height: 32px; padding: 0 10px; }
+  :global(html[data-device='tablet']) .status .sync { min-height: 28px; padding: 0 10px; }
   :global(html[data-device='tablet']) .status .right { display: none; }
   :global(html[data-vp='tablet-landscape']) nav { gap: 8px; }
   :global(html[data-vp='tablet-landscape']) .top .gauge { display: none; }

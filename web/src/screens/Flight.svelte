@@ -467,8 +467,8 @@
   .tablet-landscape .act b { font-size: 13px; letter-spacing: 0.04em; }
   .tablet-landscape .act.hero b { font-size: 16px; letter-spacing: 0.1em; }
   .tablet-landscape .act .icon { font-size: 24px; }
-  .tablet-landscape .target :global(.holo) { max-width: 96px; }
-  .tablet-landscape .group { grid-template-rows: auto repeat(3, minmax(46px, 1fr)); }
+  .tablet-landscape .target :global(.holo) { max-width: 76px; }
+  .tablet-landscape .group { grid-template-rows: auto repeat(3, minmax(44px, 1fr)); }
 
   /* portrait tablets and monitors: FSD across the top; under it the switches, then SHIP | POWER,
      with the throttle as a tall lever down the right side (it needs height more than width) */
@@ -482,9 +482,9 @@
   .portrait > :global(.power) { grid-column: 2; grid-row: 3; }
   .portrait > :global(.throttle) { grid-column: 3; grid-row: 2 / 4; }
   .portrait .groups { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
-  .portrait .group { grid-template-rows: auto repeat(3, 54px); }
+  .portrait .group { grid-template-rows: auto repeat(3, 48px); }
   .portrait .fsd-body { grid-template-columns: minmax(150px, 190px) minmax(140px, 0.8fr) minmax(0, 1.2fr); }
-  .portrait .target :global(.holo) { max-width: 96px; }
+  .portrait .target :global(.holo) { max-width: 80px; }
   .portrait :global(.detent .key), .portrait :global(.boost .key) { display: none; }
   .portrait :global(.boost) { font-size: 16px; letter-spacing: 0.12em; gap: 6px; padding: 0 10px; }
   .portrait > :global(.power .body) { flex: 1; display: flex; flex-direction: column; }
@@ -580,6 +580,11 @@
   .page.p-route .navcol > :global(.panel) { flex: 1; min-height: 0; }
   .page.p-route .navcol > :global(.favs .body) { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
   .switch { display: flex; gap: 4px; }
+  /* touch screens (viewport-review T1): the route/favourites switch and the FAV button are 44 px high */
+  :global(html[data-device='tablet']) .fav-btn, :global(html[data-device='phone']) .switch button { min-height: 44px; }
+  :global(html[data-device='tablet']) .fav-btn { padding: 3px 14px; }
+  /* the 44 px FAV button fills the strip instead of growing it */
+  :global(html[data-device='tablet']) .strip { padding-block: 0; }
   .switch button {
     flex: 1; font: inherit; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; padding: 7px; cursor: pointer;
     background: transparent; color: var(--muted); border: 1px solid var(--rule);

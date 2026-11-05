@@ -544,6 +544,7 @@
   .fchip.all { justify-content: center; color: var(--muted); }
   .fchip.all::before { display: none; }
   .fchip .n { margin-left: auto; color: var(--muted); font-weight: 400; }
+  :global(html[data-device='tablet']) .fchip, :global(html[data-device='phone']) .fchip { min-height: 44px; }
   .fchip:active { filter: brightness(1.35); transform: translateY(1px); }
 
   table { width: 100%; border-collapse: collapse; font-size: 12px; }
@@ -592,6 +593,9 @@
     border-right: 3px solid var(--g);
     text-shadow: 0 0 8px color-mix(in srgb, var(--g) 45%, transparent);
   }
+  /* touch screens: the rail's hint ("exact pips", "mass lock") shows only where the bay is tall enough, never cut with an ellipsis */
+  :global(html[data-device='tablet']) .bay h4, :global(html[data-device='phone']) .bay h4 { container-type: size; }
+  @container (max-height: 210px) { .bay h4 .st { display: none; } }
   .bay h4 .st { font-size: var(--fs-xs); font-weight: 400; color: var(--muted); letter-spacing: .08em; text-shadow: none;
     overflow: hidden; text-overflow: ellipsis; min-height: 0; }
   .g-power { --g: var(--macro); }
