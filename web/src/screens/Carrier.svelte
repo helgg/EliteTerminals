@@ -475,4 +475,5 @@
   .tag.sh { background: var(--danger); }
   .tag.refuel { background: var(--hud-hi); }
   .foot { font-size: var(--fs-xs); margin: 6px 0 0; }
+  :global(html[data-device='tablet']) .wk input, :global(html[data-device='phone']) .wk input, :global(html[data-device='tablet']) .nums input, :global(html[data-device='phone']) .nums input, :global(html[data-device='tablet']) .add, :global(html[data-device='phone']) .add, :global(html[data-device='tablet']) .mini, :global(html[data-device='phone']) .mini { min-height: 36px; }
 </style>

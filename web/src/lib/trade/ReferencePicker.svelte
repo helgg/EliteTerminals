@@ -166,4 +166,5 @@
   /* touch screens (viewport-review T2): fields, the station list and the suggestions are at least 36 px high */
   :global(html[data-device='tablet']) .station, :global(html[data-device='tablet']) input, :global(html[data-device='tablet']) .here, :global(html[data-device='tablet']) .list button, :global(html[data-device='phone']) .station, :global(html[data-device='phone']) input, :global(html[data-device='phone']) .here, :global(html[data-device='phone']) .list button { min-height: 36px; }
   .here.on { color: var(--dim); cursor: default; }
+  :global(html[data-device='tablet']) .here, :global(html[data-device='phone']) .here { min-width: 40px; }
 </style>
