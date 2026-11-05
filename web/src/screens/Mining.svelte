@@ -552,7 +552,7 @@
   .col > :global(.radar) { flex: 1 1 0; }
   .col > :global(.session) { flex: none; }
   .none { padding: 10px 4px; color: var(--dim); margin: 0; font-size: 12px; }
-  .hint { margin: 6px 0 0; font-size: 10.5px; color: var(--dim); letter-spacing: .04em; }
+  .hint { margin: 6px 0 0; font-size: var(--fs-xs); color: var(--dim); letter-spacing: .04em; }
   .r { text-align: right; }
   .ok { color: var(--ok); } .warn { color: var(--hud-hi); } .bad { color: var(--danger); } .tele { color: var(--telemetry); }
   .scroll { flex: 1; min-height: 0; overflow-y: auto; }
@@ -570,7 +570,7 @@
   .chip .n { color: var(--hud-hi); margin-left: 4px; }
   .seg { display: inline-flex; flex: none; }
   .seg button + button { border-left: 0; }
-  em { font-style: normal; font-size: 10px; color: var(--dim); letter-spacing: .08em; flex: none; }
+  em { font-style: normal; font-size: var(--fs-xs); color: var(--dim); letter-spacing: .08em; flex: none; }
   .go { color: var(--void); background: var(--telemetry); border-color: var(--telemetry); margin-left: auto; min-width: 92px; flex: none; }
   .go:disabled { opacity: .5; }
   .busy { animation: busy .5s linear infinite alternate; }
@@ -598,7 +598,7 @@
   .v-low { color: var(--hud-hi); background: rgb(255 181 69 / .10); }
   .v-skip { color: var(--danger); background: rgb(209 72 58 / .10); }
   .facts { display: grid; grid-template-columns: 1.2fr .8fr 1.3fr; gap: 8px; margin-bottom: 8px; }
-  .facts small, .kpis small { display: block; color: var(--dim); font-size: 10px; letter-spacing: .1em; }
+  .facts small, .kpis small { display: block; color: var(--dim); font-size: var(--fs-xs); letter-spacing: .1em; }
   .facts b { font-size: 15px; }
   .facts b.core { color: var(--macro); }
   .lvl { display: inline-flex; gap: 2px; margin-right: 6px; vertical-align: middle; }
@@ -619,11 +619,11 @@
   .dropped button { background: none; border: 0; padding: 2px 0; color: var(--danger); font: inherit; text-decoration: line-through; }
 
   table { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: auto; }
-  th { text-align: left; color: var(--dim); font-weight: 400; font-size: 10px; letter-spacing: .1em; padding: 4px 5px 5px; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+  th { text-align: left; color: var(--dim); font-weight: 400; font-size: var(--fs-xs); letter-spacing: .1em; padding: 4px 5px 5px; border-bottom: 1px solid var(--rule); white-space: nowrap; }
   td { padding: 5px; border-bottom: 1px solid #241708; white-space: nowrap; }
   td.cut { max-width: 0; width: 100%; overflow: hidden; text-overflow: ellipsis; }
   thead th { position: sticky; top: 0; background: var(--panel); }
-  .vt { font-size: 10px; font-weight: 700; letter-spacing: .1em; padding: 1px 6px; }
+  .vt { font-size: var(--fs-xs); font-weight: 700; letter-spacing: .1em; padding: 1px 6px; }
   .vt.v-mine { background: var(--ok); color: var(--void); }
   .vt.v-core { background: var(--macro); color: var(--void); }
 
@@ -642,7 +642,7 @@
   .rf.ign { color: var(--danger); text-decoration: line-through; }
   .rf b { color: var(--text); }
   .tools { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
-  .tools span { font-size: 9.5px; letter-spacing: .08em; padding: 2px 6px; border: 1px solid var(--rule); color: var(--faint); }
+  .tools span { font-size: var(--fs-2xs); letter-spacing: .08em; padding: 2px 6px; border: 1px solid var(--rule); color: var(--faint); }
   .tools span.on { color: var(--telemetry); border-color: var(--telemetry); }
 
   /* right column: one panel with tabs */
@@ -666,14 +666,14 @@
   .ring.rocky { border-left-color: #a7826a; }
   .ring.here { background: rgb(255 122 24 / .10); }
   .rn { min-width: 0; display: flex; gap: 6px; align-items: baseline; font-weight: 700; overflow: hidden; }
-  .hereTag { font-size: 9px; letter-spacing: .1em; background: var(--hud); color: var(--void); padding: 0 4px; flex: none; }
-  .rt, .rr { font-size: 10.5px; letter-spacing: .06em; color: var(--muted); white-space: nowrap; }
+  .hereTag { font-size: var(--fs-2xs); letter-spacing: .1em; background: var(--hud); color: var(--void); padding: 0 4px; flex: none; }
+  .rt, .rr { font-size: var(--fs-xs); letter-spacing: .06em; color: var(--muted); white-space: nowrap; }
   .pristine { color: var(--ok) !important; }
   .rl { text-align: right; white-space: nowrap; }
   .sigs { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px; }
-  .sig { font-size: 10.5px; padding: 1px 6px; border: 1px solid var(--rule); color: var(--muted); }
+  .sig { font-size: var(--fs-xs); padding: 1px 6px; border: 1px solid var(--rule); color: var(--muted); }
   .sig.target { color: var(--void); background: var(--hud-hi); border-color: var(--hud-hi); font-weight: 700; }
-  .own { font-size: 9.5px; letter-spacing: .08em; color: var(--ok); border: 1px solid var(--ok); padding: 1px 4px; }
+  .own { font-size: var(--fs-2xs); letter-spacing: .08em; color: var(--ok); border: 1px solid var(--ok); padding: 1px 4px; }
 
   /* finder and sell */
   tr.here td { background: rgb(255 122 24 / .08); }
@@ -698,7 +698,7 @@
     background: linear-gradient(to left, color-mix(in srgb, var(--g) 26%, transparent), color-mix(in srgb, var(--g) 8%, transparent));
     border-right: 3px solid var(--g);
   }
-  .bay h4 .st { font-size: 10px; font-weight: 400; color: var(--muted); letter-spacing: .08em; }
+  .bay h4 .st { font-size: var(--fs-xs); font-weight: 400; color: var(--muted); letter-spacing: .08em; }
   .tiles { flex: 1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-rows: minmax(0, 1fr); gap: 6px; padding: 7px; min-height: 0; min-width: 0; }
   .fgs { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)) minmax(0, 1.4fr); gap: 6px; min-height: 0; }
   .act {
@@ -709,8 +709,8 @@
     clip-path: polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%);
   }
   .act b { letter-spacing: .04em; font-size: 13px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: clip; }
-  .act small { color: var(--dim); font-size: 10.5px; white-space: nowrap; overflow: hidden; }
-  .act .key { position: absolute; right: 12px; bottom: 3px; color: var(--dim); font-size: 9.5px; white-space: nowrap; }
+  .act small { color: var(--dim); font-size: var(--fs-xs); white-space: nowrap; overflow: hidden; }
+  .act .key { position: absolute; right: 12px; bottom: 3px; color: var(--dim); font-size: var(--fs-2xs); white-space: nowrap; }
   .act .key.nobind { color: var(--danger); }
   .act.fg { align-items: center; padding: 4px; }
   .act.fg b { font-size: 15px; }

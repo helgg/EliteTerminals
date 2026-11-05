@@ -95,7 +95,7 @@
     font-size: 12px;
     letter-spacing: 0.08em;
   }
-  .preset span, .reset span { color: var(--dim); font-size: 10px; letter-spacing: 0; }
+  .preset span, .reset span { color: var(--dim); font-size: var(--fs-xs); letter-spacing: 0; }
   .preset.at { border-color: var(--telemetry); color: var(--telemetry); box-shadow: inset 0 2px var(--telemetry); }
   .preset.busy { animation: busy 0.5s linear infinite alternate; }
   @keyframes busy { to { background: rgb(55 198 212 / 0.25); } }

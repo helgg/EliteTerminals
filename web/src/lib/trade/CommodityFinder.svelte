@@ -84,8 +84,8 @@
   .side { min-width: 0; }
   table { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; }
   .c-st { width: 38%; }
-  .sub { font-size: 10px; }
-  th { padding: 3px 4px; color: var(--hud-hi); font-size: 10px; text-transform: uppercase; text-align: left; border-bottom: 1px solid var(--hud); }
+  .sub { font-size: var(--fs-xs); }
+  th { padding: 3px 4px; color: var(--hud-hi); font-size: var(--fs-xs); text-transform: uppercase; text-align: left; border-bottom: 1px solid var(--hud); }
   td { padding: 3px 4px; border-bottom: 1px solid var(--rule); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   td div { overflow: hidden; text-overflow: ellipsis; }
   .r { text-align: right; }

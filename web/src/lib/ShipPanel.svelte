@@ -40,7 +40,7 @@
   .alerts { display: flex; flex-wrap: wrap; gap: 4px; }
   .alert {
     padding: 2px 6px;
-    font-size: 10px;
+    font-size: var(--fs-xs);
     font-weight: 700;
     letter-spacing: 0.06em;
     color: var(--faint);

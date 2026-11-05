@@ -54,9 +54,9 @@
   .grp.planner { color: var(--telemetry); }
   .about { margin: 0; color: var(--text); font-size: 13px; line-height: 1.5; }
   section { display: flex; flex-direction: column; gap: 5px; }
-  .k { color: var(--dim); font-size: 10px; letter-spacing: 0.1em; border-bottom: 1px solid var(--rule); padding-bottom: 2px; }
+  .k { color: var(--dim); font-size: var(--fs-xs); letter-spacing: 0.1em; border-bottom: 1px solid var(--rule); padding-bottom: 2px; }
   .t { font-size: 12px; line-height: 1.5; color: var(--muted); }
   .t b { color: var(--hud-hi); letter-spacing: 0.06em; }
   ul { margin: 0; padding-left: 18px; font-size: 12px; line-height: 1.5; color: var(--muted); }
-  footer { font-size: 10px; text-align: right; }
+  footer { font-size: var(--fs-xs); text-align: right; }
 </style>

@@ -13,7 +13,7 @@
   .exp {
     --tone: var(--hud-hi);
     flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-width: 58px;
-    padding: 5px 7px 4px; font: inherit; font-size: 9px; font-weight: 700; letter-spacing: 0.1em; cursor: pointer; border: 0;
+    padding: 5px 7px 4px; font: inherit; font-size: var(--fs-2xs); font-weight: 700; letter-spacing: 0.1em; cursor: pointer; border: 0;
     color: var(--tone); background: color-mix(in srgb, var(--tone) 14%, var(--steel)); box-shadow: inset 0 2px var(--tone);
     clip-path: polygon(0 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%);
     white-space: nowrap;

@@ -47,7 +47,7 @@
     display: inline-flex; gap: 6px; align-items: baseline; min-width: 0; max-width: calc(100% - 8px);
     padding: 3px 12px; flex-wrap: wrap; justify-content: center; row-gap: 0; white-space: nowrap;
     background: var(--panel); border: 1px solid var(--faint);
-    color: var(--muted); font-size: 10px; letter-spacing: 0.06em;
+    color: var(--muted); font-size: var(--fs-xs); letter-spacing: 0.06em;
     clip-path: polygon(6px 0, calc(100% - 6px) 0, 100% 50%, calc(100% - 6px) 100%, 6px 100%, 0 50%);
   }
   .arrow { color: var(--hud-hi); }

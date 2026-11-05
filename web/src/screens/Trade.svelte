@@ -538,7 +538,7 @@
   .wide .toggles button { font-size: 12px; }
   .wide .scan { padding: 16px 12px; font-size: 14px; }
   .go { display: flex; flex-direction: column; gap: 3px; }
-  .k { color: var(--dim); font-size: 10px; letter-spacing: 0.1em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .k { color: var(--dim); font-size: var(--fs-xs); letter-spacing: 0.1em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .pair { display: grid; grid-template-columns: 3fr 4fr; gap: 6px; }
   .chips { display: flex; flex-wrap: wrap; gap: 3px; }
   .chips button, .toggles button {
@@ -546,7 +546,7 @@
     color: var(--muted); font-size: 11px; font-weight: 700;
   }
   .chips button.on { background: var(--hud); border-color: var(--hud); color: var(--void); }
-  .chips button.state { flex: 1 1 auto; font-size: 10px; }
+  .chips button.state { flex: 1 1 auto; font-size: var(--fs-xs); }
   .chips button.state.on { background: var(--telemetry); border-color: var(--telemetry); }
   .toggles { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; }
   .toggles button.on { border-color: var(--telemetry); color: var(--telemetry); box-shadow: inset 0 2px var(--telemetry); }
@@ -559,17 +559,17 @@
   .scan:disabled { opacity: 0.6; cursor: progress; }
   .bar { height: 4px; background: var(--steel); }
   .bar div { height: 100%; background: var(--telemetry); transition: width 0.3s; }
-  .hint { font-size: 10px; line-height: 1.5; white-space: nowrap; }
+  .hint { font-size: var(--fs-xs); line-height: 1.5; white-space: nowrap; }
   .wide .hint { white-space: normal; }
   .eddn { color: var(--muted); }
   .eddn .live { color: var(--ok); }
   .eddn .off { color: var(--dim); }
-  .link { background: none; border: 0; padding: 0; color: var(--hud-hi); text-decoration: underline; font-size: 10px; }
+  .link { background: none; border: 0; padding: 0; color: var(--hud-hi); text-decoration: underline; font-size: var(--fs-xs); }
 
   .shipin { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; }
   .shipin label {
     display: flex; align-items: center; gap: 5px; padding: 3px 6px; background: var(--steel); border: 1px solid var(--rule);
-    font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: var(--muted); min-width: 0;
+    font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.08em; color: var(--muted); min-width: 0;
   }
   .shipin label.need { border-color: var(--hud-hi); }
   .shipin input {
@@ -586,7 +586,7 @@
 
   .kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; }
   .kpis div { display: flex; flex-direction: column; }
-  .kpis span { font-size: 10px; letter-spacing: 0.08em; }
+  .kpis span { font-size: var(--fs-xs); letter-spacing: 0.08em; }
   .kpis b { font-size: 16px; }
 
   .center-body { flex: 1; display: flex; flex-direction: column; min-height: 0; }
@@ -600,7 +600,7 @@
   .stops { display: flex; gap: 6px; align-items: center; }
   .pinf {
     padding: 5px 10px; background: var(--steel); border: 1px solid var(--rule); color: var(--muted);
-    font-size: 10px; font-weight: 700; letter-spacing: 0.08em; white-space: nowrap;
+    font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.08em; white-space: nowrap;
   }
   .pinf b { color: var(--text); }
   .pinf.on { border-color: var(--telemetry); background: rgb(55 198 212 / 0.14); color: var(--telemetry); box-shadow: inset 0 2px var(--telemetry); }
@@ -643,7 +643,7 @@
   .landscape .pages { grid-template-columns: 1fr; grid-auto-rows: 1fr; }
   .pages button {
     min-height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-    font-size: 10px; font-weight: 700; letter-spacing: 0.1em; color: var(--muted);
+    font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.1em; color: var(--muted);
     background: linear-gradient(to bottom, #2b2014, var(--steel)); border: 1px solid var(--rule);
   }
   .pages .pi { font-size: 18px; line-height: 1; }
@@ -664,6 +664,6 @@
     display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 10px; padding: 6px 8px; font-size: 11px;
     background: var(--panel); border: 1px solid var(--rule);
   }
-  .strip .dim { font-size: 9px; letter-spacing: 0.08em; }
+  .strip .dim { font-size: var(--fs-2xs); letter-spacing: 0.08em; }
   .phone .tabs > button { padding: 8px 10px; flex: 1; }
 </style>

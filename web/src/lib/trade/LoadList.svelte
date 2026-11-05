@@ -45,7 +45,7 @@
     display: flex; flex-direction: column; gap: 3px; padding: 5px 8px; border: 1px solid var(--rule);
     background: linear-gradient(to bottom, rgb(255 122 24 / 0.08), transparent), var(--rail);
   }
-  .head { display: flex; justify-content: space-between; gap: 6px; font-size: 10px; font-weight: 700; letter-spacing: 0.12em; }
+  .head { display: flex; justify-content: space-between; gap: 6px; font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.12em; }
   .title { color: var(--hud-hi); }
   .mix { color: var(--telemetry); }
   .item { padding-bottom: 3px; border-bottom: 1px solid var(--rule); }
@@ -54,8 +54,8 @@
   .amt { color: var(--text); font-weight: 700; }
   .cargo { color: var(--hud); font-weight: 700; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
   .gain { color: var(--ok); }
-  .sub { font-size: 10px; }
+  .sub { font-size: var(--fs-xs); }
   .vol { display: inline-flex; gap: 3px; align-items: baseline; }
   .sum { display: flex; justify-content: space-between; gap: 6px; font-size: 12px; font-weight: 700; white-space: nowrap; }
-  .sum .dim { font-size: 10px; font-weight: 400; align-self: center; }
+  .sum .dim { font-size: var(--fs-xs); font-weight: 400; align-self: center; }
 </style>

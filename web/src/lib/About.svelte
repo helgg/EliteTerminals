@@ -93,7 +93,7 @@
   .name { font-size: 16px; font-weight: 800; letter-spacing: 0.08em; color: var(--text); }
   .dim { color: var(--muted); font-size: 12px; line-height: 1.5; }
   section { display: flex; flex-direction: column; gap: 3px; }
-  .k { color: var(--dim); font-size: 10px; letter-spacing: 0.1em; }
+  .k { color: var(--dim); font-size: var(--fs-xs); letter-spacing: 0.1em; }
   .who { color: var(--hud-hi); font-size: 18px; font-weight: 800; letter-spacing: 0.08em; }
   a { color: var(--telemetry); font-size: 12px; overflow-wrap: anywhere; }
   .go {
@@ -106,5 +106,5 @@
   .stat b { color: var(--hud-hi); }
   .bad, .bad b { color: var(--alert, #ff5a3c); }
   .warn { color: var(--amber, #ffb545); font-weight: 800; }
-  .legal { margin: 0; font-size: 10px; color: var(--dim); }
+  .legal { margin: 0; font-size: var(--fs-xs); color: var(--dim); }
 </style>

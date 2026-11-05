@@ -119,13 +119,13 @@
   .split .name, .split .meta { flex-wrap: wrap; white-space: normal; }
   .split .name :global(.text), .split .sys :global(.text) { white-space: normal; overflow-wrap: anywhere; }
   .totals { display: flex; gap: 10px; align-items: baseline; font-weight: 700; white-space: nowrap; }
-  .totals .dim { font-size: 10px; font-weight: 400; margin-left: auto; }
+  .totals .dim { font-size: var(--fs-xs); font-weight: 400; margin-left: auto; }
   .stop { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 6px; align-items: center; }
   .stop.plot { grid-template-columns: 22px minmax(0, 1fr) auto; }
   /* the PLOT takes room from the names: they wrap instead of being cut */
   .stop.plot .name, .stop.plot .meta { flex-wrap: wrap; white-space: normal; row-gap: 0; }
   .stop.plot .name :global(.text), .stop.plot .sys :global(.text) { white-space: normal; overflow-wrap: anywhere; }
-  .plotnote { font-size: 10px; color: var(--telemetry); }
+  .plotnote { font-size: var(--fs-xs); color: var(--telemetry); }
   .plotnote.warn { color: var(--hud-hi); }
   .badge {
     display: grid; place-items: center; height: 22px; background: var(--hud); color: var(--void); font-weight: 800;
@@ -133,8 +133,8 @@
   }
   .info { min-width: 0; }
   .name { display: flex; gap: 6px; align-items: baseline; font-weight: 700; white-space: nowrap; overflow: hidden; }
-  .role { color: var(--hud-hi); font-size: 9px; letter-spacing: 0.1em; }
-  .meta { display: flex; gap: 7px; font-size: 10px; color: var(--muted); white-space: nowrap; overflow: hidden; }
+  .role { color: var(--hud-hi); font-size: var(--fs-2xs); letter-spacing: 0.1em; }
+  .meta { display: flex; gap: 7px; font-size: var(--fs-xs); color: var(--muted); white-space: nowrap; overflow: hidden; }
   .sys { display: inline-flex; align-items: baseline; color: var(--telemetry); overflow: hidden; min-width: 0; }
   .start { display: flex; gap: 6px; align-items: stretch; }
   .start > :global(:first-child) { flex: 1; min-width: 0; }
@@ -143,5 +143,5 @@
   .stale { color: var(--danger); }
   .state { color: var(--telemetry); font-weight: 700; }
   .live { color: var(--ok); font-weight: 700; }
-  .sub { font-size: 10px; }
+  .sub { font-size: var(--fs-xs); }
 </style>

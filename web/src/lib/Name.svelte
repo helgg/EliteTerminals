@@ -15,7 +15,7 @@
   <span class="name" class:system role="button" tabindex="0" title="{value} · tap to copy"
     onclick={() => copyName(value)}
     onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && copyName(value)}
-  >{#if icon}<PlaceIcon kind={system ? 'system' : placeKind(stationType)} />{/if}<span class="text">{system ? value.toUpperCase() : value}</span></span>
+  >{#if icon}<PlaceIcon kind={system ? 'system' : placeKind(stationType)} />{/if}<span class="text">{#each (system ? value.toUpperCase() : value).split(' ') as w, i}{i ? ' ' : ''}<span class="tok">{w}</span>{/each}</span></span>
 {:else}—{/if}
 
 <style>
@@ -23,5 +23,8 @@
   .name:hover .text { text-decoration: underline dotted; text-underline-offset: 2px; }
   .name:active { filter: brightness(1.5); }
   .text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* touch screens: a taller hit area for the copy-on-tap, without moving the text (viewport-review T2) */
+  :global(html[data-device='tablet']) .name, :global(html[data-device='phone']) .name { padding-block: 5px; margin-block: -5px; }
+  .tok { white-space: nowrap; }
   .system .text { letter-spacing: 0.03em; }
 </style>

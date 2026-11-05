@@ -131,7 +131,7 @@
   .tools { display: flex; gap: 4px; align-items: center; }
   .grow { flex: 1; }
   .chip {
-    font: inherit; font-size: 10px; letter-spacing: 0.08em; padding: 3px 7px; cursor: pointer;
+    font: inherit; font-size: var(--fs-xs); letter-spacing: 0.08em; padding: 3px 7px; cursor: pointer;
     background: transparent; color: var(--hud); border: 1px solid var(--rule);
   }
   .chip.on { background: var(--hud); color: var(--void); border-color: var(--hud); }
@@ -159,14 +159,14 @@
   /* long names wrap: never cut with "…" */
   .sys, .st { overflow-wrap: anywhere; line-height: 1.25; }
   .sys { letter-spacing: 0.03em; }
-  .st { font-size: 10px; }
+  .st { font-size: var(--fs-xs); }
   .ly { font-size: 11px; white-space: nowrap; }
   .ly small { color: var(--dim); margin-left: 1px; }
   /* HUD buttons: no outline (a chamfer cuts it), a tinted face with a lit top edge in the state's colour */
   .btn {
     --tone: var(--telemetry);
     display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-width: 74px; padding: 7px 10px 6px;
-    font: inherit; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; cursor: pointer; border: 0;
+    font: inherit; font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.1em; cursor: pointer; border: 0;
     color: var(--tone); background: color-mix(in srgb, var(--tone) 14%, var(--steel));
     box-shadow: inset 0 2px var(--tone);
     clip-path: polygon(0 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%);

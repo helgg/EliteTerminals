@@ -99,7 +99,7 @@
   .hair { stroke: var(--hud); stroke-width: 1; }
 
   text { text-anchor: middle; font-family: var(--mono); font-weight: 700; }
-  .cap { font-size: 9px; letter-spacing: 0.25em; fill: var(--dim); }
+  .cap { font-size: var(--fs-2xs); letter-spacing: 0.25em; fill: var(--dim); }
   .state { font-size: 17px; letter-spacing: 0.1em; fill: var(--text); }
   .sub { font-size: 11px; fill: var(--muted); letter-spacing: 0.05em; }
   .ready .state { fill: var(--ok); }

@@ -376,7 +376,7 @@
   .ex.phone .focus { flex: none; flex-wrap: wrap; gap: 4px; }
   .ex.phone .focus .k { flex: 1 0 100%; margin: 0; }
   .ex.phone .focus button { padding: 8px 10px; }
-  .ex.phone .legend { flex: 1 0 100%; font-size: 9px; gap: 4px 8px; }
+  .ex.phone .legend { flex: 1 0 100%; font-size: var(--fs-2xs); gap: 4px 8px; }
   .ex.phone .pick { flex: 1 1 100%; min-width: 0; }
   .ex.phone .wt, .ex.phone .ws { display: none; }
   .ex.phone .wrow { gap: 8px; }
@@ -390,7 +390,7 @@
   }
   button.on { background: var(--hud); border-color: var(--hud); color: #1a0f05; }
   button:disabled { opacity: 0.4; cursor: default; }
-  .mini { padding: 4px 10px; font-size: 10px; }
+  .mini { padding: 4px 10px; font-size: var(--fs-xs); }
   .pick { flex: 0 1 340px; min-width: 240px; }
 
   .strip {
@@ -399,7 +399,7 @@
   .strip > div { padding: 6px 14px; border-right: 1px solid var(--rule); display: flex; flex-direction: column; justify-content: center; min-width: 0; }
   .strip > div:last-child { border-right: 0; }
   .who { flex: 1 1 260px; flex-direction: row !important; align-items: center; justify-content: flex-start !important; gap: 10px; }
-  .k { font-size: 9px; letter-spacing: 0.14em; color: var(--dim); }
+  .k { font-size: var(--fs-2xs); letter-spacing: 0.14em; color: var(--dim); }
   .v { font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
   .v em { font-style: normal; font-weight: 400; color: var(--dim); font-size: 12px; }
   .v.bio { color: #9af070; }
@@ -414,8 +414,8 @@
 
   .focus { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
   .focus .k { margin-right: 6px; }
-  .focus button { padding: 4px 9px; font-size: 10px; }
-  .legend { margin-left: auto; font-size: 10px; color: var(--dim); display: flex; align-items: center; gap: 6px; }
+  .focus button { padding: 4px 9px; font-size: var(--fs-xs); }
+  .legend { margin-left: auto; font-size: var(--fs-xs); color: var(--dim); display: flex; align-items: center; gap: 6px; }
   .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
   .legend i.d { outline: 1px dashed var(--muted); outline-offset: 1px; }
   .legend i.c { outline: 1px solid var(--telemetry); outline-offset: 1px; }
@@ -433,7 +433,7 @@
   .belt .swatch { flex: none; width: 34px; height: 14px; border-radius: 50%; border: 3px dotted var(--rc); filter: drop-shadow(0 0 4px var(--rc)); }
   .belt .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 14px; margin: 12px 0 8px; }
   .belt .grid div { display: flex; flex-direction: column; }
-  .belt .grid i { font-style: normal; font-size: 9px; letter-spacing: 0.14em; color: var(--dim); }
+  .belt .grid i { font-style: normal; font-size: var(--fs-2xs); letter-spacing: 0.14em; color: var(--dim); }
   .belt .grid b { font-size: 13px; font-variant-numeric: tabular-nums; }
   .worthy { margin: 6px 8px 10px; }
   .wrow {
@@ -443,9 +443,9 @@
   .wrow:hover, .wrow.sel { background: color-mix(in srgb, var(--hud) 9%, transparent); }
   .wn { flex: none; width: 70px; font-weight: 800; }
   .wt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
-  .ws { flex: none; width: 70px; font-size: 10px; letter-spacing: 0.1em; color: var(--telemetry); }
+  .ws { flex: none; width: 70px; font-size: var(--fs-xs); letter-spacing: 0.1em; color: var(--telemetry); }
   .wv { flex: none; width: 84px; text-align: right; color: var(--hud-hi); font-variant-numeric: tabular-nums; }
-  .wv em { font-style: normal; font-size: 9px; letter-spacing: 0.1em; color: var(--dim); }
+  .wv em { font-style: normal; font-size: var(--fs-2xs); letter-spacing: 0.1em; color: var(--dim); }
   .err { color: var(--danger); font-size: 13px; }
   .dim { color: var(--dim); font-size: 12px; }
 </style>

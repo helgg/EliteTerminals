@@ -1,5 +1,8 @@
 /* Elite HUD design tokens, tuned toward the ED cockpit. */
 :root {
+  /* smallest label sizes: the PC keeps its dense 9/10 px; tablets and phones get 11 px (viewport-review X1) */
+  --fs-2xs: 9px;
+  --fs-xs: 10px;
   --void: #0b0705;
   --panel: #15100b;
   --rail: #1b130c;
@@ -86,10 +89,16 @@ button {
 
 /* a panel's sections: a small orange title, a rule fading to the right, a note in grey at the end */
 .sec { margin-top: 12px; }
-.sec > header { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; font-size: 10px; font-weight: 800; letter-spacing: 0.16em; color: var(--hud); }
+.sec > header { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; font-size: var(--fs-xs); font-weight: 800; letter-spacing: 0.16em; color: var(--hud); }
 .sec > header i { flex: 1; height: 1px; background: linear-gradient(to right, var(--hud), var(--rule)); opacity: 0.6; }
 .sec > header em { font-style: normal; font-weight: 400; letter-spacing: 0.06em; color: var(--dim); }
 
 /* number fields never show the up/down arrows (house rule): they are typed, not stepped */
 input[type='number'] { appearance: textfield; -moz-appearance: textfield; }
 input[type='number']::-webkit-inner-spin-button, input[type='number']::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+html[data-device='tablet'],
+html[data-device='phone'] {
+  --fs-2xs: 11px;
+  --fs-xs: 11px;
+}

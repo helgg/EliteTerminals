@@ -120,6 +120,7 @@
       syncing = false;
     }
   }
+  const group = $derived(GROUPS.find((g) => (g.tabs as readonly string[]).includes(tab)));
   const notice = $derived(
     synced && now - synced.at < 8000
       ? { ok: synced.ok, text: synced.text }
@@ -140,6 +141,7 @@
   <header class="top slim">
     <button class="brand" onclick={() => (showQr = true)} title="Open the panel on another device (QR code)">
       <span class="logo">ED·ET</span>
+      <span class="scr {group?.id}">{tab}</span>
     </button>
     <!-- system over station: two short lines fit where one long one would be cut -->
     <div class="where">
@@ -147,7 +149,6 @@
       <div class="st muted">{where}</div>
     </div>
     {#if !live}<span class="linkstate">{link.connected ? 'OFFLINE' : 'NO SERVER'}</span>{/if}
-    <span class="cur">{tab}</span>
     <FullScreen />
     <button class="burger" class:on={menu} onclick={() => (menu = !menu)} aria-label="Screens" aria-expanded={menu}>
       <span></span><span></span><span></span>
@@ -335,7 +336,7 @@
   @keyframes qr-ping-fresh { 0% { opacity: 0.9; transform: scale(1); } 70%, 100% { opacity: 0; transform: scale(2.8); } }
   @media (prefers-reduced-motion: reduce) { .qr-hint::after { animation: none; } }
   .logo { color: var(--hud); font-size: 20px; font-weight: 700; letter-spacing: 0.08em; text-shadow: var(--glow); }
-  .sub { font-size: 9px; letter-spacing: 0.15em; }
+  .sub { font-size: var(--fs-2xs); letter-spacing: 0.15em; }
   .where { min-width: 0; flex: 1; }
   .sys { font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .line { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -360,7 +361,7 @@
   /* two groups: COCKPIT presses the game's keys (orange, filled when active); PLANNER only reads (cyan, outlined) */
   nav { align-items: flex-end; gap: 14px; }
   .grp { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-  .gname { display: flex; align-items: center; gap: 5px; font-size: 9px; font-weight: 800; letter-spacing: 0.2em; padding-bottom: 2px; border-bottom: 1px solid currentColor; }
+  .gname { display: flex; align-items: center; gap: 5px; font-size: var(--fs-2xs); font-weight: 800; letter-spacing: 0.2em; padding-bottom: 2px; border-bottom: 1px solid currentColor; }
   .btns { display: flex; gap: 4px; }
   .grp.cockpit .gname { color: var(--hud); }
   .grp.planner .gname { color: var(--telemetry); }
@@ -374,6 +375,18 @@
   .sheet button.planner.active { background: rgb(55 198 212 / 0.14); color: var(--text); }
   .sheet button.cockpit { border-color: var(--hud); }
 
+  /* touch screens (viewport-review T1/T2): header controls are 44 px high, the status strip's buttons 32 */
+  :global(html[data-device='tablet']) .top .brand, :global(html[data-device='phone']) .top .brand { min-height: 44px; justify-content: center; }
+  :global(html[data-device='tablet']) nav button { min-height: 44px; }
+  :global(html[data-device='tablet']) nav .reload { min-width: 44px; min-height: 44px; padding: 0; }
+  :global(html[data-vp$='-portrait']) .top nav .reload { flex: 0 0 44px; }
+  :global(html[data-device='tablet']) .status .sync { min-height: 32px; padding: 0 10px; }
+  :global(html[data-device='tablet']) .status .right { display: none; }
+  :global(html[data-vp='tablet-landscape']) nav { gap: 8px; }
+  :global(html[data-vp='tablet-landscape']) .top .gauge { display: none; }
+  .scr { font-size: 11px; font-weight: 800; letter-spacing: 0.12em; line-height: 1.1; }
+  .scr.cockpit { color: var(--hud); }
+  .scr.planner { color: var(--telemetry); }
   .side { display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow: hidden; }
   .side > :global(.system) { flex: 1; min-height: 0; }
   /* when POWER is the last panel (tablets), it takes the rest of the column: taller bars, no dead space */
@@ -440,7 +453,7 @@
   .linkstate::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--danger); }
   .burger {
     display: flex; flex-direction: column; justify-content: center; gap: 4px;
-    width: 44px; height: 38px; padding: 0 11px; background: var(--steel); border: 1px solid var(--rule);
+    width: 44px; height: 44px; padding: 0 11px; background: var(--steel); border: 1px solid var(--rule);
   }
   .burger span { height: 2px; background: var(--hud-hi); }
   .burger.on { border-color: var(--hud); }
@@ -461,7 +474,7 @@
   .sheet .reload { grid-column: 1 / -1; color: var(--text); }
   nav .reload { font-size: 16px; padding: 4px 12px; }
   /* tablets: slimmer tabs, so the station name keeps its room next to them */
-  :global(html[data-vp='tablet-landscape']) nav button { padding: 8px 8px; }
+  :global(html[data-vp='tablet-landscape']) nav button { padding: 8px 6px; font-size: 11px; letter-spacing: 0.04em; }
   :global(html[data-vp='tablet-landscape']) .top { gap: 10px; }
   .sheet .meta { grid-column: 1 / -1; font-size: 11px; text-align: center; }
   .toast {

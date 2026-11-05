@@ -602,14 +602,14 @@
   .layers { position: absolute; right: 6px; bottom: 6px; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 3px; max-width: calc(100% - 12px); }
   .layers button {
     display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 8px; background: rgb(21 16 11 / 0.88); border: 1px solid var(--rule);
-    color: var(--muted); font: inherit; font-size: 10px; letter-spacing: 0.08em; cursor: pointer;
+    color: var(--muted); font: inherit; font-size: var(--fs-xs); letter-spacing: 0.08em; cursor: pointer;
   }
   .layers button i { width: 7px; height: 7px; border-radius: 50%; border: 1px solid var(--c); }
   .layers button.on { color: var(--text); border-color: var(--c); }
   .layers button.on i { background: var(--c); box-shadow: 0 0 6px var(--c); }
   .layers em { font-style: normal; color: var(--dim); font-variant-numeric: tabular-nums; }
   .layers .spin { width: 8px; height: 8px; border: 1px solid var(--c); border-right-color: transparent; border-radius: 50%; animation: gm-spin 0.8s linear infinite; }
-  .note { align-self: center; padding: 0 6px; font-size: 10px; letter-spacing: 0.08em; color: var(--hud-hi); background: rgb(11 7 5 / 0.8); }
+  .note { align-self: center; padding: 0 6px; font-size: var(--fs-xs); letter-spacing: 0.08em; color: var(--hud-hi); background: rgb(11 7 5 / 0.8); }
   .note.bad { color: var(--danger); }
   @keyframes gm-spin { to { transform: rotate(360deg); } }
   .card {
@@ -619,14 +619,14 @@
   }
   .card header { display: flex; align-items: center; gap: 6px; }
   .card header i { width: 7px; height: 7px; border-radius: 50%; background: var(--c); box-shadow: 0 0 6px var(--c); }
-  .card .kind { font-size: 10px; letter-spacing: 0.12em; color: var(--c); }
+  .card .kind { font-size: var(--fs-xs); letter-spacing: 0.12em; color: var(--c); }
   .card .x { margin-left: auto; width: 24px; height: 22px; background: var(--steel); border: 1px solid var(--rule); color: var(--hud-hi); font-size: 11px; cursor: pointer; }
   .card .sys { font-size: 14px; letter-spacing: 0.06em; color: var(--text); overflow-wrap: anywhere; }
-  .card .far { display: flex; flex-wrap: wrap; gap: 2px 12px; color: var(--dim); font-size: 10px; letter-spacing: 0.06em; }
+  .card .far { display: flex; flex-wrap: wrap; gap: 2px 12px; color: var(--dim); font-size: var(--fs-xs); letter-spacing: 0.06em; }
   .card .far b { color: var(--telemetry); font-weight: 700; }
   .card .acts { display: flex; gap: 6px; margin-top: 5px; }
   .card .copy {
-    flex: none; min-width: 58px; padding: 5px 7px 4px; font: inherit; font-size: 9px; font-weight: 700; letter-spacing: 0.1em; cursor: pointer; border: 0;
+    flex: none; min-width: 58px; padding: 5px 7px 4px; font: inherit; font-size: var(--fs-2xs); font-weight: 700; letter-spacing: 0.1em; cursor: pointer; border: 0;
     color: var(--hud-hi); background: color-mix(in srgb, var(--hud-hi) 14%, var(--steel)); box-shadow: inset 0 2px var(--hud-hi);
     clip-path: polygon(0 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%);
   }
@@ -636,30 +636,30 @@
     padding: 8px 10px 10px; background: rgb(21 16 11 / 0.95); border: 1px solid #ffd24a; box-shadow: 0 0 14px rgb(255 210 74 / 0.25); font-size: 11px;
   }
   .rich header { display: flex; align-items: center; gap: 6px; }
-  .rich header b { font-size: 10px; letter-spacing: 0.12em; color: #ffd24a; }
+  .rich header b { font-size: var(--fs-xs); letter-spacing: 0.12em; color: #ffd24a; }
   .rich .x { margin-left: auto; width: 24px; height: 22px; background: var(--steel); border: 1px solid var(--rule); color: var(--hud-hi); font-size: 11px; cursor: pointer; }
   .rich .row { display: flex; gap: 8px; }
-  .rich label { display: flex; align-items: center; gap: 4px; font-size: 9px; letter-spacing: 0.1em; color: var(--dim); }
+  .rich label { display: flex; align-items: center; gap: 4px; font-size: var(--fs-2xs); letter-spacing: 0.1em; color: var(--dim); }
   .rich input { width: 52px; height: 24px; padding: 0 4px; background: #0b0705; border: 1px solid var(--rule); color: var(--text); font: inherit; font-size: 11px; }
   .rich u { text-decoration: none; }
   .rich .go {
-    padding: 6px 8px 5px; font: inherit; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; cursor: pointer; border: 0; color: #ffd24a;
+    padding: 6px 8px 5px; font: inherit; font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.1em; cursor: pointer; border: 0; color: #ffd24a;
     background: color-mix(in srgb, #ffd24a 14%, var(--steel)); box-shadow: inset 0 2px #ffd24a;
   }
   .rich .go:disabled { opacity: 0.6; cursor: progress; }
   .rich .bad { color: var(--danger); }
-  .rich .sum { font-size: 10px; letter-spacing: 0.08em; color: var(--dim); }
+  .rich .sum { font-size: var(--fs-xs); letter-spacing: 0.08em; color: var(--dim); }
   .rich .sum b { color: #ffd24a; }
   .rich ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
   .rich ol button { display: flex; align-items: center; gap: 6px; width: 100%; padding: 3px 4px; background: transparent; border: 0; color: var(--text); font: inherit; font-size: 11px; text-align: left; cursor: pointer; }
   .rich ol button:hover { background: rgb(255 210 74 / 0.12); }
-  .rich .n { flex: none; width: 18px; height: 18px; display: grid; place-items: center; border-radius: 50%; background: #ffd24a; color: #1a0f05; font-size: 10px; font-weight: 700; }
+  .rich .n { flex: none; width: 18px; height: 18px; display: grid; place-items: center; border-radius: 50%; background: #ffd24a; color: #1a0f05; font-size: var(--fs-xs); font-weight: 700; }
   .rich .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .rich em { font-style: normal; color: var(--telemetry); font-variant-numeric: tabular-nums; }
-  .card .lines { margin: 2px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 1px; max-height: 110px; overflow-y: auto; color: var(--dim); font-size: 10px; }
+  .card .lines { margin: 2px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 1px; max-height: 110px; overflow-y: auto; color: var(--dim); font-size: var(--fs-xs); }
   .tools button {
     min-width: 30px; height: 28px; padding: 0 7px; background: rgb(36 26 16 / 0.9); border: 1px solid var(--rule); color: var(--hud-hi);
-    font: inherit; font-size: 10px; letter-spacing: 0.08em; cursor: pointer;
+    font: inherit; font-size: var(--fs-xs); letter-spacing: 0.08em; cursor: pointer;
   }
   .tools button:hover { background: var(--hud); color: #1a0f05; }
 </style>

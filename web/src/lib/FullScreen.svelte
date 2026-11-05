@@ -102,6 +102,7 @@
     color: var(--hud-hi);
   }
   .fs.on { border-color: var(--telemetry); color: var(--telemetry); }
+  :global(html[data-device='tablet']) .fs, :global(html[data-device='phone']) .fs { width: 44px; min-height: 44px; }
   .fs:active { filter: brightness(1.4); }
   svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: square; }
 

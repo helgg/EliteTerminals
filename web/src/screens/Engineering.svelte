@@ -194,7 +194,7 @@
   .mat.full .fill { background: rgb(209 72 58 / 0.28); }
   .mat > :not(.fill) { position: relative; }
   .g {
-    flex: none; width: 24px; text-align: center; font-size: 10px; font-weight: 800; letter-spacing: 0.04em;
+    flex: none; width: 24px; text-align: center; font-size: var(--fs-xs); font-weight: 800; letter-spacing: 0.04em;
     border: 1px solid var(--rule); color: var(--dim);
   }
   .g1 { color: var(--muted); }
@@ -215,7 +215,7 @@
   .where .sys { flex: none; font-weight: 700; }
   .where .base { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
   .where .away { flex: none; font-size: 11px; font-variant-numeric: tabular-nums; }
-  .st { flex: none; font-size: 10px; letter-spacing: 0.1em; color: var(--dim); }
+  .st { flex: none; font-size: var(--fs-xs); letter-spacing: 0.1em; color: var(--dim); }
   .st.unlocked { color: var(--ok); }
   .st.invited { color: var(--hud-hi); }
   .pips { flex: none; display: flex; gap: 2px; }

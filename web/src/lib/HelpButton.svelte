@@ -39,9 +39,10 @@
     display: inline-flex; align-items: center; gap: 6px; background: none; border: 1px solid var(--rule);
     color: var(--muted); font: inherit; font-size: 11px; letter-spacing: 0.08em; padding: 0 8px; cursor: pointer;
   }
+  :global(html[data-device='tablet']) .help { min-height: 32px; padding: 0 10px; }
   .q {
     position: relative; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; width: 15px; height: 15px;
-    border-radius: 50%; border: 1px solid var(--hud); color: var(--hud-hi); font-size: 10px; font-weight: 800; line-height: 1;
+    border-radius: 50%; border: 1px solid var(--hud); color: var(--hud-hi); font-size: var(--fs-xs); font-weight: 800; line-height: 1;
     padding: 0 0 0 2px;
   }
   /* the ring that grows and fades: a soft one every 6 s, a stronger and quicker one while the screen's tutorial is unread */

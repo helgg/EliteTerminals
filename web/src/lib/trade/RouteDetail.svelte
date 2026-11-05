@@ -95,21 +95,21 @@
   .end { display: grid; grid-template-columns: 56px 1fr; gap: 8px; align-items: center; }
   .holo :global(.holo) { max-width: 56px; }
   .info { min-width: 0; }
-  .role { color: var(--hud-hi); font-size: 10px; font-weight: 700; letter-spacing: 0.12em; }
+  .role { color: var(--hud-hi); font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.12em; }
   .name, .sys { display: flex; align-items: baseline; gap: 2px; min-width: 0; white-space: nowrap; overflow: hidden; }
   .name { font-weight: 700; }
   .sys { color: var(--telemetry); font-size: 11px; }
   .name > :global(:first-child), .sys > :global(:first-child) { min-width: 0; overflow: hidden; }
   .start { display: flex; gap: 6px; align-items: stretch; }
   .start > :global(:first-child) { flex: 1; min-width: 0; }
-  .meta { display: flex; gap: 8px; font-size: 10px; color: var(--muted); }
+  .meta { display: flex; gap: 8px; font-size: var(--fs-xs); color: var(--muted); }
   .fresh { color: var(--ok); }
   .ok { color: var(--hud-hi); }
   .stale { color: var(--danger); }
   .state { color: var(--telemetry); font-weight: 700; }
   .live { color: var(--ok); font-weight: 700; }
   .facts { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 2px 0 0; font-size: 12px; }
-  dt { color: var(--dim); font-size: 10px; letter-spacing: 0.1em; align-self: center; }
+  dt { color: var(--dim); font-size: var(--fs-xs); letter-spacing: 0.1em; align-self: center; }
   dd { margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .gain { color: var(--ok); }
 </style>

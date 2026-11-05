@@ -341,17 +341,17 @@
   .dim { color: var(--dim); font-size: 12px; }
   .small { font-size: 11px; margin: 0 0 6px; }
   .bad { color: var(--danger); font-size: 13px; }
-  .k { color: var(--dim); font-size: 10px; letter-spacing: 0.1em; }
+  .k { color: var(--dim); font-size: var(--fs-xs); letter-spacing: 0.1em; }
   .hint { color: var(--dim); font-size: 11px; }
 
   .set { display: flex; flex-direction: column; gap: 14px; }
   .g { display: flex; flex-direction: column; gap: 4px; }
   .chips { display: flex; flex-wrap: wrap; gap: 3px; }
   .chips button {
-    padding: 5px 9px; background: var(--steel); border: 1px solid var(--rule); color: var(--muted); font: inherit; font-size: 10px; letter-spacing: 0.08em; cursor: pointer;
+    padding: 5px 9px; background: var(--steel); border: 1px solid var(--rule); color: var(--muted); font: inherit; font-size: var(--fs-xs); letter-spacing: 0.08em; cursor: pointer;
   }
   .chips button.on { background: var(--hud); border-color: var(--hud); color: #1a0f05; }
-  .w { display: flex; align-items: center; gap: 8px; font-size: 10px; letter-spacing: 0.08em; min-height: 22px; }
+  .w { display: flex; align-items: center; gap: 8px; font-size: var(--fs-xs); letter-spacing: 0.08em; min-height: 22px; }
   .wn { flex: none; width: 92px; color: var(--muted); }
   .wb { flex: 1; height: 6px; background: var(--steel); border: 1px solid var(--rule); }
   .wb s { display: block; height: 100%; background: var(--c); }
@@ -369,7 +369,7 @@
   .t2 { color: #ffb545; }
   .t3 { color: #37c6d4; }
   .z { opacity: 0.35; }
-  .lh { display: flex; align-items: center; gap: 10px; font-size: 10px; letter-spacing: 0.12em; color: var(--dim); margin-bottom: 6px; }
+  .lh { display: flex; align-items: center; gap: 10px; font-size: var(--fs-xs); letter-spacing: 0.12em; color: var(--dim); margin-bottom: 6px; }
   .lh i { flex: 1; height: 1px; background: var(--rule); }
   .lh b { margin-left: 6px; font-size: 12px; }
   .step {
@@ -390,18 +390,18 @@
   .on em { font-style: normal; color: var(--dim); }
   .on .gs { margin-left: 8px; }
   select { padding: 5px 6px; background: var(--steel); border: 1px solid var(--rule); color: var(--text); font: inherit; font-size: 12px; max-width: 100%; }
-  .chip { font-size: 9px; font-weight: 800; letter-spacing: 0.1em; padding: 0 5px; border: 1px solid var(--c); color: var(--c); }
-  .nx { font-size: 9px; font-weight: 800; letter-spacing: 0.14em; padding: 0 5px; background: var(--hud); color: #1a0f05; }
+  .chip { font-size: var(--fs-2xs); font-weight: 800; letter-spacing: 0.1em; padding: 0 5px; border: 1px solid var(--c); color: var(--c); }
+  .nx { font-size: var(--fs-2xs); font-weight: 800; letter-spacing: 0.14em; padding: 0 5px; background: var(--hud); color: #1a0f05; }
   .why { font-size: 11px; color: var(--dim); margin-top: 1px; overflow-wrap: anywhere; }
   .d { display: flex; flex-direction: column; text-align: right; font-size: 11px; font-weight: 700; }
   .bal { text-align: right; font-size: 12px; }
   .note { margin-top: 8px; padding: 6px 8px; font-size: 11px; color: var(--muted); border-left: 2px solid var(--hud); background: var(--steel); }
 
   .sec { margin-bottom: 14px; }
-  .sec header { display: flex; align-items: center; gap: 8px; font-size: 10px; letter-spacing: 0.14em; color: var(--hud); margin-bottom: 6px; }
+  .sec header { display: flex; align-items: center; gap: 8px; font-size: var(--fs-xs); letter-spacing: 0.14em; color: var(--hud); margin-bottom: 6px; }
   .sec header i { flex: 1; height: 1px; background: var(--rule); }
   .sec header em { font-style: normal; letter-spacing: 0; color: var(--dim); }
-  .mixrow { display: flex; align-items: center; gap: 8px; font-size: 10px; letter-spacing: 0.08em; min-height: 20px; color: var(--muted); }
+  .mixrow { display: flex; align-items: center; gap: 8px; font-size: var(--fs-xs); letter-spacing: 0.08em; min-height: 20px; color: var(--muted); }
   .mixrow > span:first-child { flex: none; width: 92px; }
   .mb { flex: 1; height: 6px; background: var(--steel); border: 1px solid var(--rule); }
   .mb s { display: block; height: 100%; background: var(--c); }
@@ -409,20 +409,20 @@
   .find:disabled { opacity: 0.6; cursor: wait; }
   .voc { display: grid; grid-template-columns: 1fr auto; gap: 0 8px; width: 100%; margin-bottom: 4px; padding: 5px 8px; text-align: left; font: inherit; color: var(--text); background: transparent; border: 1px solid var(--line); cursor: pointer; }
   .voc b { font-size: 11px; letter-spacing: 0.1em; }
-  .voc small { grid-column: 1 / -1; color: var(--dim); font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .voc small { grid-column: 1 / -1; color: var(--dim); font-size: var(--fs-xs); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .voc.best { border-color: var(--hud); }
   .voc.on { background: rgba(255, 122, 24, 0.12); }
-  .lnk { margin-left: 6px; padding: 0 4px; background: none; border: 0; color: var(--hud); font: inherit; font-size: 10px; letter-spacing: 0.1em; cursor: pointer; text-decoration: underline; }
-  .lh.sub { margin-top: -2px; font-size: 9px; }
+  .lnk { margin-left: 6px; padding: 0 4px; background: none; border: 0; color: var(--hud); font: inherit; font-size: var(--fs-xs); letter-spacing: 0.1em; cursor: pointer; text-decoration: underline; }
+  .lh.sub { margin-top: -2px; font-size: var(--fs-2xs); }
   .tabs { margin-bottom: 10px; }
   .tabs button { flex: 1; padding: 7px 9px; }
   .mixrow b.neg { color: var(--danger); }
-  .rsv { margin-top: 8px; font-size: 10px; letter-spacing: 0.1em; color: var(--dim); }
+  .rsv { margin-top: 8px; font-size: var(--fs-xs); letter-spacing: 0.1em; color: var(--dim); }
   .rsv b { color: var(--hud-hi); }
   .rsv b.ok { color: var(--ok); }
   .slots { display: flex; flex-direction: column; }
   .sh, .sr { display: grid; grid-template-columns: minmax(0, 1fr) 64px 64px 36px; gap: 6px; align-items: center; padding: 2px 0; }
-  .sh { font-size: 9px; letter-spacing: 0.12em; color: var(--dim); }
+  .sh { font-size: var(--fs-2xs); letter-spacing: 0.12em; color: var(--dim); }
   .sh span:not(:first-child) { text-align: right; }
   .sh span:last-child { text-align: center; }
   .sr { border-bottom: 1px solid color-mix(in srgb, var(--rule) 45%, transparent); }

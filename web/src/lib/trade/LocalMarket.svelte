@@ -148,14 +148,14 @@
     display: flex; gap: 8px; align-items: baseline; margin-bottom: 6px; padding: 4px 6px; white-space: nowrap;
     border: 1px solid var(--rule); background: var(--rail); min-width: 0;
   }
-  .tag { color: var(--void); background: var(--hud-hi); padding: 1px 6px; font-size: 10px; font-weight: 800; letter-spacing: 0.1em; }
+  .tag { color: var(--void); background: var(--hud-hi); padding: 1px 6px; font-size: var(--fs-xs); font-weight: 800; letter-spacing: 0.1em; }
   .tag.live { background: var(--ok); }
   .which .st { font-weight: 700; min-width: 0; overflow: hidden; }
   .which .sys { color: var(--telemetry); font-size: 11px; min-width: 0; overflow: hidden; }
-  .age { font-size: 10px; }
+  .age { font-size: var(--fs-xs); }
   .pick {
     margin-left: auto; padding: 4px 8px; background: var(--steel); border: 1px solid var(--rule);
-    color: var(--hud-hi); font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+    color: var(--hud-hi); font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.08em;
   }
   .pick.on { border-color: var(--hud); color: var(--hud); }
   .visited {
@@ -170,7 +170,7 @@
   .visited button.on { background: rgb(255 122 24 / 0.14); box-shadow: inset 2px 0 var(--hud); }
   .visited .st, .visited .sys { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .visited .sys { color: var(--telemetry); font-size: 11px; }
-  .visited .age { color: var(--dim); font-size: 10px; }
+  .visited .age { color: var(--dim); font-size: var(--fs-xs); }
   .tools { display: flex; gap: 6px; margin-bottom: 6px; }
   .tools button {
     padding: 6px 10px; background: var(--steel); border: 1px solid var(--rule); color: var(--muted);

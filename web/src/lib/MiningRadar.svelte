@@ -168,7 +168,7 @@
   .al { font-size: 5.2px; stroke: none; }
   .edge { stroke: none; }
   .ship { fill: var(--text); stroke: var(--void); stroke-width: .5; }
-  .legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 10.5px; color: var(--muted); letter-spacing: .06em; }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: var(--fs-xs); color: var(--muted); letter-spacing: .06em; }
   .legend i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
   .legend i.sw { border-radius: 0; width: 14px; height: 6px; background: rgb(55 198 212 / .35); }
   .legend .dim { margin-left: auto; color: var(--dim); }

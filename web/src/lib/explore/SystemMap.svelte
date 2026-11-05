@@ -333,7 +333,7 @@
   .ls { font-size: 11px; color: var(--dim); }
   .tags { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px; margin-top: 3px; max-width: 138px; }
   .t {
-    font-style: normal; font-size: 10px; font-weight: 800; letter-spacing: 0.05em; padding: 0 4px; line-height: 16px;
+    font-style: normal; font-size: var(--fs-xs); font-weight: 800; letter-spacing: 0.05em; padding: 0 4px; line-height: 16px;
     border: 1px solid var(--rule); color: var(--muted);
   }
   .t.land { color: var(--text); }

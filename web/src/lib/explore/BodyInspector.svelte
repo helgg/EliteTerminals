@@ -165,18 +165,18 @@
   .sub { color: var(--muted); font-size: 11px; letter-spacing: 0.06em; }
   .state {
     display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; margin: 8px 0 4px; padding: 5px 8px;
-    font-size: 10px; font-weight: 800; letter-spacing: 0.12em; color: var(--dim); border: 1px solid var(--rule); background: var(--steel);
+    font-size: var(--fs-xs); font-weight: 800; letter-spacing: 0.12em; color: var(--dim); border: 1px solid var(--rule); background: var(--steel);
   }
   .state.done { color: var(--telemetry); border-color: color-mix(in srgb, var(--telemetry) 45%, transparent); }
   .state.first { border-color: var(--hud-hi); }
   .gold { color: var(--hud-hi); }
   .dim { color: var(--dim); font-weight: 400; letter-spacing: 0.04em; }
-  .small { font-size: 10px; }
+  .small { font-size: var(--fs-xs); }
 
   .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 14px; margin: 6px 0 4px; }
   .grid div { display: flex; flex-direction: column; min-width: 0; }
   .grid .wide { grid-column: 1 / -1; }
-  .grid i { font-style: normal; font-size: 9px; letter-spacing: 0.14em; color: var(--dim); }
+  .grid i { font-style: normal; font-size: var(--fs-2xs); letter-spacing: 0.14em; color: var(--dim); }
   .grid b { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
   .grid b.warn { color: var(--danger); }
 
@@ -189,14 +189,14 @@
   .held.none { color: var(--faint); }
   .held.full { color: var(--danger); }
   .row.low .label { color: var(--hud-hi); }
-  .g { flex: none; width: 24px; text-align: center; font-size: 9px; font-weight: 800; border: 1px solid var(--rule); color: var(--dim); }
+  .g { flex: none; width: 24px; text-align: center; font-size: var(--fs-2xs); font-weight: 800; border: 1px solid var(--rule); color: var(--dim); }
   .g1 { color: var(--muted); }
   .g2 { color: var(--telemetry); border-color: color-mix(in srgb, var(--telemetry) 45%, transparent); }
   .g3 { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, transparent); }
   .g4 { color: var(--hud-hi); border-color: color-mix(in srgb, var(--hud-hi) 55%, transparent); }
 
   .chips { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin: 3px 0; }
-  .chip { font-size: 10px; font-weight: 700; letter-spacing: 0.05em; padding: 1px 6px; border: 1px solid var(--rule); color: var(--muted); }
+  .chip { font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.05em; padding: 1px 6px; border: 1px solid var(--rule); color: var(--muted); }
   .chip.bio { color: #9af070; border-color: #4a9a2a; }
   .chip.geo { color: #ff9a5a; border-color: #b8501a; }
   .chip.warn { color: var(--danger); border-color: var(--danger); }

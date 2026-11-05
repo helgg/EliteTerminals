@@ -63,7 +63,7 @@
 
 <style>
   .grid { display: grid; grid-template-columns: minmax(140px, 1.3fr) minmax(150px, 1.2fr) minmax(220px, 2fr) minmax(150px, 1.3fr) auto; gap: 12px; align-items: center; padding: 8px 6px; border-bottom: 1px solid var(--line); font-size: 12px; }
-  .head { font-size: 10px; letter-spacing: 0.14em; color: var(--dim); }
+  .head { font-size: var(--fs-xs); letter-spacing: 0.14em; color: var(--dim); }
   .sys { color: var(--hud-hi); font-weight: 800; letter-spacing: 0.06em; }
   .row.active { background: rgba(255, 122, 24, 0.06); }
   .open { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
@@ -71,7 +71,7 @@
   .bar s { display: block; height: 100%; background: var(--hud); }
   .bad { color: var(--danger); font-style: normal; }
   .acts { display: flex; gap: 4px; justify-content: flex-end; }
-  .acts button { padding: 5px 12px; background: var(--steel); border: 1px solid var(--rule); color: var(--hud-hi); font: inherit; font-size: 10px; font-weight: 800; letter-spacing: 0.1em; cursor: pointer; }
+  .acts button { padding: 5px 12px; background: var(--steel); border: 1px solid var(--rule); color: var(--hud-hi); font: inherit; font-size: var(--fs-xs); font-weight: 800; letter-spacing: 0.1em; cursor: pointer; }
   .acts button:hover { border-color: var(--hud); }
   :global(html[data-vp^='phone']) .head, :global(html[data-vp='tablet-portrait']) .head { display: none; }
   :global(html[data-vp^='phone']) .grid, :global(html[data-vp='tablet-portrait']) .grid { grid-template-columns: 1fr; gap: 4px; padding: 10px 6px; }

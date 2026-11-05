@@ -430,7 +430,7 @@
   .build.mid.landscape > :global(.site) { grid-column: 1 / -1; }
   .build.mid.portrait { grid-template-rows: auto minmax(0, 1fr) minmax(0, 1fr); }
   .build :global(.center .body), .build :global(.right .body) { flex: 1; display: flex; flex-direction: column; min-height: 0; }
-  .k { color: var(--dim); font-size: 10px; letter-spacing: 0.1em; }
+  .k { color: var(--dim); font-size: var(--fs-xs); letter-spacing: 0.1em; }
   .pick { width: 100%; margin-bottom: 6px; padding: 5px; font: 700 11px var(--mono); color: var(--hud-hi); background: var(--void); border: 1px solid var(--rule); }
   .pending { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; padding: 6px 8px; font-size: 11px; border: 1px dashed var(--rule); }
   .pending .k { font-weight: 800; color: var(--hud-hi); letter-spacing: .06em; }
@@ -438,7 +438,7 @@
   .where .sys { font-weight: 800; color: var(--telemetry); font-size: 14px; }
   .where :global(.text) { white-space: normal; overflow-wrap: anywhere; }
   .raven {
-    padding: 5px 8px 4px; font-size: 9px; font-weight: 700; letter-spacing: 0.1em; color: var(--hud-hi); text-decoration: none;
+    padding: 5px 8px 4px; font-size: var(--fs-2xs); font-weight: 700; letter-spacing: 0.1em; color: var(--hud-hi); text-decoration: none;
     background: color-mix(in srgb, var(--hud) 14%, var(--steel)); box-shadow: inset 0 2px var(--hud);
     clip-path: polygon(0 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%);
   }
@@ -455,7 +455,7 @@
   .ce:focus { outline: 1px solid var(--hud); background: var(--steel); }
   .drift { font-size: 11px; color: var(--hud-hi); margin: 6px 4px 0; }
   .phone .ce { width: 56px; min-height: 32px; font-size: 13px; border-color: var(--rule); }
-  .legend { display: flex; flex-wrap: wrap; gap: 2px 10px; font-size: 10px; color: var(--muted); margin: 3px 0 6px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 2px 10px; font-size: var(--fs-xs); color: var(--muted); margin: 3px 0 6px; }
   .legend i { display: inline-block; width: 8px; height: 8px; margin-right: 3px; }
   .legend .dl { background: var(--ok); }
   .legend .hd { background: var(--telemetry); opacity: 0.8; }
@@ -463,11 +463,11 @@
   .kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
   .kpis div { padding: 4px 8px; border: 1px solid var(--rule); background: var(--rail); }
   .kpis div, .deadline > div { display: flex; flex-direction: column; }
-  .sub { font-size: 10px; }
+  .sub { font-size: var(--fs-xs); }
   .kpis b { font-size: 17px; }
   .kpis small, .deadline small { font-size: 11px; color: var(--dim); font-weight: 400; }
   .hud { color: var(--hud); }
-  .hauler { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; font-size: 10px; color: var(--dim); margin: 0 0 6px; }
+  .hauler { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; font-size: var(--fs-xs); color: var(--dim); margin: 0 0 6px; }
   .hauler input {
     width: 64px; padding: 2px 4px; font: 700 12px var(--mono); color: var(--telemetry); text-align: right;
     background: var(--void); border: 1px solid var(--rule); appearance: textfield; -moz-appearance: textfield;
@@ -478,11 +478,11 @@
     border: 1px solid var(--rule); background: var(--rail);
   }
   .deadline b { font-size: 17px; color: var(--hud-hi); }
-  .deadline .dim { font-size: 10px; }
+  .deadline .dim { font-size: var(--fs-xs); }
   .deadline.late { border-color: var(--danger); }
   .deadline.late b { color: var(--danger); }
   .set, .mark, .edit button {
-    padding: 5px 8px; font: inherit; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; cursor: pointer;
+    padding: 5px 8px; font: inherit; font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.08em; cursor: pointer;
     color: var(--muted); background: var(--steel); border: 1px solid var(--rule);
   }
   .set { grid-column: 1 / -1; color: var(--hud-hi); }
@@ -493,11 +493,11 @@
   .pay { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; font-size: 11px; }
   .pay b { font-size: 14px; }
   .ok { color: var(--ok); }
-  .seen { font-size: 10px; margin-top: 6px; }
+  .seen { font-size: var(--fs-xs); margin-top: 6px; }
 
   .scroll { flex: 1; min-height: 0; overflow-y: auto; }
   table { width: 100%; border-collapse: collapse; font-size: 12px; }
-  th { position: sticky; top: 0; background: var(--panel); text-align: left; font-size: 10px; color: var(--dim); letter-spacing: 0.08em; padding: 3px 4px; }
+  th { position: sticky; top: 0; background: var(--panel); text-align: left; font-size: var(--fs-xs); color: var(--dim); letter-spacing: 0.08em; padding: 3px 4px; }
   th.r, td.r { text-align: right; }
   td { padding: 5px 4px; border-bottom: 1px solid var(--rule); white-space: nowrap; }
   tr { cursor: pointer; }
@@ -510,7 +510,7 @@
   tr.part td:first-child { box-shadow: inset 3px 0 rgb(255 214 64); }
   .cn { font-weight: 700; color: var(--text); white-space: normal; }
   .left { color: var(--hud); font-weight: 800; }
-  .tb { margin-right: 6px; color: var(--hud-hi); font-size: 10px; font-weight: 600; opacity: 0.8; }
+  .tb { margin-right: 6px; color: var(--hud-hi); font-size: var(--fs-xs); font-weight: 600; opacity: 0.8; }
   .tb.ok { color: var(--ok); }
   td.bar, th.bar { width: 22%; }
   /* a phone standing up: the progress bar gives way so Need and Cr/t are not cut off */
@@ -565,7 +565,7 @@
   .fresh { color: var(--ok); }
   .stale { color: var(--danger); }
   .items { display: flex; flex-wrap: wrap; gap: 3px; }
-  .it { padding: 1px 5px; font-size: 10px; border: 1px solid var(--rule); color: var(--muted); }
+  .it { padding: 1px 5px; font-size: var(--fs-xs); border: 1px solid var(--rule); color: var(--muted); }
   .it b { color: var(--text); }
   .it.short { opacity: 0.6; border-style: dashed; }
   .it.hl { border-color: var(--telemetry); color: var(--telemetry); }
@@ -578,7 +578,7 @@
   .landscape .pages { grid-template-columns: 1fr; grid-auto-rows: 1fr; }
   .pages button {
     min-height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-    font-size: 10px; font-weight: 700; letter-spacing: 0.1em; color: var(--muted);
+    font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.1em; color: var(--muted);
     background: linear-gradient(to bottom, #2b2014, var(--steel)); border: 1px solid var(--rule);
   }
   .pages .pi { font-size: 18px; line-height: 1; }

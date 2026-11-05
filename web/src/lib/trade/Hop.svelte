@@ -55,7 +55,7 @@
     background: var(--panel);
     border: 1px solid var(--faint);
     color: var(--muted);
-    font-size: 10px;
+    font-size: var(--fs-xs);
     letter-spacing: 0.06em;
     white-space: nowrap;
     clip-path: polygon(6px 0, calc(100% - 6px) 0, 100% 50%, calc(100% - 6px) 100%, 6px 100%, 0 50%);

@@ -420,16 +420,16 @@
 
   .filters { display: flex; flex-direction: column; gap: 10px; }
   .group { display: flex; flex-direction: column; gap: 3px; }
-  .k { color: var(--dim); font-size: 10px; letter-spacing: 0.1em; }
+  .k { color: var(--dim); font-size: var(--fs-xs); letter-spacing: 0.1em; }
   .chips { display: flex; flex-wrap: wrap; gap: 3px; }
   .chips button {
     flex: 1; padding: 8px 4px; background: var(--steel); border: 1px solid var(--rule); color: var(--muted);
     font-size: 11px; font-weight: 700;
   }
   .chips button.on { background: var(--hud); border-color: var(--hud); color: var(--void); }
-  .hint { font-size: 10px; color: var(--muted); line-height: 1.4; }
+  .hint { font-size: var(--fs-xs); color: var(--muted); line-height: 1.4; }
   .bad { font-size: 11px; color: var(--danger); }
-  .hidden { display: flex; flex-direction: column; gap: 2px; margin-top: 4px; font-size: 10px; }
+  .hidden { display: flex; flex-direction: column; gap: 2px; margin-top: 4px; font-size: var(--fs-xs); }
   .hid { display: flex; gap: 6px; align-items: baseline; color: var(--muted); }
   .hid button { margin-left: auto; padding: 0 6px; background: var(--steel); border: 1px solid var(--rule); color: var(--hud-hi); cursor: pointer; }
   .go { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
@@ -444,19 +444,19 @@
 
   .scroll { flex: 1; min-height: 0; overflow-y: auto; }
   table { width: 100%; border-collapse: collapse; font-size: 12px; }
-  th { position: sticky; top: 0; background: var(--panel); text-align: left; font-size: 10px; color: var(--dim); letter-spacing: 0.08em; padding: 3px 4px; }
+  th { position: sticky; top: 0; background: var(--panel); text-align: left; font-size: var(--fs-xs); color: var(--dim); letter-spacing: 0.08em; padding: 3px 4px; }
   th.r, td.r { text-align: right; }
   .sort { background: none; border: 0; padding: 0; color: inherit; font: inherit; letter-spacing: inherit; cursor: pointer; }
   .sort.on { color: var(--hud-hi); }
   td { padding: 4px; border-bottom: 1px solid var(--rule); white-space: nowrap; }
-  td i { font-style: normal; color: var(--telemetry); font-size: 10px; }
+  td i { font-style: normal; color: var(--telemetry); font-size: var(--fs-xs); }
   tr { cursor: pointer; }
   tr:hover td { background: rgb(255 122 24 / 0.06); }
   tr.sel td { background: rgb(255 122 24 / 0.14); }
   tr.sel td:first-child { box-shadow: inset 2px 0 var(--hud); }
   .sysn { color: var(--telemetry); font-weight: 700; display: flex; gap: 8px; align-items: baseline; }
-  .sysn .star { font-size: 10px; font-weight: 400; }
-  .hum { font-size: 9px; font-weight: 700; padding: 0 3px; color: var(--void); background: var(--danger); }
+  .sysn .star { font-size: var(--fs-xs); font-weight: 400; }
+  .hum { font-size: var(--fs-2xs); font-weight: 700; padding: 0 3px; color: var(--void); background: var(--danger); }
   .score { color: var(--hud); font-weight: 800; font-size: 13px; }
   .warn { color: var(--hud-hi); }
 
@@ -467,7 +467,7 @@
   .sortbar .k { margin-right: 2px; }
   .sortbar button {
     padding: 6px 8px; background: var(--steel); border: 1px solid var(--rule); color: var(--muted);
-    font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+    font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.06em;
   }
   .sortbar button.on { background: var(--hud); border-color: var(--hud); color: var(--void); }
   .cards { display: flex; flex-direction: column; gap: 4px; }
@@ -479,8 +479,8 @@
   .cs { grid-row: span 2; font-size: 20px; font-weight: 800; color: var(--hud); text-align: center; }
   .cn { display: flex; flex-wrap: wrap; gap: 2px 8px; align-items: baseline; min-width: 0; }
   .cn b { color: var(--telemetry); overflow-wrap: anywhere; }
-  .cn .dim { font-size: 10px; }
-  .cc { display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: 10px; color: var(--muted); letter-spacing: 0.06em; }
+  .cn .dim { font-size: var(--fs-xs); }
+  .cc { display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: var(--fs-xs); color: var(--muted); letter-spacing: 0.06em; }
   .cc b { color: var(--text); font-size: 12px; }
   .cc i { font-style: normal; color: var(--telemetry); }
 
@@ -520,7 +520,7 @@
   .landscape .pages { grid-template-columns: 1fr; grid-auto-rows: 1fr; }
   .pages button {
     min-height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-    font-size: 10px; font-weight: 700; letter-spacing: 0.1em; color: var(--muted);
+    font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.1em; color: var(--muted);
     background: linear-gradient(to bottom, #2b2014, var(--steel)); border: 1px solid var(--rule);
   }
   .pages .pi { font-size: 18px; line-height: 1; }

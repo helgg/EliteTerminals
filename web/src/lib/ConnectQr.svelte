@@ -136,7 +136,7 @@
   .steps b { color: var(--text); }
 
   .others { align-self: stretch; display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
-  .k { color: var(--dim); font-size: 10px; letter-spacing: 0.1em; }
+  .k { color: var(--dim); font-size: var(--fs-xs); letter-spacing: 0.1em; }
   .list { display: flex; flex-wrap: wrap; gap: 4px; }
   .list button {
     flex: 1 1 auto;
@@ -149,7 +149,7 @@
     font-size: 12px;
     text-align: left;
   }
-  .list button small { color: var(--dim); font-size: 10px; }
+  .list button small { color: var(--dim); font-size: var(--fs-xs); }
   .list button.on { border-color: var(--telemetry); box-shadow: inset 0 2px var(--telemetry); }
   .list button.virtual { color: var(--muted); }
 </style>

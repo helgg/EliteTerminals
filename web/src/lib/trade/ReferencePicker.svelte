@@ -132,7 +132,7 @@
 <style>
   .place { display: flex; flex-direction: column; gap: 3px; }
   .ref { display: flex; align-items: center; gap: 6px; }
-  .k { font-size: 10px; letter-spacing: 0.1em; color: var(--dim); min-width: 30px; }
+  .k { font-size: var(--fs-xs); letter-spacing: 0.1em; color: var(--dim); min-width: 30px; }
   .station {
     width: 100%; min-width: 0; padding: 5px 6px; font: 700 11px var(--mono); color: var(--muted);
     background: var(--void); border: 1px solid var(--rule); outline: none;
@@ -160,7 +160,7 @@
   .name { flex: 1; min-width: 0; overflow-wrap: anywhere; color: var(--telemetry); }
   .dist { color: var(--muted); font-size: 11px; }
   .here {
-    flex: none; padding: 6px 8px; font: 700 10px var(--mono); letter-spacing: 0.06em; color: var(--hud);
+    flex: none; padding: 6px 8px; font: 700 var(--fs-xs) var(--mono); letter-spacing: 0.06em; color: var(--hud);
     background: var(--steel); border: 1px solid var(--rule); cursor: pointer;
   }
   .here.on { color: var(--dim); cursor: default; }

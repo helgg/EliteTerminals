@@ -90,7 +90,7 @@
   .tog { text-align: left; }
   .tog.on { color: var(--telemetry); border-color: color-mix(in srgb, var(--telemetry) 60%, transparent); }
   label { display: flex; flex-direction: column; gap: 3px; }
-  .k { color: var(--dim); font-size: 10px; letter-spacing: 0.1em; }
+  .k { color: var(--dim); font-size: var(--fs-xs); letter-spacing: 0.1em; }
   input, textarea {
     background: var(--void); border: 1px solid var(--rule); color: var(--text); font: 12px var(--mono); padding: 7px 8px; resize: vertical; min-width: 0;
   }

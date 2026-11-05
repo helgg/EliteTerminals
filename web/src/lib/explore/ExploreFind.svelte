@@ -139,10 +139,10 @@
   .presets button.on, .tog.on { background: var(--hud); border-color: var(--hud); color: #1a0f05; }
   .go { color: var(--hud-hi); border-color: var(--hud); font-weight: 800; }
   .go:disabled { opacity: 0.5; cursor: wait; }
-  .mini { padding: 2px 8px; font-size: 10px; }
+  .mini { padding: 2px 8px; font-size: var(--fs-xs); }
   .form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 14px; }
   .ref { flex: 1 1 260px; min-width: 220px; max-width: 420px; }
-  label { display: flex; align-items: center; gap: 6px; font-size: 10px; letter-spacing: 0.1em; color: var(--dim); }
+  label { display: flex; align-items: center; gap: 6px; font-size: var(--fs-xs); letter-spacing: 0.1em; color: var(--dim); }
   input[type='number'] {
     width: 64px; background: var(--steel); border: 1px solid var(--rule); color: var(--text); font: inherit; font-size: 12px; padding: 5px 6px;
   }
@@ -160,7 +160,7 @@
   .ly { color: var(--hud-hi); font-size: 12px; font-variant-numeric: tabular-nums; }
   .body { font-size: 12px; color: var(--muted); }
   .tags { display: flex; flex-wrap: wrap; gap: 3px; }
-  .t { font-style: normal; font-size: 9px; font-weight: 800; letter-spacing: 0.05em; padding: 0 4px; line-height: 15px; border: 1px solid var(--rule); color: var(--muted); }
+  .t { font-style: normal; font-size: var(--fs-2xs); font-weight: 800; letter-spacing: 0.05em; padding: 0 4px; line-height: 15px; border: 1px solid var(--rule); color: var(--muted); }
   .t.bio { color: #9af070; border-color: #4a9a2a; }
   .t.geo { color: #ff9a5a; border-color: #b8501a; }
   .t.terra { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 50%, transparent); }
@@ -168,10 +168,10 @@
   .gen { font-size: 11px; color: #9af070; letter-spacing: 0.04em; }
   .sp { list-style: none; margin: 0; padding: 0; font-size: 11px; display: flex; flex-direction: column; gap: 1px; }
   .sp li { display: flex; justify-content: space-between; gap: 8px; color: var(--muted); }
-  .sp small { margin-left: 6px; font-size: 9px; color: var(--faint); }
+  .sp small { margin-left: 6px; font-size: var(--fs-2xs); color: var(--faint); }
   .sp b { color: var(--hud-hi); font-variant-numeric: tabular-nums; }
   footer { margin-top: auto; display: flex; justify-content: space-between; align-items: center; gap: 8px; padding-top: 4px; border-top: 1px solid color-mix(in srgb, var(--rule) 70%, transparent); }
   .worth { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 11px; color: var(--hud-hi); font-variant-numeric: tabular-nums; }
-  .worth i { font-style: normal; font-size: 9px; letter-spacing: 0.1em; color: var(--dim); margin-right: 3px; }
+  .worth i { font-style: normal; font-size: var(--fs-2xs); letter-spacing: 0.1em; color: var(--dim); margin-right: 3px; }
   .acts { display: flex; gap: 6px; align-items: center; flex: none; }
 </style>

@@ -29,7 +29,7 @@
   .landscape .pages { grid-template-columns: 1fr; grid-auto-rows: 1fr; }
   .pages button {
     min-height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-    font: inherit; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; color: var(--muted);
+    font: inherit; font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.1em; color: var(--muted);
     background: linear-gradient(to bottom, #2b2014, var(--steel)); border: 1px solid var(--rule); cursor: pointer;
   }
   .pi { font-size: 18px; line-height: 1; }

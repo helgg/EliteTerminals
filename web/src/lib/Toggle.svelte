@@ -50,7 +50,7 @@
   }
   .key {
     color: var(--dim);
-    font-size: 10px;
+    font-size: var(--fs-xs);
     font-weight: 400;
     letter-spacing: 0.02em;
     text-transform: none;

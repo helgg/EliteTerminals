@@ -467,12 +467,12 @@
   .narrow .act { padding: 7px 7px 6px; }
   .narrow .act b { white-space: normal; font-size: 12.5px; line-height: 1.15; overflow: visible; }
   .narrow .act small, .narrow .act .key:not(.nobind) { display: none; }
-  .narrow .act .key.nobind { right: 8px; bottom: 3px; font-size: 9px; }
+  .narrow .act .key.nobind { right: 8px; bottom: 3px; font-size: var(--fs-2xs); }
   .narrow .act.danger b { font-size: 15px; }
   .narrow .act.toggle .state { font-size: 15px; right: 10px; }
   .narrow .act.toggle small { display: block; padding-right: 40px; }
   .narrow .bay h4 { width: 24px; font-size: 11px; letter-spacing: .16em; }
-  .narrow .bay h4 .st { font-size: 9px; }
+  .narrow .bay h4 .st { font-size: var(--fs-2xs); }
   .narrow .tiles { gap: 5px; padding: 6px; }
   .narrow .pick { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); min-height: 0; }
   .narrow .pick .auto { grid-column: span 2; min-height: 48px; }
@@ -507,7 +507,7 @@
   .landscape .pages { grid-template-columns: 1fr; grid-auto-rows: 1fr; }
   .pages button {
     position: relative; min-height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-    font-size: 10px; font-weight: 700; letter-spacing: .1em; color: var(--muted);
+    font-size: var(--fs-xs); font-weight: 700; letter-spacing: .1em; color: var(--muted);
     background: linear-gradient(to bottom, #2b2014, var(--steel)); border: 1px solid var(--rule);
   }
   .pages .pi { font-size: 18px; line-height: 1; }
@@ -547,7 +547,7 @@
   .fchip:active { filter: brightness(1.35); transform: translateY(1px); }
 
   table { width: 100%; border-collapse: collapse; font-size: 12px; }
-  th { text-align: left; color: var(--dim); font-weight: 400; font-size: 10px; letter-spacing: .1em; padding: 6px 5px 7px; border-bottom: 1px solid var(--rule);
+  th { text-align: left; color: var(--dim); font-weight: 400; font-size: var(--fs-xs); letter-spacing: .1em; padding: 6px 5px 7px; border-bottom: 1px solid var(--rule);
     cursor: pointer; user-select: none; white-space: nowrap; }
   th.on { color: var(--hud-hi); border-bottom-color: var(--hud); }
   th .arrow { margin-left: 4px; font-size: 8px; }
@@ -559,9 +559,9 @@
   tr.sel td { background: rgb(255 122 24 / .14); }
   tr.sel td:first-child { box-shadow: inset 3px 0 var(--hud); }
   tr.clean td { color: var(--muted); }
-  .lw { color: #fff; background: var(--danger); padding: 0 5px; font-size: 10px; font-weight: 700; letter-spacing: .08em; }
-  .lc { color: var(--ok); font-size: 10px; letter-spacing: .08em; border: 1px solid var(--ok); padding: 0 4px; }
-  .mtag { color: #140b04; background: var(--hud-hi); font-size: 10px; font-weight: 700; padding: 0 4px; margin-left: 4px; }
+  .lw { color: #fff; background: var(--danger); padding: 0 5px; font-size: var(--fs-xs); font-weight: 700; letter-spacing: .08em; }
+  .lc { color: var(--ok); font-size: var(--fs-xs); letter-spacing: .08em; border: 1px solid var(--ok); padding: 0 4px; }
+  .mtag { color: #140b04; background: var(--hud-hi); font-size: var(--fs-xs); font-weight: 700; padding: 0 4px; margin-left: 4px; }
   .lock { color: var(--hud); font-weight: 700; }
   /* lock / best mark and "locking…" take the same room whether shown or not: rows do not jump while a search runs */
   .mark { display: inline-block; width: 1.3em; }
@@ -571,7 +571,7 @@
   .none { padding: 12px 4px; color: var(--dim); margin: 0; }
 
   .kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
-  .kpis small { display: block; color: var(--dim); font-size: 10px; letter-spacing: .1em; }
+  .kpis small { display: block; color: var(--dim); font-size: var(--fs-xs); letter-spacing: .1em; }
   .kpis b { font-size: 16px; }
   .mission { margin: 8px 0 0; font-size: 12px; }
   .mission .line { display: flex; justify-content: space-between; }
@@ -592,7 +592,7 @@
     border-right: 3px solid var(--g);
     text-shadow: 0 0 8px color-mix(in srgb, var(--g) 45%, transparent);
   }
-  .bay h4 .st { font-size: 10px; font-weight: 400; color: var(--muted); letter-spacing: .08em; text-shadow: none;
+  .bay h4 .st { font-size: var(--fs-xs); font-weight: 400; color: var(--muted); letter-spacing: .08em; text-shadow: none;
     overflow: hidden; text-overflow: ellipsis; min-height: 0; }
   .g-power { --g: var(--macro); }
   .g-target { --g: var(--hud); }
@@ -623,10 +623,10 @@
   }
   .act b { letter-spacing: .04em; font-size: 13.5px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .act small { color: var(--dim); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .act .key { position: absolute; right: 14px; bottom: 5px; color: var(--dim); font-size: 10px; }
+  .act .key { position: absolute; right: 14px; bottom: 5px; color: var(--dim); font-size: var(--fs-xs); }
   .act .key.nobind { color: var(--danger); }
   .act .count { position: absolute; right: 10px; top: 6px; font-weight: 700; color: var(--hud-hi); font-size: 12px; }
-  .act .exp { position: absolute; left: 10px; top: 5px; font-size: 9px; letter-spacing: .1em; color: var(--macro); opacity: .8; }
+  .act .exp { position: absolute; left: 10px; top: 5px; font-size: var(--fs-2xs); letter-spacing: .1em; color: var(--macro); opacity: .8; }
   .act.cyan { --tone: var(--telemetry); } .act.cyan b { color: var(--telemetry); }
   .act.amber { --tone: var(--hud-hi); } .act.amber b { color: var(--hud-hi); }
   .act.macro { --tone: var(--macro); background: linear-gradient(to bottom, #2d1d2c, var(--steel)); }

@@ -67,5 +67,5 @@
   .head { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; color: var(--danger); }
   .head .num { color: var(--hud-hi); }
   ul { margin: 4px 0 0; padding-left: 14px; line-height: 1.4; }
-  .when { margin-top: 4px; color: var(--muted); font-size: 10px; }
+  .when { margin-top: 4px; color: var(--muted); font-size: var(--fs-xs); }
 </style>

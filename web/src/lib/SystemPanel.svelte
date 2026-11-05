@@ -149,7 +149,7 @@
   .name { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; }
   .cls { font-size: 12px; }
   dl { display: grid; grid-template-columns: auto 1fr; gap: 1px 8px; margin: 0; font-size: 12px; }
-  dt { color: var(--dim); font-size: 10px; letter-spacing: 0.1em; align-self: center; }
+  dt { color: var(--dim); font-size: var(--fs-xs); letter-spacing: 0.1em; align-self: center; }
   dd { margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .state { color: var(--telemetry); font-size: 11px; }
   .fs { margin-left: 6px; }
@@ -162,7 +162,7 @@
 
   .filters { display: flex; gap: 3px; padding-top: 5px; border-top: 1px solid var(--rule); }
   .chip {
-    flex: 1; font: inherit; font-size: 9px; letter-spacing: 0.06em; padding: 4px 2px; cursor: pointer; white-space: nowrap;
+    flex: 1; font: inherit; font-size: var(--fs-2xs); letter-spacing: 0.06em; padding: 4px 2px; cursor: pointer; white-space: nowrap;
     background: transparent; color: var(--hud); border: 1px solid var(--rule);
   }
   .chip .num { color: var(--dim); }
@@ -178,7 +178,7 @@
   .nm { flex: 1; min-width: 0; display: flex; }
   /* long station names wrap instead of "…" */
   .nm :global(.text) { white-space: normal; overflow-wrap: anywhere; line-height: 1.25; }
-  .tag { color: var(--telemetry); font-size: 9px; letter-spacing: 0.1em; }
+  .tag { color: var(--telemetry); font-size: var(--fs-2xs); letter-spacing: 0.1em; }
   .ls { color: var(--muted); white-space: nowrap; }
   .ls small { color: var(--dim); }
   .svcs { display: flex; flex-wrap: wrap; gap: 2px; padding-left: 18px; }

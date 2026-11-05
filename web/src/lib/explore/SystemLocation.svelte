@@ -59,17 +59,17 @@
   .loc { display: flex; flex-direction: column; gap: 4px; }
   .rows { display: flex; flex-direction: column; }
   .r { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 3px 2px; border-bottom: 1px solid color-mix(in srgb, var(--rule) 55%, transparent); }
-  .r i { flex: none; font-style: normal; font-size: 9px; letter-spacing: 0.14em; color: var(--dim); }
+  .r i { flex: none; font-style: normal; font-size: var(--fs-2xs); letter-spacing: 0.14em; color: var(--dim); }
   .r b { font-size: 12px; font-weight: 700; text-align: right; min-width: 0; overflow-wrap: anywhere; }
   .r .hud { color: var(--hud-hi); }
   .r .warn { color: var(--danger); }
   .r.you b { color: var(--telemetry); }
   .num { font-variant-numeric: tabular-nums; }
-  .sec { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 10px; letter-spacing: 0.14em; color: var(--hud); }
+  .sec { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: var(--fs-xs); letter-spacing: 0.14em; color: var(--hud); }
   .sec i { flex: 1; height: 1px; background: var(--rule); }
-  .sec em { font-style: normal; font-size: 10px; letter-spacing: 0; color: var(--dim); }
+  .sec em { font-style: normal; font-size: var(--fs-xs); letter-spacing: 0; color: var(--dim); }
   .bar { position: relative; height: 16px; background: var(--steel); border: 1px solid var(--rule); }
   .bar span { position: absolute; inset: 0 auto 0 0; background: var(--ok); opacity: 0.55; }
   .bar span.part { background: var(--hud); }
-  .bar b { position: absolute; inset: 0; display: grid; place-items: center; font-size: 10px; letter-spacing: 0.1em; }
+  .bar b { position: absolute; inset: 0; display: grid; place-items: center; font-size: var(--fs-xs); letter-spacing: 0.1em; }
 </style>

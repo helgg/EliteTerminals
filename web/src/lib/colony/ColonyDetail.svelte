@@ -149,7 +149,7 @@
   .title :global(.text) { white-space: normal; overflow-wrap: anywhere; }
   .acts { display: flex; gap: 6px; align-items: center; }
   .raven {
-    padding: 5px 8px 4px; font-size: 9px; font-weight: 700; letter-spacing: 0.1em; color: var(--hud-hi); text-decoration: none;
+    padding: 5px 8px 4px; font-size: var(--fs-2xs); font-weight: 700; letter-spacing: 0.1em; color: var(--hud-hi); text-decoration: none;
     background: color-mix(in srgb, var(--hud) 14%, var(--steel)); box-shadow: inset 0 2px var(--hud);
     clip-path: polygon(0 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%);
   }
@@ -157,29 +157,29 @@
   .facts b { color: var(--text); margin-right: 2px; }
   .facts .warn b { color: var(--hud-hi); }
   .facts .ok { color: var(--ok); }
-  .humanwarn { padding: 4px 8px; font-size: 10px; color: var(--danger); border: 1px solid var(--danger); background: rgb(209 72 58 / 0.08); }
-  .mark { display: flex; gap: 6px; align-items: center; justify-content: flex-end; font-size: 10px; }
+  .humanwarn { padding: 4px 8px; font-size: var(--fs-xs); color: var(--danger); border: 1px solid var(--danger); background: rgb(209 72 58 / 0.08); }
+  .mark { display: flex; gap: 6px; align-items: center; justify-content: flex-end; font-size: var(--fs-xs); }
   .mark button {
-    padding: 4px 8px; font: inherit; font-size: 9px; font-weight: 700; letter-spacing: 0.1em; cursor: pointer;
+    padding: 4px 8px; font: inherit; font-size: var(--fs-2xs); font-weight: 700; letter-spacing: 0.1em; cursor: pointer;
     color: var(--danger); background: var(--steel); border: 1px solid var(--rule);
   }
   .mark button:hover { border-color: var(--danger); }
   .claim { display: flex; flex-direction: column; gap: 3px; padding: 6px 8px; border: 1px solid var(--telemetry); background: rgb(55 198 212 / 0.06); }
-  .ck { font-size: 10px; font-weight: 800; letter-spacing: 0.12em; color: var(--telemetry); }
+  .ck { font-size: var(--fs-xs); font-weight: 800; letter-spacing: 0.12em; color: var(--telemetry); }
   .ck .dim { font-weight: 400; letter-spacing: 0.04em; }
   .cl { display: grid; grid-template-columns: 50px minmax(0, 1fr) auto; gap: 8px; align-items: center; font-size: 11px; }
   .cly { color: var(--text); font-weight: 700; text-align: right; }
   .cw { display: flex; flex-direction: column; min-width: 0; }
   .cw :global(.text) { white-space: normal; overflow-wrap: anywhere; }
   .cst { display: inline-flex; gap: 4px; align-items: baseline; font-weight: 700; }
-  .cw .dim { font-size: 10px; }
+  .cw .dim { font-size: var(--fs-xs); }
   .pad { color: var(--hud-hi); }
   .bad { font-size: 11px; color: var(--danger); }
   .score { display: flex; gap: 10px; align-items: center; padding: 6px 8px; background: var(--rail); border: 1px solid var(--rule); }
   .big { font-size: 26px; font-weight: 800; color: var(--hud); text-shadow: var(--glow); }
-  .parts { display: flex; flex-wrap: wrap; gap: 3px 8px; font-size: 10px; color: var(--muted); }
+  .parts { display: flex; flex-wrap: wrap; gap: 3px 8px; font-size: var(--fs-xs); color: var(--muted); }
   .part b { color: var(--ok); }
-  .counts { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 2px 10px; font-size: 10px; color: var(--muted); letter-spacing: 0.06em; }
+  .counts { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 2px 10px; font-size: var(--fs-xs); color: var(--muted); letter-spacing: 0.06em; }
   .counts b { color: var(--text); font-size: 12px; }
   .counts i { font-style: normal; color: var(--telemetry); }
   .bodies { list-style: none; margin: 0; padding: 0; overflow-y: auto; min-height: 0; flex: 1; border-top: 1px solid var(--rule); }
@@ -193,9 +193,9 @@
   .g.life { color: var(--ok); }
   .g.rock { color: var(--muted); }
   .bn { font-weight: 700; white-space: nowrap; }
-  .st { font-size: 10px; white-space: nowrap; }
+  .st { font-size: var(--fs-xs); white-space: nowrap; }
   .tags { display: flex; flex-wrap: wrap; gap: 3px; min-width: 0; }
-  .t { padding: 0 4px; font-size: 9px; font-weight: 700; letter-spacing: 0.06em; border: 1px solid var(--rule); color: var(--muted); }
+  .t { padding: 0 4px; font-size: var(--fs-2xs); font-weight: 700; letter-spacing: 0.06em; border: 1px solid var(--rule); color: var(--muted); }
   .t.land { color: var(--telemetry); border-color: var(--telemetry); }
   .t.atm { color: var(--ok); border-color: var(--ok); }
   .t.terra { color: var(--ok); }
@@ -207,7 +207,7 @@
   .t.bio { color: var(--ok); }
   .t.geo { color: var(--danger); }
   .t.human { color: var(--void); background: var(--danger); border-color: var(--danger); }
-  .ls { font-size: 10px; white-space: nowrap; }
+  .ls { font-size: var(--fs-xs); white-space: nowrap; }
   .ok { color: var(--ok); }
 
   /* a phone: the buttons that act on this system are thumb-sized */

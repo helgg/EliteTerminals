@@ -24,7 +24,7 @@
   }
   .pin:hover { color: var(--telemetry); }
   .pin.on { color: var(--telemetry); text-shadow: 0 0 6px rgb(55 198 212 / 0.7); }
-  .pin span { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; }
+  .pin span { font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.1em; }
   /* beside the start box in a detail: a framed button */
   .pin.label { padding: 5px 10px; border: 1px solid var(--rule); background: var(--steel); color: var(--muted); }
   .pin.label.on { border-color: var(--telemetry); background: rgb(55 198 212 / 0.12); color: var(--telemetry); }

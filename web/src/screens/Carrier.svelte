@@ -353,7 +353,7 @@
   .carrier.phone :global(.cstat .body) { overflow: visible; }
   .carrier.phone .scroll { overflow: visible; flex: none; }
   .carrier :global(.cplan .body) { flex: 1; display: flex; flex-direction: column; min-height: 0; }
-  .k { color: var(--dim); font-size: 10px; letter-spacing: 0.1em; }
+  .k { color: var(--dim); font-size: var(--fs-xs); letter-spacing: 0.1em; }
   .ident { padding-bottom: 2px; }
   .carrier :global(.cstat .body) { overflow-y: auto; min-height: 0; }
   .cname { font-weight: 800; color: var(--hud-hi); letter-spacing: 0.06em; margin-bottom: 4px; }
@@ -374,15 +374,15 @@
   .cargo { background: var(--hud); }
   .res { background: var(--hud-hi); opacity: 0.6; }
   .packs { background: var(--telemetry); }
-  .legend { display: flex; flex-wrap: wrap; gap: 2px 10px; font-size: 10px; color: var(--muted); margin-top: 3px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 2px 10px; font-size: var(--fs-xs); color: var(--muted); margin-top: 3px; }
   .legend i { display: inline-block; width: 8px; height: 8px; margin-right: 3px; }
   .cargo-list { display: flex; flex-direction: column; max-height: 220px; overflow-y: auto; }
   .cg { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; font-size: 11px; border-bottom: 1px solid var(--rule); }
   .cg b { color: var(--hud-hi); }
   .cg span { display: inline-block; }
   .cg span::first-letter { text-transform: uppercase; }
-  .small { font-size: 10px; margin: 0; }
-  .drift { font-size: 10px; color: var(--hud-hi); margin: 4px 0 0; }
+  .small { font-size: var(--fs-xs); margin: 0; }
+  .drift { font-size: var(--fs-xs); color: var(--hud-hi); margin: 4px 0 0; }
   .money { display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 6px; }
   .money div { display: flex; flex-direction: column; padding: 4px 8px; border: 1px solid var(--rule); background: var(--rail); }
   .money b { font-size: 14px; }
@@ -393,7 +393,7 @@
     background: var(--void); border: 1px solid var(--rule); appearance: textfield; -moz-appearance: textfield;
   }
   .wk input::-webkit-outer-spin-button, .wk input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-  .est { font-size: 9px; font-weight: 800; letter-spacing: 0.06em; color: var(--hud-hi); }
+  .est { font-size: var(--fs-2xs); font-weight: 800; letter-spacing: 0.06em; color: var(--hud-hi); }
   .goal { position: relative; height: 22px; background: var(--steel); border: 1px solid var(--rule); margin-bottom: 6px; }
   .goal .fill { height: 100%; background: var(--hud); opacity: 0.75; }
   .goal .fill.over { background: var(--ok); }
@@ -402,21 +402,21 @@
   .run { display: flex; align-items: baseline; gap: 8px; padding: 5px 8px; border: 1px solid var(--rule); background: var(--rail); }
   .run b { font-size: 18px; color: var(--ok); }
   .run.bad b { color: var(--danger); }
-  .run .dim { font-size: 10px; }
+  .run .dim { font-size: var(--fs-xs); }
   .dates { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; align-items: baseline; font-size: 11px; }
   .dates b { text-align: right; }
   .dates .bad { color: var(--danger); }
   .ok { color: var(--ok); }
   .hud { color: var(--hud); }
   .bad { color: var(--danger); font-size: 11px; }
-  .seen { font-size: 10px; margin-top: 8px; }
+  .seen { font-size: var(--fs-xs); margin-top: 8px; }
 
   .form { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
   .places { display: flex; flex-direction: column; gap: 4px; }
   .to { display: flex; gap: 4px; align-items: center; }
   .to > :global(*:first-child) { flex: 1; min-width: 0; }
   .mini, .add {
-    padding: 4px 8px; font: inherit; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; cursor: pointer;
+    padding: 4px 8px; font: inherit; font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.08em; cursor: pointer;
     color: var(--muted); background: var(--steel); border: 1px solid var(--rule);
   }
   .add { align-self: flex-start; color: var(--hud-hi); }
@@ -427,7 +427,7 @@
     background: var(--void); border: 1px solid var(--rule); appearance: textfield; -moz-appearance: textfield;
   }
   .nums input::-webkit-outer-spin-button, .nums input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-  .link { background: none; border: 0; padding: 0; color: var(--hud-hi); text-decoration: underline; font: inherit; font-size: 10px; cursor: pointer; }
+  .link { background: none; border: 0; padding: 0; color: var(--hud-hi); text-decoration: underline; font: inherit; font-size: var(--fs-xs); cursor: pointer; }
   .plot {
     padding: 11px 28px; background: var(--hud); color: var(--void); border: 0; font-weight: 800; letter-spacing: 0.1em; overflow-wrap: anywhere;
     align-self: flex-start; box-shadow: var(--glow); clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
@@ -438,7 +438,7 @@
   .sum div { display: flex; flex-direction: column; }
   .sum b { font-size: 16px; }
   .sum .bad b, .sum .bad .k { color: var(--danger); font-size: 16px; }
-  .sum .bad .k { font-size: 10px; }
+  .sum .bad .k { font-size: var(--fs-xs); }
   /* the gutter stays: a scrollbar coming and going would change the card columns, and with them the height */
   .scroll { flex: 1; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; }
   /* the route as a chain of stops, left to right and wrapping, with the jump lane between each pair */
@@ -462,17 +462,17 @@
   .name { font-weight: 700; color: var(--telemetry); }
   .name :global(.text) { white-space: normal; overflow-wrap: anywhere; }
   .mid { flex: 1; display: flex; align-items: center; min-height: 14px; }
-  .mine { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: var(--muted); }
+  .mine { font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.08em; color: var(--muted); }
   .mine.pristine { color: var(--ok); }
   .foot-row { display: flex; flex-direction: column; gap: 3px; }
   .tags { display: flex; flex-wrap: wrap; gap: 3px 4px; }
   .tags:empty { display: none; }
-  .meta { display: flex; flex-wrap: wrap; gap: 0 10px; font-size: 10px; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 0 10px; font-size: var(--fs-xs); color: var(--muted); }
   .meta b { color: var(--text); }
-  .tag { padding: 0 4px; font-size: 9px; font-weight: 800; color: var(--void); background: var(--hud); }
+  .tag { padding: 0 4px; font-size: var(--fs-2xs); font-weight: 800; color: var(--void); background: var(--hud); }
   .tag.here { background: var(--ok); }
   .tag.go, .tag.wpt { background: var(--telemetry); }
   .tag.sh { background: var(--danger); }
   .tag.refuel { background: var(--hud-hi); }
-  .foot { font-size: 10px; margin: 6px 0 0; }
+  .foot { font-size: var(--fs-xs); margin: 6px 0 0; }
 </style>

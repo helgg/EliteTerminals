@@ -216,7 +216,7 @@
   table { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; }
   th {
     position: sticky; top: 0; z-index: 1; padding: 3px 4px; background: var(--panel); color: var(--hud-hi);
-    font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; text-align: left;
+    font-size: var(--fs-xs); letter-spacing: 0.06em; text-transform: uppercase; text-align: left;
     border-bottom: 1px solid var(--hud); white-space: nowrap; vertical-align: bottom;
   }
   th:nth-child(1) { width: 24px; }
@@ -243,7 +243,7 @@
   .cargo div:first-child { color: var(--hud-hi); }
   .sub { color: var(--muted); }
   .vol div { display: flex; justify-content: flex-end; gap: 3px; align-items: baseline; }
-  .state { color: var(--telemetry); font-size: 9px; font-weight: 700; letter-spacing: 0.06em; }
+  .state { color: var(--telemetry); font-size: var(--fs-2xs); font-weight: 700; letter-spacing: 0.06em; }
   .back { color: var(--muted); }
   .hl, .hl .sub, td.hl div { color: var(--telemetry); }
   /* pinned: a cyan rail and tint that later scans keep; one this scan left out is dashed */
@@ -251,7 +251,7 @@
   tr.pinned td:first-child { box-shadow: inset 3px 0 var(--telemetry); }
   tr.pinned.sel td { background: rgb(255 122 24 / 0.14); }
   tr.gone td { border-bottom: 1px dashed var(--telemetry); }
-  .gonetag { display: block; color: var(--telemetry); font-size: 9px; font-weight: 700; letter-spacing: 0.08em; }
+  .gonetag { display: block; color: var(--telemetry); font-size: var(--fs-2xs); font-weight: 700; letter-spacing: 0.08em; }
   /* price freshness: stale rows fade */
   tr.fresh .age div { color: var(--ok); }
   tr.ok .age div { color: var(--hud-hi); }
@@ -259,10 +259,10 @@
 
   /* compact: cards, nothing cut; names wrap */
   .sortbar { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; margin-bottom: 4px; }
-  .sortbar .k { color: var(--dim); font-size: 10px; letter-spacing: 0.1em; margin-right: 2px; }
+  .sortbar .k { color: var(--dim); font-size: var(--fs-xs); letter-spacing: 0.1em; margin-right: 2px; }
   .sortbar button {
     padding: 6px 8px; background: var(--steel); border: 1px solid var(--rule); color: var(--muted);
-    font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+    font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.06em;
   }
   .sortbar button.on { background: var(--hud); border-color: var(--hud); color: var(--void); }
   .cards { display: flex; flex-direction: column; gap: 4px; }

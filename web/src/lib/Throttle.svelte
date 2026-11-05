@@ -67,7 +67,7 @@
   .scale span {
     writing-mode: vertical-rl;
     transform: rotate(180deg);
-    font-size: 10px;
+    font-size: var(--fs-xs);
     font-weight: 700;
     letter-spacing: 0.2em;
   }
@@ -98,7 +98,7 @@
   .rev .tick { background: var(--danger); }
   .pct { font-size: 17px; font-weight: 700; text-align: left; }
   .rev .pct { color: var(--danger); }
-  .key { font-size: 10px; color: var(--dim); }
+  .key { font-size: var(--fs-xs); color: var(--dim); }
 
   .zero {
     background: var(--rail);
