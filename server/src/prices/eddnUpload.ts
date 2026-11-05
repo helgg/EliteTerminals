@@ -11,7 +11,7 @@ import { join } from 'node:path';
 export const UPLOAD_URL = 'https://eddn.edcd.io:4430/upload/';
 export const SOFTWARE_NAME = 'EliteTerminals';
 /** EDDN asks for a new version number whenever what is sent changes: bump it with any change below. */
-export const SOFTWARE_VERSION = '0.1.0';
+export const SOFTWARE_VERSION = '0.1.1';
 const SCHEMAS = 'https://eddn.edcd.io/schemas/';
 
 /** Events older than this are history (a replayed journal), not news. */
@@ -256,7 +256,9 @@ const capitalise = (name: string) => name.replace(MODULE_RE, (m) => m.charAt(0).
 /** Outfitting.json → outfitting/2 (names only, and only what the station sells to anyone). */
 export function fromOutfittingFile(ctx: UploadContext, f: Obj): Outgoing | null {
   if (!isObj(f) || !hasStation(f) || !Array.isArray(f.Items) || !locate(ctx, f.StarSystem, undefined)) return null;
-  const names = f.Items.map((i: unknown) => (isObj(i) ? str(i.Name) : ''))
+  // items tied to the Cmdr (PowerPlay, tech broker) carry a sku: the schema's README says to drop them, except the landing one
+  const forAll = (i: unknown) => isObj(i) && (i.sku == null || i.sku === 'ELITE_HORIZONS_V_PLANETARY_LANDINGS');
+  const names = f.Items.map((i: unknown) => (isObj(i) && forAll(i) ? str(i.Name) : ''))
     .filter((n: string) => MODULE_RE.test(n) && n.toLowerCase() !== 'int_planetapproachsuite')
     .map(capitalise);
   const modules = [...new Set(names)].sort();

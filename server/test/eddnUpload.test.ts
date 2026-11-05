@@ -121,7 +121,8 @@ test('Outfitting.json becomes outfitting/2: names only, nothing the schema does 
   const f = {
     timestamp: '2026-11-04T10:21:00Z', event: 'Outfitting', MarketID: 7, StationName: 'Hub', StarSystem: 'Alpha', Horizons: true,
     Items: [{ id: 1, Name: 'hpt_beamlaser_fixed_small', BuyPrice: 1 }, { id: 2, Name: 'int_planetapproachsuite' }, { id: 3, Name: 'paintjob_x' },
-      { id: 4, Name: 'int_engine_size3_class5', BuyPrice: 2 }, { id: 5, Name: 'hpt_beamlaser_fixed_small' }],
+      { id: 4, Name: 'int_engine_size3_class5', BuyPrice: 2 }, { id: 5, Name: 'hpt_beamlaser_fixed_small' },
+      { id: 6, Name: 'hpt_railgun_fixed_medium', sku: 'ELITE_POWERPLAY_X' }],
   };
   const out = fromOutfittingFile(ready(), f)!;
   assert.equal(out.schema, 'outfitting/2');
