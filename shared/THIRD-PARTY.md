@@ -21,3 +21,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
 COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
 OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+## Colonisation facility catalogue (COLONY › PLAN)
+
+The list of facilities, their tier points and the relative stats (chevrons) in `shared/src/colonyPlan.ts` were read by
+eye from the build list of [RavenColonial](https://ravencolonial.com) (source: https://github.com/njthomson/RavenColonialWeb,
+GPL-3.0, checked 2026-11-05). No code or file of it is copied; the numbers describe the game's own facilities and can be
+one chevron off, so check them in the game. Thanks to its author for the reference.
