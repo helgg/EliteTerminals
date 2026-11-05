@@ -1,14 +1,16 @@
 <script lang="ts">
   import Dialog from './Dialog.svelte';
   import { HELP } from './help/index.ts';
-  import type { Tab } from './tabs.ts';
+  import { GROUPS, type Tab } from './tabs.ts';
 
   let { open = $bindable(false), tab }: { open: boolean; tab: Tab } = $props();
   const doc = $derived(HELP[tab]);
+  const group = $derived(GROUPS.find((g) => (g.tabs as readonly string[]).includes(tab)));
 </script>
 
 <Dialog bind:open title="{tab} · HOW TO USE" width={560}>
   {#if doc}
+    {#if group}<p class="grp {group.id}">{group.name} SCREEN · {group.note}</p>{/if}
     <p class="about">{doc.about}</p>
     {#if doc.soon}
       <section>
@@ -47,6 +49,9 @@
 </Dialog>
 
 <style>
+  .grp { margin: 0 0 6px; font-size: 11px; font-weight: 800; letter-spacing: 0.12em; }
+  .grp.cockpit { color: var(--hud); }
+  .grp.planner { color: var(--telemetry); }
   .about { margin: 0; color: var(--text); font-size: 13px; line-height: 1.5; }
   section { display: flex; flex-direction: column; gap: 5px; }
   .k { color: var(--dim); font-size: 10px; letter-spacing: 0.1em; border-bottom: 1px solid var(--rule); padding-bottom: 2px; }

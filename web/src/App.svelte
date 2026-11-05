@@ -21,7 +21,8 @@
   import Help from './lib/Help.svelte';
   import HelpButton from './lib/HelpButton.svelte';
   import { HELP } from './lib/help/index.ts';
-  import { TABS, type Tab } from './lib/tabs.ts';
+  import { GROUPS, TABS, type Tab } from './lib/tabs.ts';
+  import GroupIcon from './lib/GroupIcon.svelte';
   import Feedback from './lib/Feedback.svelte';
   import FullScreen from './lib/FullScreen.svelte';
   import { viewport } from './lib/viewport.svelte.ts';
@@ -184,8 +185,15 @@
     <!-- tablets: the game's state sits in the header's free space, not in the status strip -->
     {#if tablet && !live}<span class="linkstate">{link.connected ? 'GAME OFFLINE' : 'NO SERVER'}</span>{/if}
     <nav>
-      {#each TABS as t (t)}
-        <button class:active={tab === t} onclick={() => pick(t)}>{t}</button>
+      {#each GROUPS as g (g.id)}
+        <div class="grp {g.id}" role="group" aria-label={g.name} title={g.note}>
+          <span class="gname"><GroupIcon id={g.id} />{g.name}</span>
+          <div class="btns">
+            {#each g.tabs as t (t)}
+              <button class:active={tab === t} onclick={() => pick(t)}>{t}</button>
+            {/each}
+          </div>
+        </div>
       {/each}
       {#if tablet}<button class="reload" onclick={() => location.reload()} title="Reload the panel" aria-label="Reload">⟳</button>{/if}
       <FullScreen />
@@ -263,8 +271,11 @@
 {#if phone && menu}
   <div class="sheet-bg" role="presentation" onclick={() => (menu = false)}>
     <div class="sheet" role="dialog" aria-label="Screens" tabindex="-1" onclick={(e) => e.stopPropagation()} onkeydown={() => {}}>
-      {#each TABS as t (t)}
-        <button class:active={tab === t} onclick={() => pick(t)}>{t}</button>
+      {#each GROUPS as g (g.id)}
+        <div class="gtitle {g.id}"><GroupIcon id={g.id} />{g.name} <span class="dim">· {g.note}</span></div>
+        {#each g.tabs as t (t)}
+          <button class="{g.id}" class:active={tab === t} onclick={() => pick(t)}>{t}</button>
+        {/each}
       {/each}
       <button class="qr" onclick={() => { menu = false; showQr = true; }}>▣ OPEN ON ANOTHER DEVICE</button>
       <!-- opened from the home screen there is no browser bar: this is the only way to load a new version -->
@@ -346,6 +357,22 @@
     letter-spacing: 0.06em;
   }
   nav button.active { background: var(--hud); color: var(--void); border-color: var(--hud); box-shadow: var(--glow); }
+  /* two groups: COCKPIT presses the game's keys (orange, filled when active); PLANNER only reads (cyan, outlined) */
+  nav { align-items: flex-end; gap: 14px; }
+  .grp { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .gname { display: flex; align-items: center; gap: 5px; font-size: 9px; font-weight: 800; letter-spacing: 0.2em; padding-bottom: 2px; border-bottom: 1px solid currentColor; }
+  .btns { display: flex; gap: 4px; }
+  .grp.cockpit .gname { color: var(--hud); }
+  .grp.planner .gname { color: var(--telemetry); }
+  .grp.cockpit button { clip-path: polygon(0 0, calc(100% - 7px) 0, 100% 7px, 100% 100%, 7px 100%, 0 calc(100% - 7px)); border-color: var(--hud); }
+  .grp.planner button { background: transparent; color: var(--telemetry); border-color: var(--rule); border-bottom: 2px solid var(--telemetry); }
+  .grp.planner button.active { background: rgb(55 198 212 / 0.14); color: var(--text); border-color: var(--telemetry); box-shadow: 0 0 8px rgb(55 198 212 / 0.35); }
+  .sheet .gtitle { grid-column: 1 / -1; display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800; letter-spacing: 0.15em; }
+  .sheet .gtitle.cockpit { color: var(--hud); }
+  .sheet .gtitle.planner { color: var(--telemetry); }
+  .sheet button.planner { background: transparent; color: var(--telemetry); border-bottom: 2px solid var(--telemetry); }
+  .sheet button.planner.active { background: rgb(55 198 212 / 0.14); color: var(--text); }
+  .sheet button.cockpit { border-color: var(--hud); }
 
   .side { display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow: hidden; }
   .side > :global(.system) { flex: 1; min-height: 0; }
@@ -385,7 +412,12 @@
   /* portrait tablets and monitors: no side column, the screen lays out SHIP and POWER itself */
   :global(html[data-vp$='-portrait']) .top { flex-wrap: wrap; row-gap: 6px; }
   :global(html[data-vp$='-portrait']) .top nav { flex: 1 1 100%; justify-content: stretch; }
-  :global(html[data-vp$='-portrait']) .top nav button { flex: 1; }
+  :global(html[data-vp$='-portrait']) .top nav { gap: 10px; }
+  :global(html[data-vp$='-portrait']) .top nav .grp { flex: 1; }
+  :global(html[data-vp$='-portrait']) .top nav .grp.cockpit { flex: 3; }
+  :global(html[data-vp$='-portrait']) .top nav .grp.planner { flex: 5; }
+  :global(html[data-vp$='-portrait']) .top nav .btns { width: 100%; }
+  :global(html[data-vp$='-portrait']) .top nav button { flex: 1; padding-left: 4px; padding-right: 4px; }
   /* phones: slim bar + the screen, nothing else (no side column, no status strip) */
   .shell.phone { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
 

@@ -142,7 +142,8 @@ a second.
   needed), the **deadline** and the **reward** paid so far. Sites are kept on the PC, so they stay up to date when
   you play elsewhere; **MARK COMPLETE** closes a site whose deliveries were made on a machine whose journal this PC
   cannot read (UNDO COMPLETE brings it back). With two or more open builds, **ALL OPEN BUILDS** in the selector sums their lists into one
-  shopping list (and one search for where to buy).
+  shopping list (and one search for where to buy). Construction sites the system lists that you have not docked at yet
+  show in a **NOT DOCKED YET** box: the game gives a site's shopping list only once you dock there.
 - **Shopping list** with what is left, in the hold and on the carrier per commodity. What the carrier holds comes
   from your own moves, so cargo moved while playing on another machine is not seen: the game's total (from the
   carrier management) shows the tons not assigned to a commodity, and you type the real figure in the Carrier column.
@@ -215,6 +216,8 @@ a second.
 
 **Everywhere**
 
+- The top menu has two groups: **COCKPIT** (FLIGHT, COMBAT, MINING, in orange) sends your key binds to the game, and
+  **PLANNER** (EXPLORE, TRADE, COLONY, CARRIER, ENGINEERING, in cyan) only reads and plans, pressing nothing.
 - Six layout classes (phone, tablet and monitor, each in landscape and portrait) with no cut-off text. Phones
   show one page at a time, picked from a bar at the bottom (or down the left on its side).
 - **SYNC** (the status strip, or the ≡ menu on phones) reads the journals and the game's files again and reports what
