@@ -222,4 +222,6 @@
   .pips b { width: 8px; height: 10px; border: 1px solid var(--rule); background: var(--steel); }
   .pips b.on { background: var(--hud); border-color: var(--hud); }
   .pct { flex: none; width: 34px; text-align: right; font-size: 11px; }
+  :global(html[data-vp='tablet-landscape']) .cols { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  :global(html[data-device='tablet']) .toggles button, :global(html[data-device='phone']) .toggles button, :global(html[data-device='tablet']) .tools input, :global(html[data-device='phone']) .tools input { min-height: 36px; }
 </style>
