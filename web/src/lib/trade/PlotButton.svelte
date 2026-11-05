@@ -41,4 +41,5 @@
   .plot.routed, .plot.here { --tone: var(--ok); cursor: default; }
   .plot.off { --tone: var(--faint); color: var(--dim); background: var(--steel); cursor: default; }
   @keyframes pulse { 50% { opacity: 0.6; } }
+  :global(html[data-device='tablet']) .plot, :global(html[data-device='phone']) .plot { min-height: 32px; }
 </style>

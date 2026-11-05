@@ -20,4 +20,5 @@
   }
   .exp:hover:not(:disabled) { background: color-mix(in srgb, var(--tone) 24%, var(--steel)); }
   .exp:disabled { --tone: var(--faint); color: var(--dim); background: var(--steel); cursor: default; }
+  :global(html[data-device='tablet']) .exp, :global(html[data-device='phone']) .exp { min-height: 32px; }
 </style>

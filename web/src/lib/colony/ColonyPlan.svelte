@@ -413,6 +413,7 @@
   .voc.best { border-color: var(--hud); }
   .voc.on { background: rgba(255, 122, 24, 0.12); }
   .lnk { margin-left: 6px; padding: 0 4px; background: none; border: 0; color: var(--hud); font: inherit; font-size: var(--fs-xs); letter-spacing: 0.1em; cursor: pointer; text-decoration: underline; }
+  :global(html[data-device='tablet']) .lnk, :global(html[data-device='phone']) .lnk { min-height: 32px; padding: 0 10px; }
   .lh.sub { margin-top: -2px; font-size: var(--fs-2xs); }
   .tabs { margin-bottom: 10px; }
   .tabs button { flex: 1; padding: 7px 9px; }
@@ -432,4 +433,7 @@
   .sr input[type='number'] { width: 100%; padding: 3px 5px; font-size: 12px; }
   .sr input[type='checkbox'] { justify-self: center; width: 16px; height: 16px; accent-color: var(--hud); }
   .sr.skip .bn { text-decoration: line-through; color: var(--faint); }
+  :global(html[data-device='tablet']) .tick, :global(html[data-device='phone']) .tick { width: 36px; height: 32px; }
+  :global(html[data-device='tablet']) .chips button, :global(html[data-device='phone']) .chips button { min-height: 32px; }
+  :global(html[data-device='tablet']) .find, :global(html[data-device='tablet']) select, :global(html[data-device='phone']) select, :global(html[data-device='phone']) .find { min-height: 36px; }
 </style>

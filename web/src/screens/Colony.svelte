@@ -508,7 +508,7 @@
 
   /* phones: pages, tabs at the bottom standing up, down the left on its side */
   /* phones: thumb-sized controls; on the search page SEARCH stays at the foot */
-  :global(html[data-vp^='phone']) .modes button { min-height: 44px; }
+  :global(html[data-vp^='phone']) .modes button, :global(html[data-device='tablet']) .modes button { min-height: 44px; }
   :global(html[data-vp='phone-portrait']) .chips button, :global(html[data-vp='phone-portrait']) .sortbar button { min-height: 44px; }
   :global(html[data-vp='phone-portrait']) .go { position: sticky; bottom: 0; background: var(--void); padding-top: 6px; }
   .back { align-self: flex-start; margin-top: 8px; padding: 12px 16px; min-height: 44px; background: var(--hud); border: 0; color: var(--void); font-weight: 800; letter-spacing: 0.1em; }
@@ -527,4 +527,10 @@
   .pages button.on { background: var(--hud); border-color: var(--hud); color: var(--void); box-shadow: var(--glow); }
   .page { min-height: 0; min-width: 0; display: flex; flex-direction: column; overflow-y: auto; }
   .page > :global(.center), .page > :global(.right) { flex: 1; min-height: 0; }
+  :global(html[data-vp^='phone']) .modes { overflow-x: auto; scrollbar-width: none; }
+  :global(html[data-vp^='phone']) .modes button, :global(html[data-vp^='phone']) .cur { flex: none; white-space: nowrap; }
+  :global(html[data-vp='phone-portrait']) .modes { flex-wrap: wrap; overflow: visible; }
+  :global(html[data-vp='phone-portrait']) .modes button { flex: 1 1 auto; padding: 6px 10px; }
+  :global(html[data-vp='phone-portrait']) .modes .sep { display: none; }
+  :global(html[data-vp='phone-portrait']) .modes .cur { order: 9; flex: 1 1 100%; overflow: hidden; text-overflow: ellipsis; padding: 2px 6px; }
 </style>

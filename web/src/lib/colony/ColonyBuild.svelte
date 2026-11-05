@@ -212,7 +212,7 @@
         this PC: the journal lists what it needs, and it is kept here from then on (also when you play elsewhere).</p>
     {:else}
       {#if depots.length > 1}
-        <select class="pick" bind:value={pickedId}>
+        <select class="pick" value={depot?.marketId ?? 0} onchange={(e) => (pickedId = Number(e.currentTarget.value))}>
           {#if open.length > 1}<option value={ALL}>ALL OPEN BUILDS · {open.length}</option>{/if}
           {#each depots as d (d.marketId)}<option value={d.marketId}>{d.system} · {d.station}{d.complete ? ' · done' : ''}</option>{/each}
         </select>
@@ -426,9 +426,9 @@
 <style>
   .build { display: grid; gap: 8px; height: 100%; min-height: 0; }
   .build.wide { grid-template-columns: 300px minmax(0, 1fr) minmax(340px, 32%); }
-  .build.mid.landscape { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
-  .build.mid.landscape > :global(.site) { grid-column: 1 / -1; }
-  .build.mid.portrait { grid-template-rows: auto minmax(0, 1fr) minmax(0, 1fr); }
+  .build.mid.landscape { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
+  .build.mid.landscape > :global(.site) { grid-row: 1 / 3; }
+  .build.mid.portrait { grid-template-rows: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 0.9fr); }
   .build :global(.center .body), .build :global(.right .body) { flex: 1; display: flex; flex-direction: column; min-height: 0; }
   .k { color: var(--dim); font-size: var(--fs-xs); letter-spacing: 0.1em; }
   .pick { width: 100%; margin-bottom: 6px; padding: 5px; font: 700 11px var(--mono); color: var(--hud-hi); background: var(--void); border: 1px solid var(--rule); }
@@ -455,6 +455,7 @@
   .ce:focus { outline: 1px solid var(--hud); background: var(--steel); }
   .drift { font-size: 11px; color: var(--hud-hi); margin: 6px 4px 0; }
   .phone .ce { width: 56px; min-height: 32px; font-size: 13px; border-color: var(--rule); }
+  :global(html[data-device='tablet']) .ce { min-height: 32px; font-size: 13px; border-color: var(--rule); }
   .legend { display: flex; flex-wrap: wrap; gap: 2px 10px; font-size: var(--fs-xs); color: var(--muted); margin: 3px 0 6px; }
   .legend i { display: inline-block; width: 8px; height: 8px; margin-right: 3px; }
   .legend .dl { background: var(--ok); }
@@ -585,4 +586,6 @@
   .pages button.on { background: var(--hud); border-color: var(--hud); color: var(--void); box-shadow: var(--glow); }
   .page { min-height: 0; min-width: 0; display: flex; flex-direction: column; overflow-y: auto; }
   .page > :global(*) { flex: 1; min-height: 0; }
+  :global(html[data-device='tablet']) .raven, :global(html[data-device='phone']) .raven { display: inline-flex; align-items: center; min-height: 32px; }
+  :global(html[data-device='tablet']) .pick, :global(html[data-device='tablet']) .set, :global(html[data-device='tablet']) .mark, :global(html[data-device='phone']) .set { min-height: 36px; }
 </style>
