@@ -543,8 +543,8 @@
       <header><b>ROAD TO RICHES</b><button class="x" onclick={() => (richesOn = false)} aria-label="Close">✕</button></header>
       <span class="dim">A loop from {hereName || 'where you are'}, planned by Spansh</span>
       <div class="row">
-        <label>RANGE<input type="number" min="5" max="100" step="0.5" bind:value={rRange} /><u>ly</u></label>
-        <label>STOPS<input type="number" min="3" max="40" step="1" bind:value={rStops} /></label>
+        <label>RANGE<input type="number" min="5" max="500" step="0.5" bind:value={rRange} /><u>ly</u></label>
+        <label>STOPS<input type="number" min="3" max="100" step="1" bind:value={rStops} /></label>
       </div>
       <button class="go" disabled={richesBusy} onclick={planRiches}>{richesBusy ? 'PLANNING…' : riches ? 'RECALCULATE' : 'CALCULATE'}</button>
       {#if richesBusy}<span class="dim">Spansh takes a few seconds</span>{/if}

@@ -4,13 +4,16 @@ import { cleanRiches, richesForm, richesResult } from '../src/explore/riches.ts'
 
 test('a road to riches is asked as a loop from the system, within sane limits', () => {
   const q = cleanRiches({ from: ' Sol ', range: 9999, stops: 1 });
-  assert.deepEqual(q, { from: 'Sol', range: 100, stops: 3 });
+  assert.deepEqual(q, { from: 'Sol', range: 500, stops: 3 });
   assert.deepEqual(cleanRiches({ from: 'Sol' }), { from: 'Sol', range: 30, stops: 15 });
   const f = richesForm(q);
   assert.equal(f.get('from'), 'Sol');
   assert.equal(f.get('to'), 'Sol');
   assert.equal(f.get('loop'), '1');
   assert.equal(f.get('max_results'), '3');
+  // the pool Spansh picks from grows with the stops, or a loop would only ever find the few systems next to the start
+  assert.equal(f.get('radius'), '100');
+  assert.equal(richesForm(cleanRiches({ from: 'Sol', stops: 100 })).get('radius'), '800');
 });
 
 test('Spansh rows become stops with the value of their bodies', () => {

@@ -5,7 +5,7 @@ import type { RichesBody, RichesQuery, RichesResult, RichesStop } from '@et/shar
 const num = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 
 /** The limits a route is asked within: Spansh gives up on very long ones and the map has no room for them. */
-export const RICHES_LIMITS = { range: [5, 100], stops: [3, 40] } as const;
+export const RICHES_LIMITS = { range: [5, 500], stops: [3, 100] } as const;
 const clamp = (v: number, [lo, hi]: readonly number[]) => Math.min(Math.max(v, lo), hi);
 
 export function cleanRiches(q: Partial<RichesQuery>): RichesQuery {
@@ -16,13 +16,17 @@ export function cleanRiches(q: Partial<RichesQuery>): RichesQuery {
   };
 }
 
-/** The form fields Spansh takes: a loop that comes back to the start, within 25 ly of the road, bodies worth 100 000 Cr and up. */
+/** In a loop the start and the end are the same point, so `radius` is the whole pool Spansh picks stops from (checked
+ *  2026-11-05: 25 ly gave 7–9 systems whatever max_results was; 100 ly gave 20 for 20, 300 ly gave 40 for 40). It grows with the stops. */
+export const richesRadius = (stops: number) => Math.min(Math.max(stops * 8, 100), 800);
+
+/** The form fields Spansh takes: a loop that comes back to the start, bodies worth 100 000 Cr and up. */
 export function richesForm(q: RichesQuery): URLSearchParams {
   return new URLSearchParams({
     from: q.from,
     to: q.from,
     range: String(q.range),
-    radius: '25',
+    radius: String(richesRadius(q.stops)),
     max_results: String(q.stops),
     max_distance: '5000',
     min_value: '100000',
