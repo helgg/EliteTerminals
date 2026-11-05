@@ -40,6 +40,8 @@ export class JournalReader extends EventEmitter {
   private companionMtimes = new Map<string, number>();
   private timers: NodeJS.Timeout[] = [];
   private busy = false;
+  /** False until the journal on disk at startup has been read: those events are history. */
+  private caughtUp = false;
 
   readonly dir: string;
 
@@ -52,6 +54,7 @@ export class JournalReader extends EventEmitter {
     await this.scanDir();
     await this.loadMissionHistory();
     await this.poll();
+    this.caughtUp = true;
     this.timers.push(setInterval(() => void this.poll(), POLL_MS));
     this.timers.push(setInterval(() => void this.scanDir(), DIR_SCAN_MS));
   }
@@ -162,10 +165,23 @@ export class JournalReader extends EventEmitter {
       this.offset = size;
       const { lines, rest } = splitLines(this.rest + buf.toString('utf8'));
       this.rest = rest;
-      lines.forEach((l) => applyLine(this.state, l));
+      lines.forEach((l) => {
+        applyLine(this.state, l);
+        this.announce(l);
+      });
       return lines.length > 0;
     } finally {
       await fh.close();
+    }
+  }
+
+  /** Tells listeners about each journal event; `live` is false while the journal already on disk is read at startup. */
+  private announce(line: string) {
+    if (this.listenerCount('event') === 0) return;
+    try {
+      this.emit('event', JSON.parse(line), this.caughtUp);
+    } catch {
+      // not JSON: applyLine counted it
     }
   }
 

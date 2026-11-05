@@ -178,6 +178,19 @@ export interface EdState {
     /** Markets with prices in the local database. */
     stored: number;
   };
+  /** Sharing the player's own markets and discoveries with EDDN: off until the player turns it on. */
+  eddnUpload: {
+    enabled: boolean;
+    /** Set by ET_EDDN_UPLOAD in the environment: the switch on screen cannot change it. */
+    locked: boolean;
+    /** Everything goes to EDDN's test schemas (a beta game, or ET_EDDN_UPLOAD_TEST=1). */
+    test: boolean;
+    sent: number;
+    failed: number;
+    queued: number;
+    lastAt: string;
+    lastError: string;
+  };
   /** The picked trade route, priced again as new prices arrive; null when none is watched. */
   tradeWatch: WatchState | null;
   /** Systems (or stations) the player saved here, newest first: the game keeps its own bookmarks on Frontier's servers. */
@@ -707,6 +720,7 @@ export function initialState(): EdState {
     destination: { system: 0, body: 0, name: '' },
     route: { hops: [], fsdTarget: '', fsdTargetAddress: 0, remainingJumps: 0 },
     prices: { live: false, heard: 0, lastAt: '', stored: 0 },
+    eddnUpload: { enabled: false, locked: false, test: false, sent: 0, failed: 0, queued: 0, lastAt: '', lastError: '' },
     tradeWatch: null,
     favorites: [],
     tradePins: [],

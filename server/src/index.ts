@@ -23,6 +23,7 @@ import { searchSystems } from './trade/reference.ts';
 import { checkWatch, watchedMarkets } from './prices/watch.ts';
 import { PriceDb } from './prices/db.ts';
 import { EddnListener } from './prices/eddn.ts';
+import { EddnUploader } from './prices/eddnUpload.ts';
 import { MarketHistory } from './marketHistory.ts';
 import { clipText, setClipboard } from './clipboard.ts';
 import { panelAddresses } from './lan.ts';
@@ -124,6 +125,21 @@ const syncPrices = () => {
   reader.state.prices = { live: eddn.stats.connected, heard: eddn.stats.markets, lastAt: eddn.stats.lastAt, stored: prices.stats().markets };
 };
 syncPrices();
+// Sharing with EDDN: off until the player turns it on (ABOUT), and never what the journal already held at startup.
+const uploader = new EddnUploader(CACHE_DIR, JOURNAL_DIR);
+uploader.start();
+const syncUpload = () => {
+  reader.state.eddnUpload = uploader.stats;
+};
+syncUpload();
+reader.on('event', (e: Record<string, unknown>, live: boolean) => {
+  uploader.setJournal(reader.state.meta.journal);
+  uploader.feed(e, live);
+});
+uploader.on('stats', () => {
+  syncUpload();
+  scheduleBroadcast();
+});
 prices.prune();
 setInterval(() => prices.prune(), 3600e3).unref();
 
@@ -500,6 +516,14 @@ app.get('/api/prices/history', async (req) => {
 });
 app.get('/api/systems', async (req) =>
   searchSystems(prices, String((req.query as { q?: string }).q ?? ''), reader.state.location.pos));
+
+app.post('/api/eddn/upload', async (req, reply) => {
+  const enabled = (req.body as { enabled?: unknown } | null)?.enabled;
+  if (typeof enabled !== 'boolean') return reply.code(400).send({ error: 'enabled must be true or false' });
+  uploader.setEnabled(enabled);
+  syncUpload();
+  return uploader.stats;
+});
 
 app.post('/api/clipboard', async (req, reply) => {
   const text = clipText((req.body as { text?: unknown } | null)?.text);

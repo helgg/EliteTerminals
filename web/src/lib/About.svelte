@@ -1,8 +1,28 @@
 <script lang="ts">
   import Dialog from './Dialog.svelte';
   import { PROJECT } from './project.ts';
+  import { link } from './link.svelte.ts';
 
   let { open = $bindable(false), onfeedback }: { open: boolean; onfeedback: () => void } = $props();
+
+  const up = $derived(link.state.eddnUpload);
+  let busy = $state(false);
+  let failed = $state('');
+
+  async function share(enabled: boolean) {
+    busy = true;
+    failed = '';
+    try {
+      const res = await fetch('/api/eddn/upload', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled }),
+      });
+      if (!res.ok) failed = 'The server did not accept that.';
+    } catch {
+      failed = 'The server did not answer.';
+    } finally {
+      busy = false;
+    }
+  }
 </script>
 
 <Dialog bind:open title="ABOUT">
@@ -34,6 +54,31 @@
     </div>
   </section>
 
+  <section>
+    <span class="k">SHARE WITH EDDN</span>
+    <label class="share">
+      <input type="checkbox" checked={up.enabled} disabled={busy || up.locked} onchange={(e) => share(e.currentTarget.checked)} />
+      <span>Send what my game shows to the EDDN network</span>
+    </label>
+    <div class="dim">
+      Off by default. When on, the markets you open at stations, the shipyards and outfitting, and the systems and bodies you
+      scan or jump to are sent to <a href="https://eddn.edcd.io" target="_blank" rel="noopener noreferrer">EDDN</a>, which feeds
+      community tools such as Spansh and EDSM. Only new events are sent, never your history. Nothing about you is included
+      except your commander name, which EDDN scrambles. Frontier's journal rules and your own judgement still apply.
+    </div>
+    {#if up.locked}<div class="dim">Set by the ET_EDDN_UPLOAD setting of the server; it cannot be changed here.</div>{/if}
+    {#if up.enabled}
+      <div class="stat">
+        <span>SENT <b>{up.sent}</b></span>
+        <span>WAITING <b>{up.queued}</b></span>
+        <span class:bad={up.failed > 0}>REFUSED <b>{up.failed}</b></span>
+        {#if up.test}<span class="warn">TEST MODE</span>{/if}
+      </div>
+      {#if up.lastError}<div class="dim">Last problem: {up.lastError}</div>{/if}
+    {/if}
+    {#if failed}<div class="dim bad">{failed}</div>{/if}
+  </section>
+
   <button class="go" onclick={() => { open = false; onfeedback(); }}>REPORT A BUG OR SUGGEST AN IDEA</button>
 
   <p class="legal">
@@ -55,5 +100,11 @@
     background: var(--steel); border: 1px solid var(--hud); color: var(--hud-hi); font: inherit; font-size: 12px; font-weight: 800;
     letter-spacing: 0.1em; padding: 9px 10px; cursor: pointer;
   }
+  .share { display: flex; align-items: center; gap: 8px; color: var(--text); font-size: 13px; cursor: pointer; }
+  .share input { accent-color: var(--hud); width: 16px; height: 16px; }
+  .stat { display: flex; flex-wrap: wrap; gap: 14px; font-size: 11px; letter-spacing: 0.08em; color: var(--muted); }
+  .stat b { color: var(--hud-hi); }
+  .bad, .bad b { color: var(--alert, #ff5a3c); }
+  .warn { color: var(--amber, #ffb545); font-weight: 800; }
   .legal { margin: 0; font-size: 10px; color: var(--dim); }
 </style>

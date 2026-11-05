@@ -82,6 +82,11 @@ a second.
 - **Live prices**: while the server runs it listens to [EDDN](https://github.com/EDCD/EDDN) and keeps every market
   it hears in a local SQLite database, together with Spansh scans and your own `Market.json`. Once a region has been
   scanned, the next scans there come from the database in a fraction of a second, with the newest prices.
+- **Share with EDDN (optional, off by default)**: in ⓘ ABOUT you can turn on sending what your game shows to the EDDN
+  network: the markets, shipyards and outfitting you open at stations, and the systems and bodies you jump to, scan or
+  signal-scan. Only new events are sent (never your history), nothing personal goes along (no fines, wanted status,
+  fuel, reputation or localised text), a beta game only ever uses EDDN's `/test` schemas, and a counter shows what was
+  sent. `ET_EDDN_UPLOAD=1` or `0` in the environment forces it on or off.
 - **Route watch**: the route you pick is priced again whenever one of its markets gets new prices, and a warning
   shows what changed (profit per ton, stock, demand, commodity gone). Prices of visited and watched markets are kept
   for 7 days.
@@ -291,6 +296,8 @@ All optional, set as environment variables before `npm start`:
 | `ED_GAME_DIR` | found through Steam | Game install folder, used for the built-in control schemes |
 | `ET_CACHE_DIR` | `%LOCALAPPDATA%\EliteTerminals` | Spansh cache, market history, favourites (`favorites.json`), pinned routes (`trade-pins.json`), construction sites (`colony-depots.json`), the carrier (`carrier.json`) and the price database (`prices.db`) |
 | `ET_EDDN` | `1` | Set to `0` to stop listening to EDDN |
+| `ET_EDDN_UPLOAD` | unset | `1` sends to EDDN, `0` never does (the switch in ABOUT is then locked); unset leaves it to the switch, which starts off |
+| `ET_EDDN_UPLOAD_TEST` | unset | `1` sends everything to EDDN's `/test` schemas, for trying it out |
 
 ## Development
 
@@ -312,7 +319,7 @@ clipped text. Add `?tab=combat` (and `&page=survive` for a phone page) to open e
 | `server/src/binds.ts`, `controls.ts`, `input.ts` | Key bindings → scancodes → game window |
 | `server/src/combat.ts` | Contacts, massacre missions, bounties and bonds, fighter, consumables |
 | `server/src/trade/` | Market scan, route engine (loops, linear chains, mixed loads), reference search |
-| `server/src/prices/` | Local price database (SQLite), EDDN listener, route watch |
+| `server/src/prices/` | Local price database (SQLite), EDDN listener and optional uploader, route watch |
 | `server/src/favorites.ts`, `tradePins.ts` | Favourite destinations and pinned trade routes, kept on disk |
 | `server/src/colony/` | Colonisation finder (Spansh systems and bodies, scoring, claim stations) and construction sites |
 | `server/src/carrier/` | Fleet carrier state and cargo from the journal, jump planner |
@@ -329,6 +336,7 @@ clipped text. Add `?tab=combat` (and `&page=survive` for a phone page) to open e
 - [x] Layouts for phone, tablet and monitor, QR connect, full-screen app
 - [x] TRADE layouts for phones and tablets
 - [x] Live prices from EDDN with a local database, routes from any system, route watch
+- [x] Optional sharing of your markets and discoveries with EDDN (off by default)
 - [x] COMBAT: contacts by bounty, target picking, massacre missions, session, console of checked macros
 - [x] Icons and holograms: stations, pads, services, stars, planets with rings, signals
 - [x] FLIGHT favourites with one-tap route plotting, every station of the system with filters
