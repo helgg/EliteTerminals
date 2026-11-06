@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { carrierUntracked, initialState } from '@et/shared';
 import { applyEvent } from '../src/reducer.ts';
-import { backfillLedger, mergeCarrier, setCarrierCargo } from '../src/carrier/state.ts';
+import { applyCarrierMarket, backfillLedger, mergeCarrier, setCarrierCargo } from '../src/carrier/state.ts';
 import { hopsOf, jumpFuel, simulate } from '../src/carrier/route.ts';
 
 const ID = 3700000001;
@@ -208,4 +208,21 @@ test('a carrier copy saved before sinceStats starts with nothing untracked', () 
   saved.space.cargo = 6596;
   delete saved.sinceStats;
   assert.equal(carrierUntracked(mergeCarrier(saved, live.carrier)), 0);
+});
+
+test("the carrier's own Market.json raises a count to what it has on sale, never lowers it; other markets and old snapshots are ignored", () => {
+  const s = initialState();
+  Object.assign(s.carrier, { id: ID, cargoAt: '2026-11-06T04:00:00Z', cargo: [{ name: 'tritium', label: 'Tritium', count: 3000 }] });
+  const item = (name: string, label: string, stock: number) => ({ Name: `$${name}_name;`, Name_Localised: label, Stock: stock, Demand: 0 });
+  const market = (over: object = {}) => ({
+    event: 'Market', timestamp: '2026-11-06T05:00:00Z', MarketID: ID, Items: [item('tritium', 'Tritium', 1000), item('gold', 'Gold', 700), item('silver', 'Silver', 0)], ...over,
+  });
+  applyEvent(s, market());
+  const got = Object.fromEntries(s.carrier.cargo.map((x) => [x.name, x.count]));
+  assert.deepEqual(got, { tritium: 3000, gold: 700 }); // tritium kept (3 000 > 1 000), gold added, silver (0) not
+  applyEvent(s, market({ MarketID: ID + 1, Items: [item('palladium', 'Palladium', 50)] }));
+  applyCarrierMarket(s, market({ timestamp: '2026-11-05T00:00:00Z', Items: [item('cobalt', 'Cobalt', 9)] }) as never);
+  assert.equal(s.carrier.cargo.length, 2);
+  applyEvent(s, market({ Items: [item('gold', 'Gold', 900)] }));
+  assert.equal(s.carrier.cargo.find((x) => x.name === 'gold')?.count, 900);
 });

@@ -176,3 +176,22 @@ export function setCarrierCargo(c: CarrierState, name: string, label: string, co
   else if (n) c.cargo.push({ name: key, label: label || name, count: n });
   c.cargo = c.cargo.filter((x) => x.count > 0).sort((a, b) => b.count - a.count);
 }
+
+/**
+ * Market.json of the player's own carrier lists what it has on sale (Stock): at least that much is in the hold, though the
+ * hold can hold more (the journal never lists it all). So a count is only raised to it, never lowered, and a snapshot older
+ * than the last cargo move is ignored.
+ */
+export function applyCarrierMarket(state: EdState, e: JournalEvent): void {
+  const c = state.carrier;
+  if (!c.id || num(e.MarketID) !== c.id || !Array.isArray(e.Items)) return;
+  const at = str(e.timestamp);
+  if (at && c.cargoAt && at < c.cargoAt) return;
+  for (const i of e.Items) {
+    const stock = Math.round(num(i?.Stock));
+    if (!(stock > 0)) continue;
+    const key = str(i.Name).toLowerCase().replace(/^\$/, '').replace(/_name;$/, '').replace(/[^a-z0-9]/g, '');
+    const have = c.cargo.find((x) => x.name === key)?.count ?? 0;
+    if (stock > have) setCarrierCargo(c, key, str(i.Name_Localised), stock);
+  }
+}

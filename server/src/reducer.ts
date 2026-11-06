@@ -6,7 +6,7 @@ import { applyMining } from './mining.ts';
 import { applyEngineering } from './engineering.ts';
 import { applyExplore } from './explore/journal.ts';
 import { applyColony, applySites } from './colony/depots.ts';
-import { applyCarrier } from './carrier/state.ts';
+import { applyCarrier, applyCarrierMarket } from './carrier/state.ts';
 
 export type JournalEvent = { event: string; timestamp?: string; [key: string]: any };
 
@@ -189,6 +189,7 @@ export function applyEvent(state: EdState, e: JournalEvent): void {
 
     case 'Market':
       applyMarket(state, e);
+      applyCarrierMarket(state, e);
       break;
   }
   applyCombat(state, e);

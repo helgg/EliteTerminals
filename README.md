@@ -147,6 +147,8 @@ a second.
 - **Shopping list** with what is left, in the hold and on the carrier per commodity. What the carrier holds comes
   from your own moves, so cargo moved while playing on another machine is not seen: the game's total (from the
   carrier management) shows the tons not assigned to a commodity, and you type the real figure in the Carrier column.
+  Docked at your carrier, its Market.json also counts: what it has on sale is at least in the hold, so a count is raised
+  to it (never lowered).
 - **PLAN** (unlocked once the system's first construction is complete): a catalogue of the facilities with the tier
   points each costs or gives, the body slots as the game's map shows them with a **total** to check against the game,
   priorities, and a vocation finder. The catalogue's stats are read by eye from [RavenColonial](https://ravencolonial.com);
