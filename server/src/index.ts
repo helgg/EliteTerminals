@@ -7,7 +7,7 @@ import Fastify from 'fastify';
 import fastifyStatic from '@fastify/static';
 import fastifyWebsocket from '@fastify/websocket';
 import { carrierUntracked } from '@et/shared';
-import type { CarrierRoute, CarrierRouteQuery, ClientMessage, ColonyQuery, ExploreFindQuery, ExplorePreset, MiningSellQuery, PoiKind, PoiQuery, RichesQuery, ServerMessage, TradePathQuery, TradeQuery, TradeWatch } from '@et/shared';
+import type { CarrierRoute, CarrierRouteQuery, CarrierTradeQuery, ClientMessage, ColonyQuery, ExploreFindQuery, ExplorePreset, MiningSellQuery, PoiKind, PoiQuery, RichesQuery, ServerMessage, TradePathQuery, TradeQuery, TradeWatch } from '@et/shared';
 import { JournalReader } from './reader.ts';
 import { Controls } from './controls.ts';
 import { findGameDir } from './binds.ts';
@@ -357,6 +357,15 @@ app.post('/api/trade/path', async (req, reply) => {
     return await trade.path(query, force === true);
   } catch (err) {
     app.log.warn({ error: (err as Error).message }, 'trade path failed');
+    return reply.code(502).send({ error: (err as Error).message });
+  }
+});
+app.post('/api/trade/carrier', async (req, reply) => {
+  const { query } = req.body as { query: CarrierTradeQuery };
+  try {
+    return trade.carrierTrade(query);
+  } catch (err) {
+    app.log.warn({ error: (err as Error).message }, 'carrier trade failed');
     return reply.code(502).send({ error: (err as Error).message });
   }
 });

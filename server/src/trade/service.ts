@@ -1,12 +1,13 @@
 // Glue between the HTTP API, the market scanner and the engine; merges the player's own Market.json.
 import type {
-  ColonyMarkets, CommodityQuote, EdState, MarketSnapshot, MiningSellQuery, StationOption, TradeMarket, TradePathQuery, TradePathResult,
+  CarrierTradeCarrier, CarrierTradeQuery, CarrierTradeResult, ColonyMarkets, CommodityQuote, EdState, MarketSnapshot, MiningSellQuery, StationOption, TradeMarket, TradePathQuery, TradePathResult,
   TradeQuery, TradeResult,
 } from '@et/shared';
 import { acceptsMarket, commodityKey, commodityQuotes, computeTrade, end } from './engine.ts';
 import type { MarketScanner } from './markets.ts';
 import { computePath, corridorSpheres, MAX_PATH_LY } from './path.ts';
-import { nameKey, type NearQuery, type PriceDb } from '../prices/db.ts';
+import { nameKey, type HaulScan, type NearQuery, type PriceDb } from '../prices/db.ts';
+import { CARRIER_JUMP_LY, computeCarrierTrade, tritiumPriceFrom, type HaulRow } from './carrierTrade.ts';
 
 /** A Spansh scan of a region is trusted this long; EDDN keeps its prices fresh in between. */
 const COVERED_MS = 24 * 3600e3;
@@ -172,6 +173,42 @@ export class TradeService {
     };
     const markets = this.local(await this.around({ name: s.location.system, pos: s.location.pos }, q, false));
     return Object.fromEntries(m.names.map((name) => [name, commodityQuotes(markets, name, q, s.location.pos).sell]));
+  }
+
+  private haulCache: { key: string; at: number; rows: ReturnType<PriceDb['haulRows']> } | null = null;
+
+  /**
+   * CARRIER TRADE: what the carrier can load around its (or the chosen) system and where it pays most within reach of
+   * its jumps. Reads the local database only (EDDN and earlier scans keep it fresh): a 500 ly sphere is far beyond what
+   * one Spansh search returns.
+   */
+  carrierTrade(q: CarrierTradeQuery): CarrierTradeResult {
+    if (!this.db) throw new Error('the price database is not available');
+    const s = this.state();
+    const c = s.carrier;
+    const startName = q.reference?.trim() || c.system || s.location.system;
+    if (!startName) throw new Error('pick the system where the carrier loads');
+    const start = this.db.system(startName);
+    if (!start) throw new Error(`unknown system "${startName}": pick it from the list`);
+    const carrierPos = (c.system && this.db.system(c.system)?.pos) || start.pos;
+    const scan: HaulScan = {
+      pos: start.pos, sourceRadius: q.sourceRadius, sinkRadius: q.sourceRadius + q.maxJumps * CARRIER_JUMP_LY + q.destRadius,
+      maxAgeH: q.maxAgeH, minSupply: q.minSupply, minDemand: q.minDemand,
+    };
+    const key = JSON.stringify([scan, start.name]);
+    if (!this.haulCache || this.haulCache.key !== key || Date.now() - this.haulCache.at > 5 * 60e3) {
+      this.haulCache = { key, at: Date.now(), rows: this.db.haulRows(scan) };
+    }
+    const rows = this.haulCache.rows;
+    const near = tritiumPriceFrom(rows.tritium, carrierPos);
+    const average = near.price ? 0 : this.db.averageBuy('tritium');
+    const used = c.space.total ? c.space.total - c.space.free : 0;
+    const carrier: CarrierTradeCarrier = {
+      system: c.system || start.name, pos: carrierPos, free: c.space.total ? c.space.free : 25000 - used, used, tank: c.fuel,
+      tritiumCargo: c.cargo.find((x) => commodityKey(x.name) === 'tritium')?.count ?? 0, upkeep: c.upkeep,
+      tritiumPrice: near.price || average, tritiumPriceFrom: near.from || (average ? 'average of all known markets' : ''),
+    };
+    return computeCarrierTrade(rows.sources, rows.sinks, q, carrier);
   }
 
   quotes(name: string, q: TradeQuery) {
