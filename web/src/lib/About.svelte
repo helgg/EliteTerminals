@@ -82,9 +82,9 @@
   <section>
     <span class="k">SUPPORT</span>
     <div class="dim">
-      EliteTerminals is free and always will be. If it helps your flights, a coffee helps keep it going:
-      <a href={PROJECT.support} target="_blank" rel="noopener noreferrer">{PROJECT.support.replace('https://', '')}</a>
+      EliteTerminals is free and always will be. If it helps your flights, a coffee helps keep it going.
     </div>
+    <a class="coffee" href={PROJECT.support} target="_blank" rel="noopener noreferrer"><span aria-hidden="true">☕</span> BUY ME A COFFEE</a>
   </section>
 
   <button class="go" onclick={() => { open = false; onfeedback(); }}>REPORT A BUG OR SUGGEST AN IDEA</button>
@@ -104,6 +104,11 @@
   .k { color: var(--dim); font-size: var(--fs-xs); letter-spacing: 0.1em; }
   .who { color: var(--hud-hi); font-size: 18px; font-weight: 800; letter-spacing: 0.08em; }
   a { color: var(--telemetry); font-size: 12px; overflow-wrap: anywhere; }
+  .coffee {
+    align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; margin-top: 4px; padding: 9px 16px; min-height: 36px;
+    background: var(--hud); border: 1px solid var(--hud-hi); color: #0b0705; font-size: 12px; font-weight: 800; letter-spacing: 0.1em;
+    text-decoration: none; box-shadow: var(--glow); clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+  }
   .go {
     background: var(--steel); border: 1px solid var(--hud); color: var(--hud-hi); font: inherit; font-size: 12px; font-weight: 800;
     letter-spacing: 0.1em; padding: 9px 10px; cursor: pointer;
@@ -115,6 +120,7 @@
   .bad, .bad b { color: var(--alert, #ff5a3c); }
   .warn { color: var(--amber, #ffb545); font-weight: 800; }
   .legal { margin: 0; font-size: var(--fs-xs); color: var(--dim); }
-  :global(html[data-device='tablet']) a, :global(html[data-device='phone']) a { display: inline-block; padding-block: 8px; margin-block: -8px; }
+  :global(html[data-device='tablet']) a:not(.coffee), :global(html[data-device='phone']) a:not(.coffee) { display: inline-block; padding-block: 8px; margin-block: -8px; }
+  :global(html[data-device='tablet']) .coffee, :global(html[data-device='phone']) .coffee { min-height: 44px; }
   :global(html[data-device='tablet']) .share, :global(html[data-device='phone']) .share { min-height: 36px; align-items: center; }
 </style>

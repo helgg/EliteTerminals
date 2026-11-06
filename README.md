@@ -377,8 +377,10 @@ EliteTerminals is made by **CMDR SCORPZ**. **ABOUT** in the app shows the credit
 
 ## Support
 
-EliteTerminals is free and open source. If it helps your flights, you can [buy me a coffee](https://buymeacoffee.com/eliteterminals);
-it is never required and nothing in the app depends on it.
+EliteTerminals is free and open source. If it helps your flights, a coffee helps keep it going; it is never required and
+nothing in the app depends on it.
+
+<a href="https://buymeacoffee.com/eliteterminals"><img alt="Buy me a coffee" height="48" src="https://img.buymeacoffee.com/button-api/?text=Buy%20me%20a%20coffee&emoji=%E2%98%95&slug=eliteterminals&button_colour=ff7a18&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=FFDD00"></a>
 
 ## Disclaimer
 
