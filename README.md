@@ -375,6 +375,11 @@ and shows what will be sent. Pull requests are welcome: see [CONTRIBUTING.md](CO
 
 EliteTerminals is made by **CMDR SCORPZ**. **ABOUT** in the app shows the credits.
 
+## Support
+
+EliteTerminals is free and open source. If it helps your flights, you can [buy me a coffee](https://buymeacoffee.com/eliteterminals);
+it is never required and nothing in the app depends on it.
+
 ## Disclaimer
 
 EliteTerminals is an unofficial fan project and is not affiliated with or endorsed by Frontier Developments.

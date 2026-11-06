@@ -79,6 +79,14 @@
     {#if failed}<div class="dim bad">{failed}</div>{/if}
   </section>
 
+  <section>
+    <span class="k">SUPPORT</span>
+    <div class="dim">
+      EliteTerminals is free and always will be. If it helps your flights, a coffee helps keep it going:
+      <a href={PROJECT.support} target="_blank" rel="noopener noreferrer">{PROJECT.support.replace('https://', '')}</a>
+    </div>
+  </section>
+
   <button class="go" onclick={() => { open = false; onfeedback(); }}>REPORT A BUG OR SUGGEST AN IDEA</button>
 
   <p class="legal">
