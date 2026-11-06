@@ -81,11 +81,6 @@ a second.
 
 - Scans the markets around you, or around **any system you pick** (FROM, with name search), 10 to 80 ly out,
   and ranks **loop routes** (A → B → A) and **linear routes** (up to five stops) by Cr/t, total profit, Cr/h or profit %.
-- **CARRIER TRADE** (a tab of TRADE): your fleet carrier's hold as a warehouse. It loads a commodity where it is plentiful
-  and cheap (10 000 t of stock at least), jumps up to the number of jumps you allow and unloads where demand is high and it pays
-  much more, while your ship shuttles between the carrier and the markets. Every route shows the lot, the markets at both
-  ends, the carrier's jumps and tritium, the ship trips, the upkeep for the time it takes, the net and the net per hour.
-  Player carriers, construction sites and prices far off the usual are left out. It reads the local price database only.
 - **Live prices**: while the server runs it listens to [EDDN](https://github.com/EDCD/EDDN) and keeps every market
   it hears in a local SQLite database, together with Spansh scans and your own `Market.json`. Once a region has been
   scanned, the next scans there come from the database in a fraction of a second, with the newest prices.
@@ -360,7 +355,6 @@ clipped text. Add `?tab=combat` (and `&page=survive` for a phone page) to open e
 - [x] TRADE pinned routes, favourites from a route, side-by-side loop on portrait screens
 - [x] Screens in sync, bounded target searches, TRADE route detail side by side everywhere
 - [x] TRADE A → B paths, FROM a station, ship typed in with the game off
-- [x] TRADE: CARRIER TRADE, your carrier's hold from a region with plenty to one that pays much more (tritium, upkeep and ship trips in the figures)
 - [x] COLONY: system finder, claim stations, construction sites with carrier stock and where to buy
 - [x] CARRIER: status, tracked cargo, jump planner with tritium per jump
 - [x] CARRIER: stop cards, sectioned status sheet, weekly upkeep with coverage, balance history and income goal

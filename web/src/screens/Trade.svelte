@@ -7,7 +7,6 @@
   import ChainDetail from '../lib/trade/ChainDetail.svelte';
   import CommodityFinder from '../lib/trade/CommodityFinder.svelte';
   import LocalMarket from '../lib/trade/LocalMarket.svelte';
-  import CarrierTrade from '../lib/trade/CarrierTrade.svelte';
   import ReferencePicker from '../lib/trade/ReferencePicker.svelte';
   import WatchBanner, { toWatch } from '../lib/trade/WatchBanner.svelte';
   import { link } from '../lib/link.svelte.ts';
@@ -157,12 +156,12 @@
     if (ts.result && !busy) void scan(false); // markets are cached: only the maths runs again
   }
 
-  if (!['loop', 'linear', 'path', 'carrier', 'finder', 'local'].includes(ts.tab)) ts.tab = 'loop';
+  if (!['loop', 'linear', 'path', 'finder', 'local'].includes(ts.tab)) ts.tab = 'loop';
   type Tab = typeof ts.tab;
-  const ALL_TABS: Tab[] = ['loop', 'linear', 'path', 'carrier', 'finder', 'local'];
-  const ROUTE_TABS: Tab[] = ['loop', 'linear', 'path', 'carrier'];
+  const ALL_TABS: Tab[] = ['loop', 'linear', 'path', 'finder', 'local'];
+  const ROUTE_TABS: Tab[] = ['loop', 'linear', 'path'];
   const TAB_LABELS: Record<Tab, string> = {
-    loop: 'LOOP ROUTES', linear: 'LINEAR ROUTES', path: 'A → B', carrier: 'CARRIER TRADE', finder: 'COMMODITY', local: 'MARKET',
+    loop: 'LOOP ROUTES', linear: 'LINEAR ROUTES', path: 'A → B', finder: 'COMMODITY', local: 'MARKET',
   };
   // ?view=linear (or loop, finder, local) opens that tab, for testing layouts
   const askedView = new URLSearchParams(location.search).get('view') as Tab | null;
@@ -220,7 +219,7 @@
     const body = `{"watch":${watchJson}}`;
     void fetch('/api/trade/watch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body }).catch(() => {});
   });
-  const TITLES = { loop: 'Loop routes', linear: 'Linear routes', path: 'A → B trade', carrier: 'Carrier trade', finder: 'Commodity finder', local: 'Market' };
+  const TITLES = { loop: 'Loop routes', linear: 'Linear routes', path: 'A → B trade', finder: 'Commodity finder', local: 'Market' };
   const plotLabel = $derived(`${(f.reference || s.location.system || '?').toUpperCase()} → ${(toSystem || '?').toUpperCase()}`);
   const fetchedAt = $derived((ts.tab === 'path' ? ts.path : result)?.fetchedAt ?? '');
 
@@ -453,13 +452,7 @@
   </Panel>
 {/snippet}
 
-{#if ts.tab === 'carrier'}
-  <!-- CARRIER TRADE is a module of its own: the same tab bar on top, its own search, list and operation panels -->
-  <div class="trade carrier-mode">
-    {@render tabs(phone ? ROUTE_TABS : ALL_TABS)}
-    <CarrierTrade {s} {now} />
-  </div>
-{:else if vp === 'desktop-landscape'}
+{#if vp === 'desktop-landscape'}
   <div class="trade wide">
     <div class="left">
       {@render scanPanel('Scan')}
@@ -521,7 +514,6 @@
     position: relative;
   }
   .trade.wide { grid-template-columns: 272px minmax(0, 1fr) 290px; }
-  .trade.carrier-mode { display: flex; flex-direction: column; gap: 6px; }
   /* with the ship typed in and A → B's TO the filters may outgrow the column: it scrolls then */
   .left { display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow-y: auto; }
   .trade :global(.center .body) { flex: 1; display: flex; flex-direction: column; min-height: 0; }

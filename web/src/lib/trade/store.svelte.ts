@@ -1,5 +1,5 @@
 // TRADE screen state that must survive switching tabs (the screen component is unmounted).
-import type { CarrierTradeResult, TradePathResult, TradeResult } from '@et/shared';
+import type { TradePathResult, TradeResult } from '@et/shared';
 
 export const tradeStore = $state({
   result: null as TradeResult | null,
@@ -8,10 +8,7 @@ export const tradeStore = $state({
   /** A → B: the last path search and the path picked in it. */
   path: null as TradePathResult | null,
   selectedPath: '',
-  /** CARRIER TRADE: the last search and the route picked in it. */
-  carrier: null as CarrierTradeResult | null,
-  carrierSelected: '',
-  tab: 'loop' as 'loop' | 'linear' | 'path' | 'carrier' | 'finder' | 'local',
+  tab: 'loop' as 'loop' | 'linear' | 'path' | 'finder' | 'local',
   /** List only the pinned routes (and those a scan left out). */
   pinnedOnly: false,
   loaded: false,

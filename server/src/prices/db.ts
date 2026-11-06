@@ -4,7 +4,6 @@
 import { DatabaseSync } from 'node:sqlite';
 import type { StationOption, TradeMarket } from '@et/shared';
 import { commodityKey } from '../trade/engine.ts';
-import type { HaulRow } from '../trade/carrierTrade.ts';
 
 export interface StationMeta {
   marketId: number;
@@ -27,16 +26,6 @@ export interface MarketPrices {
   source: TradeMarket['source'];
   /** `key` is the commodity key when `name` is a localised label (the player's Market.json). */
   items: { key?: string; name: string; buy: number; sell: number; supply: number; demand: number; supplyBracket?: number; demandBracket?: number }[];
-}
-
-/** What CARRIER TRADE asks of the database. */
-export interface HaulScan {
-  pos: [number, number, number];
-  sourceRadius: number;
-  sinkRadius: number;
-  maxAgeH: number;
-  minSupply: number;
-  minDemand: number;
 }
 
 export interface NearQuery {
@@ -102,7 +91,6 @@ export class PriceDb {
     this.db = new DatabaseSync(file);
     this.db.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL;');
     this.db.exec(SCHEMA);
-    this.db.exec('CREATE TEMP TABLE IF NOT EXISTS haul_min (key TEXT PRIMARY KEY, m INTEGER)');
     this.q = {
       system: this.db.prepare(`INSERT INTO systems (key, name, id64, x, y, z) VALUES (?, ?, ?, ?, ?, ?)
         ON CONFLICT (key) DO UPDATE SET name = excluded.name, id64 = coalesce(excluded.id64, id64),
@@ -136,17 +124,6 @@ export class PriceDb {
       stationsIn: this.db.prepare(`SELECT market_id, name, type, ls, planetary, pad_s, pad_m, pad_l FROM stations
         WHERE system_key = ? AND market_at != '' ORDER BY ls`),
       pricesOf: this.db.prepare(`SELECT * FROM prices WHERE market_id IN (SELECT value FROM json_each(?))`),
-      // CARRIER TRADE: stations first (the table is small), systems by key; the day prefix drops stale markets cheaply
-      haulStations: this.db.prepare(`SELECT s.market_id, s.market_at, s.name, s.system, s.type, s.ls, s.planetary, s.pad_s, s.pad_m, s.pad_l, s.source,
-        y.x, y.y, y.z FROM stations s JOIN systems y ON y.key = s.system_key
-        WHERE s.market_at != '' AND substr(s.market_at, 1, 10) >= ? AND +y.x BETWEEN ? AND ? AND y.y BETWEEN ? AND ? AND y.z BETWEEN ? AND ?`),
-      haulSources: this.db.prepare(`SELECT market_id, key, buy, supply FROM prices WHERE market_id IN (SELECT value FROM json_each(?)) AND buy > 0 AND supply >= ?`),
-      haulTritium: this.db.prepare(`SELECT market_id, key, buy, supply FROM prices WHERE market_id IN (SELECT value FROM json_each(?)) AND key = 'tritium' AND buy > 0`),
-      // only destinations that pay more than the cheapest source of that commodity (haul_min); CROSS JOIN fixes the order:
-      // the markets, then their prices by primary key, then the threshold by commodity
-      haulSinks: this.db.prepare(`SELECT p.market_id, p.key, p.sell, p.demand FROM json_each(?) m
-        CROSS JOIN prices p ON p.market_id = m.value CROSS JOIN haul_min w ON w.key = p.key
-        WHERE p.sell > w.m AND p.demand >= ?`),
       count: this.db.prepare(`SELECT (SELECT count(*) FROM systems) systems, (SELECT count(*) FROM stations WHERE market_at != '') markets,
         (SELECT count(*) FROM prices) prices`),
     };
@@ -281,56 +258,6 @@ export class PriceDb {
         items: items.get(s.market_id) ?? [],
       };
     });
-  }
-
-  /**
-   * CARRIER TRADE candidates around `pos`: commodities in plentiful stock within `sourceRadius` (what to load), the
-   * destinations within `sinkRadius` that pay more than the cheapest source of the same commodity, and the tritium prices in
-   * sight. Light rows, not whole markets: the wide radius covers thousands of stations.
-   */
-  haulRows(q: HaulScan, now = Date.now()): { sources: HaulRow[]; sinks: HaulRow[]; tritium: HaulRow[]; markets: number } {
-    const [x, y, z] = q.pos;
-    const r = Math.max(q.sourceRadius, q.sinkRadius);
-    // the day prefix is one day looser than the age asked for; the exact age is checked below
-    const day = q.maxAgeH ? new Date(now - q.maxAgeH * 3.6e6 - 864e5).toISOString().slice(0, 10) : '0000';
-    const stations = (this.q.haulStations.all(day, x - r, x + r, y - r, y + r, z - r, z + r) as any[]).filter((s) =>
-      Math.hypot(s.x - x, s.y - y, s.z - z) <= r && (!q.maxAgeH || now - Date.parse(s.market_at) <= q.maxAgeH * 3.6e6));
-    const out = { sources: [] as HaulRow[], sinks: [] as HaulRow[], tritium: [] as HaulRow[], markets: stations.length };
-    if (!stations.length) return out;
-    const names = new Map((this.q.names.all() as { key: string; name: string }[]).map((n) => [n.key, n.name]));
-    const byId = new Map(stations.map((s) => [s.market_id as number, s]));
-    const row = (s: any, key: string, price: number, qty: number): HaulRow => {
-      const known = s.pad_s !== null || s.pad_m !== null || s.pad_l !== null;
-      const pads = known ? { s: s.pad_s ?? 0, m: s.pad_m ?? 0, l: s.pad_l ?? 0 } : padsByType(s.type);
-      return {
-        marketId: s.market_id, station: s.name, system: s.system, pos: [s.x, s.y, s.z], ls: s.ls, type: s.type,
-        planetary: s.planetary === 1, pad: pads.l ? 'L' : pads.m ? 'M' : pads.s ? 'S' : '-', updatedAt: s.market_at,
-        key, name: names.get(key) ?? fallbackName(key), price, qty,
-      };
-    };
-    const near = stations.filter((s) => Math.hypot(s.x - x, s.y - y, s.z - z) <= q.sourceRadius);
-    const cheapest = new Map<string, number>();
-    for (const p of this.q.haulSources.all(JSON.stringify(near.map((s) => s.market_id)), q.minSupply) as any[]) {
-      out.sources.push(row(byId.get(p.market_id), p.key, p.buy, p.supply));
-      cheapest.set(p.key, Math.min(cheapest.get(p.key) ?? Infinity, p.buy));
-    }
-    const ids = JSON.stringify([...byId.keys()]);
-    for (const p of this.q.haulTritium.all(ids) as any[]) out.tritium.push(row(byId.get(p.market_id), p.key, p.buy, p.supply));
-    if (cheapest.size) {
-      this.db.exec('DELETE FROM haul_min');
-      const put = this.db.prepare('INSERT INTO haul_min (key, m) VALUES (?, ?)');
-      for (const [k, m] of cheapest) put.run(k, m);
-      for (const p of this.q.haulSinks.all(ids, q.minDemand) as any[]) {
-        out.sinks.push(row(byId.get(p.market_id), p.key, p.sell, p.demand));
-      }
-    }
-    return out;
-  }
-
-  /** Average price a commodity is sold at across everything the database holds (0 when unknown). */
-  averageBuy(key: string): number {
-    const r = this.db.prepare('SELECT avg(buy) a FROM prices WHERE key = ? AND buy > 0').get(key) as { a: number | null };
-    return Math.round(r.a ?? 0);
   }
 
   /** Stations with prices in a system, nearest the arrival star first. */
