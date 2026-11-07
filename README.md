@@ -389,12 +389,11 @@ clipped text. Add `?tab=combat` (and `&page=survive` for a phone page) to open e
 - [x] COLONY: ALL SYSTEMS, BUILD per system with ALL OPEN BUILDS, PLAN with the facility catalogue and slot totals
 - [x] EXPLORE: GALAXY map with layers, the carrier's 500 ly ring and a road to riches; ENGINEERING: where each engineer lives
 - [x] A short tutorial for every screen (? HOW TO USE)
-- [ ] PVP: commanders flagged in the contacts, encounter history, a direct-keys console page
 - [x] MINING screen for the ship: prospector, rock value, session, rings, hotspot finder with overlap filter, ore prices and where to sell
-- [ ] MINING in the surface vehicle
 - [x] EXPLORE: system map with belts, body sheet, FIND for exobiology and worlds; ENGINEERING: materials and engineers
 - [x] Phone pages for ENGINEERING, EXPLORE and CARRIER
-- [ ] Review of every screen on every viewport
+- [ ] PVP: commanders flagged in the contacts, encounter history, a direct-keys console page
+- [ ] MINING in the surface vehicle
 - [ ] CARRIER: carrier market and orders, where to park and what to stock
 
 ## Feedback and contributing
