@@ -10,6 +10,9 @@ const MAX_TRAIL = 3000;
 /** A new trail point once the ship has moved this far (m): Status.json is written several times a second. */
 const TRAIL_STEP_M = 25;
 
+ /** Ring signal names as the market and Spansh spell them (the journal's localised text shortens some). */
+const SIGNAL_NAMES: Record<string, string> = { LowTemperatureDiamond: 'Low Temperature Diamonds', Opal: 'Void Opal' };
+
 /** "$AsteroidMaterialContent_High;" → "High". */
 export function contentLevel(v: unknown): string {
   return /_(High|Medium|Low);?$/i.exec(str(v))?.[1].replace(/^./, (c) => c.toUpperCase()) ?? '';
@@ -24,7 +27,14 @@ export function applyMining(state: EdState, e: JournalEvent): void {
   switch (e.event) {
     case 'Fileheader':
       // a new game session: the counters start again, what the ship carries and knows stays
-      state.mining = { ...initialMining(), tools: m.tools, scanned: m.scanned, trail: m.trail };
+      endSession(m, str(e.timestamp));
+      state.mining = { ...initialMining(), tools: m.tools, scanned: m.scanned, trail: m.trail, past: m.past };
+      break;
+
+    // leaving the field (supercruise or a jump) closes the session; the next prospector opens a new one
+    case 'SupercruiseEntry':
+    case 'StartJump':
+      endSession(m, str(e.timestamp));
       break;
 
     case 'Status':
@@ -47,6 +57,7 @@ export function applyMining(state: EdState, e: JournalEvent): void {
       });
       m.prospects.length = Math.min(m.prospects.length, MAX_PROSPECTS);
       ss.prospected += 1;
+      ss.startedAt ||= str(e.timestamp);
       break;
     }
 
@@ -58,6 +69,7 @@ export function applyMining(state: EdState, e: JournalEvent): void {
       else ss.refined.push({ name, label: str(e.Type_Localised) || name, count: 1 });
       ss.refined.sort((a, b) => b.count - a.count);
       if (!ss.firstRefinedAt) ss.firstRefinedAt = str(e.timestamp);
+      ss.startedAt ||= str(e.timestamp);
       ss.lastRefinedAt = str(e.timestamp);
       break;
     }
@@ -67,19 +79,36 @@ export function applyMining(state: EdState, e: JournalEvent): void {
       break;
 
     case 'LaunchDrone':
-      if (e.Type === 'Prospector') ss.prospectors += 1;
-      else if (e.Type === 'Collection') ss.collectors += 1;
+      if (e.Type === 'Prospector') {
+        ss.prospectors += 1;
+        ss.startedAt ||= str(e.timestamp);
+      } else if (e.Type === 'Collection') ss.collectors += 1;
       break;
 
     case 'SAASignalsFound': {
       // a ring mapped with the surface scanner: its hotspots, straight from the game
       const ring = str(e.BodyName);
       if (!/ ring$/i.test(ring) || !Array.isArray(e.Signals)) break;
-      m.scanned[ring] = e.Signals.map((x: any) => ({ name: str(x.Type_Localised) || str(x.Type), count: num(x.Count) }))
+      m.scanned[ring] = e.Signals.map((x: any) => ({ name: SIGNAL_NAMES[str(x.Type)] ?? (str(x.Type_Localised) || str(x.Type)), count: num(x.Count) }))
         .filter((x: RingSignal) => x.name && x.count > 0);
       break;
     }
   }
+}
+
+const MAX_PAST = 10;
+
+/** Files the running session away and starts a clean one (and a clean field: the rocks seen belong to the place left). */
+function endSession(m: EdState['mining'], at: string) {
+  const ss = m.session;
+  if (!ss.startedAt) return;
+  m.past.unshift({
+    startedAt: ss.startedAt, endedAt: at, prospected: ss.prospected, cracked: ss.cracked,
+    tons: ss.refined.reduce((a, r) => a + r.count, 0), refined: ss.refined.map((r) => ({ label: r.label, count: r.count })),
+  });
+  m.past.length = Math.min(m.past.length, MAX_PAST);
+  m.session = initialMining().session;
+  m.prospects = [];
 }
 
 /** The ship's position from the last Status.json, when the game gives one. */

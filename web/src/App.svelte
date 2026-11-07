@@ -12,15 +12,14 @@
   import Carrier from './screens/Carrier.svelte';
   import Engineering from './screens/Engineering.svelte';
   import Explore from './screens/Explore.svelte';
+  import Mining from './screens/Mining.svelte';
   import { exploreRequest } from './lib/explore/nav.svelte.ts';
-  import ComingSoon from './lib/ComingSoon.svelte';
   import Name from './lib/Name.svelte';
   import { copied } from './lib/copy.svelte.ts';
   import ConnectQr from './lib/ConnectQr.svelte';
   import About from './lib/About.svelte';
   import Help from './lib/Help.svelte';
   import HelpButton from './lib/HelpButton.svelte';
-  import { HELP } from './lib/help/index.ts';
   import { GROUPS, TABS, type Tab } from './lib/tabs.ts';
   import GroupIcon from './lib/GroupIcon.svelte';
   import Feedback from './lib/Feedback.svelte';
@@ -49,8 +48,9 @@
   // The side column only where the screen is wide enough for it next to the screen's own panels.
   // Portrait screens bring SHIP and POWER into their own grid instead (RESPONSIVE-FLIGHT.md).
   // TRADE needs the width for its tables, COMBAT for its console (it has its own POWER bay).
+  // MINING has its own console and power presets, and no use for the flight panels (SHIP, SYSTEM).
   const side = $derived(
-    tab !== 'TRADE' && tab !== 'COMBAT' && tab !== 'COLONY' && tab !== 'CARRIER' && tab !== 'ENGINEERING' && tab !== 'EXPLORE' && (viewport.vp === 'desktop-landscape' || viewport.vp === 'tablet-landscape'),
+    tab !== 'TRADE' && tab !== 'COMBAT' && tab !== 'MINING' && tab !== 'COLONY' && tab !== 'CARRIER' && tab !== 'ENGINEERING' && tab !== 'EXPLORE' && (viewport.vp === 'desktop-landscape' || viewport.vp === 'tablet-landscape'),
   );
 
   // an EXP button on another screen asks for EXPLORE
@@ -231,7 +231,7 @@
     {:else if tab === 'ENGINEERING'}
       <Engineering {s} />
     {:else}
-      <ComingSoon title={tab} plans={HELP[tab]?.soon ?? []} />
+      <Mining {s} {now} />
     {/if}
   </main>
 

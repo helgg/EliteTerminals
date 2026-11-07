@@ -1,0 +1,110 @@
+{ "timestamp":"2026-11-06T17:19:43Z", "event":"Fileheader", "part":1, "language":"English/UK", "Odyssey":true, "gameversion":"4.4.2.1", "build":"r334925/r0 " }
+{ "timestamp":"2026-11-06T21:24:33Z", "event":"BuyDrones", "Type":"Drones", "Count":300, "BuyPrice":101, "TotalCost":30300 }
+{ "timestamp":"2026-11-06T21:30:00Z", "event":"SAASignalsFound", "BodyName":"Col 359 Sector FM-M d7-90 B 11 B Ring", "SystemAddress":3102736353715, "BodyID":115, "Signals":[ { "Type":"Grandidierite", "Count":1 }, { "Type":"Opal", "Type_Localised":"Void Opal", "Count":1 }, { "Type":"LowTemperatureDiamond", "Type_Localised":"Low Temp. Diamonds", "Count":1 } ], "Genuses":[  ] }
+{ "timestamp":"2026-11-06T21:39:08Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T21:39:17Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T21:39:31Z", "event":"ProspectedAsteroid", "Materials":[ { "Name":"Bromellite", "Proportion":12.559834 }, { "Name":"HydrogenPeroxide", "Name_Localised":"Hydrogen Peroxide", "Proportion":10.075415 }, { "Name":"LithiumHydroxide", "Name_Localised":"Lithium Hydroxide", "Proportion":6.120397 } ], "Content":"$AsteroidMaterialContent_Low;", "Content_Localised":"Material Content: Low", "Remaining":100.000000 }
+{ "timestamp":"2026-11-06T21:39:59Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T21:40:11Z", "event":"ProspectedAsteroid", "Materials":[ { "Name":"MethaneClathrate", "Name_Localised":"Methane Clathrate", "Proportion":10.551609 }, { "Name":"Bromellite", "Proportion":11.443259 }, { "Name":"MethanolMonohydrateCrystals", "Name_Localised":"Methanol Monohydrate Crystals", "Proportion":5.346347 } ], "Content":"$AsteroidMaterialContent_Low;", "Content_Localised":"Material Content: Low", "Remaining":100.000000 }
+{ "timestamp":"2026-11-06T21:40:55Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T21:41:01Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T21:41:11Z", "event":"ProspectedAsteroid", "Materials":[ { "Name":"water", "Proportion":20.781851 }, { "Name":"liquidoxygen", "Name_Localised":"Liquid oxygen", "Proportion":4.045824 }, { "Name":"MethanolMonohydrateCrystals", "Name_Localised":"Methanol Monohydrate Crystals", "Proportion":3.289825 } ], "Content":"$AsteroidMaterialContent_Medium;", "Content_Localised":"Material Content: Medium", "Remaining":100.000000 }
+{ "timestamp":"2026-11-06T21:41:30Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T21:41:43Z", "event":"ProspectedAsteroid", "Materials":[ { "Name":"Bromellite", "Proportion":16.606785 }, { "Name":"MethaneClathrate", "Name_Localised":"Methane Clathrate", "Proportion":9.132941 } ], "Content":"$AsteroidMaterialContent_Low;", "Content_Localised":"Material Content: Low", "Remaining":100.000000 }
+{ "timestamp":"2026-11-06T21:42:01Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T21:42:07Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T21:42:20Z", "event":"ProspectedAsteroid", "Materials":[ { "Name":"MethanolMonohydrateCrystals", "Name_Localised":"Methanol Monohydrate Crystals", "Proportion":15.344451 }, { "Name":"tritium", "Proportion":3.697300 }, { "Name":"liquidoxygen", "Name_Localised":"Liquid oxygen", "Proportion":5.795250 } ], "Content":"$AsteroidMaterialContent_Medium;", "Content_Localised":"Material Content: Medium", "Remaining":100.000000 }
+{ "timestamp":"2026-11-06T21:42:38Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T21:42:46Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T21:42:55Z", "event":"ProspectedAsteroid", "Materials":[ { "Name":"liquidoxygen", "Name_Localised":"Liquid oxygen", "Proportion":19.733683 }, { "Name":"Bromellite", "Proportion":2.812797 }, { "Name":"water", "Proportion":2.658529 } ], "Content":"$AsteroidMaterialContent_Low;", "Content_Localised":"Material Content: Low", "Remaining":100.000000 }
+{ "timestamp":"2026-11-06T21:43:28Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T21:43:39Z", "event":"ProspectedAsteroid", "Materials":[ { "Name":"liquidoxygen", "Name_Localised":"Liquid oxygen", "Proportion":22.938526 }, { "Name":"MethanolMonohydrateCrystals", "Name_Localised":"Methanol Monohydrate Crystals", "Proportion":4.211489 }, { "Name":"tritium", "Proportion":5.406313 } ], "Content":"$AsteroidMaterialContent_Medium;", "Content_Localised":"Material Content: Medium", "Remaining":100.000000 }
+{ "timestamp":"2026-11-06T21:43:52Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T21:44:03Z", "event":"ProspectedAsteroid", "Materials":[ { "Name":"water", "Proportion":14.959977 }, { "Name":"MethaneClathrate", "Name_Localised":"Methane Clathrate", "Proportion":4.531971 }, { "Name":"tritium", "Proportion":2.931422 } ], "Content":"$AsteroidMaterialContent_Low;", "Content_Localised":"Material Content: Low", "Remaining":100.000000 }
+{ "timestamp":"2026-11-06T21:44:41Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T21:44:47Z", "event":"ProspectedAsteroid", "Materials":[ { "Name":"water", "Proportion":10.003541 } ], "Content":"$AsteroidMaterialContent_Medium;", "Content_Localised":"Material Content: Medium", "Remaining":100.000000 }
+{ "timestamp":"2026-11-06T21:45:27Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T21:45:37Z", "event":"ProspectedAsteroid", "Materials":[ { "Name":"water", "Proportion":12.386325 } ], "Content":"$AsteroidMaterialContent_Low;", "Content_Localised":"Material Content: Low", "Remaining":100.000000 }
+{ "timestamp":"2026-11-06T21:45:40Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T21:45:47Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T21:46:01Z", "event":"ProspectedAsteroid", "Materials":[ { "Name":"HydrogenPeroxide", "Name_Localised":"Hydrogen Peroxide", "Proportion":16.968641 }, { "Name":"water", "Proportion":2.234300 }, { "Name":"liquidoxygen", "Name_Localised":"Liquid oxygen", "Proportion":1.090637 } ], "Content":"$AsteroidMaterialContent_Low;", "Content_Localised":"Material Content: Low", "Remaining":100.000000 }
+{ "timestamp":"2026-11-06T21:46:14Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T21:46:33Z", "event":"ProspectedAsteroid", "Materials":[ { "Name":"LithiumHydroxide", "Name_Localised":"Lithium Hydroxide", "Proportion":26.333002 } ], "Content":"$AsteroidMaterialContent_Low;", "Content_Localised":"Material Content: Low", "Remaining":100.000000 }
+{ "timestamp":"2026-11-06T21:46:50Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T21:47:01Z", "event":"ProspectedAsteroid", "Materials":[ { "Name":"LithiumHydroxide", "Name_Localised":"Lithium Hydroxide", "Proportion":23.038731 } ], "Content":"$AsteroidMaterialContent_Medium;", "Content_Localised":"Material Content: Medium", "Remaining":100.000000 }
+{ "timestamp":"2026-11-06T21:47:18Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T21:47:23Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T21:47:38Z", "event":"ProspectedAsteroid", "Materials":[ { "Name":"water", "Proportion":8.592030 }, { "Name":"liquidoxygen", "Name_Localised":"Liquid oxygen", "Proportion":5.889183 }, { "Name":"MethanolMonohydrateCrystals", "Name_Localised":"Methanol Monohydrate Crystals", "Proportion":5.359297 } ], "Content":"$AsteroidMaterialContent_Low;", "Content_Localised":"Material Content: Low", "Remaining":100.000000 }
+{ "timestamp":"2026-11-06T21:48:30Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T21:48:37Z", "event":"ProspectedAsteroid", "Materials":[ { "Name":"Bromellite", "Proportion":14.283961 }, { "Name":"water", "Proportion":8.993737 }, { "Name":"LithiumHydroxide", "Name_Localised":"Lithium Hydroxide", "Proportion":7.403322 } ], "Content":"$AsteroidMaterialContent_Medium;", "Content_Localised":"Material Content: Medium", "Remaining":100.000000 }
+{ "timestamp":"2026-11-06T21:49:34Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T21:49:43Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T21:49:53Z", "event":"ProspectedAsteroid", "Materials":[ { "Name":"tritium", "Proportion":27.077219 }, { "Name":"water", "Proportion":1.815255 }, { "Name":"liquidoxygen", "Name_Localised":"Liquid oxygen", "Proportion":3.008490 } ], "Content":"$AsteroidMaterialContent_Low;", "Content_Localised":"Material Content: Low", "Remaining":100.000000 }
+{ "timestamp":"2026-11-06T21:50:13Z", "event":"LaunchDrone", "Type":"Collection" }
+{ "timestamp":"2026-11-06T21:50:58Z", "event":"LaunchDrone", "Type":"Collection" }
+{ "timestamp":"2026-11-06T21:51:05Z", "event":"LaunchDrone", "Type":"Collection" }
+{ "timestamp":"2026-11-06T21:51:10Z", "event":"LaunchDrone", "Type":"Collection" }
+{ "timestamp":"2026-11-06T21:52:09Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T21:52:17Z", "event":"ProspectedAsteroid", "Materials":[ { "Name":"tritium", "Proportion":27.077219 }, { "Name":"water", "Proportion":1.815255 }, { "Name":"liquidoxygen", "Name_Localised":"Liquid oxygen", "Proportion":3.008490 } ], "Content":"$AsteroidMaterialContent_Low;", "Content_Localised":"Material Content: Low", "Remaining":-2.222222 }
+{ "timestamp":"2026-11-06T21:52:54Z", "event":"LaunchDrone", "Type":"Collection" }
+{ "timestamp":"2026-11-06T21:55:46Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T21:55:51Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T21:56:08Z", "event":"ProspectedAsteroid", "Materials":[ { "Name":"HydrogenPeroxide", "Name_Localised":"Hydrogen Peroxide", "Proportion":19.988007 }, { "Name":"MethaneClathrate", "Name_Localised":"Methane Clathrate", "Proportion":5.611332 }, { "Name":"MethanolMonohydrateCrystals", "Name_Localised":"Methanol Monohydrate Crystals", "Proportion":2.860504 } ], "Content":"$AsteroidMaterialContent_Low;", "Content_Localised":"Material Content: Low", "Remaining":100.000000 }
+{ "timestamp":"2026-11-06T21:56:40Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T21:56:58Z", "event":"ProspectedAsteroid", "Materials":[ { "Name":"water", "Proportion":15.606483 }, { "Name":"HydrogenPeroxide", "Name_Localised":"Hydrogen Peroxide", "Proportion":9.161554 }, { "Name":"MethaneClathrate", "Name_Localised":"Methane Clathrate", "Proportion":4.582505 } ], "Content":"$AsteroidMaterialContent_High;", "Content_Localised":"Material Content: High", "Remaining":100.000000 }
+{ "timestamp":"2026-11-06T21:57:10Z", "event":"LaunchDrone", "Type":"Collection" }
+{ "timestamp":"2026-11-06T21:57:16Z", "event":"LaunchDrone", "Type":"Collection" }
+{ "timestamp":"2026-11-06T21:58:56Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T21:59:04Z", "event":"ProspectedAsteroid", "Materials":[ { "Name":"tritium", "Proportion":15.253751 }, { "Name":"MethanolMonohydrateCrystals", "Name_Localised":"Methanol Monohydrate Crystals", "Proportion":4.185360 }, { "Name":"MethaneClathrate", "Name_Localised":"Methane Clathrate", "Proportion":2.133354 } ], "Content":"$AsteroidMaterialContent_High;", "Content_Localised":"Material Content: High", "Remaining":100.000000 }
+{ "timestamp":"2026-11-06T21:59:08Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T21:59:16Z", "event":"ProspectedAsteroid", "Materials":[ { "Name":"tritium", "Proportion":15.253751 }, { "Name":"MethanolMonohydrateCrystals", "Name_Localised":"Methanol Monohydrate Crystals", "Proportion":4.185360 }, { "Name":"MethaneClathrate", "Name_Localised":"Methane Clathrate", "Proportion":2.133354 } ], "Content":"$AsteroidMaterialContent_High;", "Content_Localised":"Material Content: High", "Remaining":100.000000 }
+{ "timestamp":"2026-11-06T22:00:26Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T22:00:39Z", "event":"ProspectedAsteroid", "Materials":[ { "Name":"Bromellite", "Proportion":19.961754 }, { "Name":"water", "Proportion":6.783672 }, { "Name":"tritium", "Proportion":6.370100 } ], "Content":"$AsteroidMaterialContent_Low;", "Content_Localised":"Material Content: Low", "Remaining":100.000000 }
+{ "timestamp":"2026-11-06T22:00:46Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T22:01:07Z", "event":"ProspectedAsteroid", "Materials":[ { "Name":"MethaneClathrate", "Name_Localised":"Methane Clathrate", "Proportion":19.410309 }, { "Name":"HydrogenPeroxide", "Name_Localised":"Hydrogen Peroxide", "Proportion":6.224485 }, { "Name":"water", "Proportion":3.278986 } ], "Content":"$AsteroidMaterialContent_Low;", "Content_Localised":"Material Content: Low", "Remaining":100.000000 }
+{ "timestamp":"2026-11-06T22:01:09Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T22:01:16Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T22:01:23Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T22:01:38Z", "event":"ProspectedAsteroid", "Materials":[ { "Name":"Bromellite", "Proportion":22.932545 }, { "Name":"tritium", "Proportion":12.454914 } ], "Content":"$AsteroidMaterialContent_Medium;", "Content_Localised":"Material Content: Medium", "Remaining":100.000000 }
+{ "timestamp":"2026-11-06T22:01:44Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T22:01:59Z", "event":"ProspectedAsteroid", "Materials":[ { "Name":"LithiumHydroxide", "Name_Localised":"Lithium Hydroxide", "Proportion":14.072445 }, { "Name":"Bromellite", "Proportion":4.561964 }, { "Name":"MethaneClathrate", "Name_Localised":"Methane Clathrate", "Proportion":8.819736 } ], "Content":"$AsteroidMaterialContent_Medium;", "Content_Localised":"Material Content: Medium", "Remaining":100.000000 }
+{ "timestamp":"2026-11-06T22:02:03Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T22:02:17Z", "event":"ProspectedAsteroid", "Materials":[ { "Name":"liquidoxygen", "Name_Localised":"Liquid oxygen", "Proportion":14.940248 }, { "Name":"Bromellite", "Proportion":6.096347 } ], "Content":"$AsteroidMaterialContent_Low;", "Content_Localised":"Material Content: Low", "Remaining":100.000000 }
+{ "timestamp":"2026-11-06T22:03:16Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T22:03:28Z", "event":"ProspectedAsteroid", "Materials":[ { "Name":"water", "Proportion":14.302362 }, { "Name":"liquidoxygen", "Name_Localised":"Liquid oxygen", "Proportion":5.666091 }, { "Name":"Bromellite", "Proportion":6.028770 } ], "Content":"$AsteroidMaterialContent_High;", "Content_Localised":"Material Content: High", "Remaining":100.000000 }
+{ "timestamp":"2026-11-06T22:03:52Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T22:04:00Z", "event":"ProspectedAsteroid", "Materials":[ { "Name":"LithiumHydroxide", "Name_Localised":"Lithium Hydroxide", "Proportion":22.952301 }, { "Name":"tritium", "Proportion":2.837213 }, { "Name":"water", "Proportion":3.322093 } ], "Content":"$AsteroidMaterialContent_Medium;", "Content_Localised":"Material Content: Medium", "Remaining":100.000000 }
+{ "timestamp":"2026-11-06T22:04:44Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T22:04:53Z", "event":"ProspectedAsteroid", "Materials":[ { "Name":"HydrogenPeroxide", "Name_Localised":"Hydrogen Peroxide", "Proportion":12.831785 }, { "Name":"MethanolMonohydrateCrystals", "Name_Localised":"Methanol Monohydrate Crystals", "Proportion":6.855276 }, { "Name":"liquidoxygen", "Name_Localised":"Liquid oxygen", "Proportion":2.142920 } ], "Content":"$AsteroidMaterialContent_Medium;", "Content_Localised":"Material Content: Medium", "Remaining":100.000000 }
+{ "timestamp":"2026-11-06T22:05:14Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T22:05:32Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T22:05:48Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T22:05:53Z", "event":"ProspectedAsteroid", "Materials":[ { "Name":"LithiumHydroxide", "Name_Localised":"Lithium Hydroxide", "Proportion":10.655377 }, { "Name":"MethanolMonohydrateCrystals", "Name_Localised":"Methanol Monohydrate Crystals", "Proportion":9.814798 }, { "Name":"liquidoxygen", "Name_Localised":"Liquid oxygen", "Proportion":5.576736 } ], "Content":"$AsteroidMaterialContent_Low;", "Content_Localised":"Material Content: Low", "Remaining":100.000000 }
+{ "timestamp":"2026-11-06T22:07:57Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T22:08:03Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T22:08:10Z", "event":"ProspectedAsteroid", "Materials":[ { "Name":"Coltan", "Proportion":16.499512 }, { "Name":"Lepidolite", "Proportion":4.970311 }, { "Name":"Samarium", "Proportion":14.690452 } ], "Content":"$AsteroidMaterialContent_Medium;", "Content_Localised":"Material Content: Medium", "Remaining":100.000000 }
+{ "timestamp":"2026-11-06T22:08:14Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T22:08:21Z", "event":"ProspectedAsteroid", "Materials":[ { "Name":"Coltan", "Proportion":16.499512 }, { "Name":"Lepidolite", "Proportion":4.970311 }, { "Name":"Samarium", "Proportion":14.690452 } ], "Content":"$AsteroidMaterialContent_Medium;", "Content_Localised":"Material Content: Medium", "Remaining":100.000000 }
+{ "timestamp":"2026-11-06T22:08:28Z", "event":"LaunchDrone", "Type":"Collection" }
+{ "timestamp":"2026-11-06T22:08:35Z", "event":"LaunchDrone", "Type":"Collection" }
+{ "timestamp":"2026-11-06T22:08:40Z", "event":"LaunchDrone", "Type":"Collection" }
+{ "timestamp":"2026-11-06T22:08:54Z", "event":"MiningRefined", "Type":"$samarium_name;", "Type_Localised":"Samarium" }
+{ "timestamp":"2026-11-06T22:09:30Z", "event":"MiningRefined", "Type":"$samarium_name;", "Type_Localised":"Samarium" }
+{ "timestamp":"2026-11-06T22:09:59Z", "event":"MiningRefined", "Type":"$samarium_name;", "Type_Localised":"Samarium" }
+{ "timestamp":"2026-11-06T22:10:55Z", "event":"LaunchDrone", "Type":"Collection" }
+{ "timestamp":"2026-11-06T22:12:04Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T22:12:18Z", "event":"ProspectedAsteroid", "Materials":[ { "Name":"Osmium", "Proportion":36.856281 }, { "Name":"Praseodymium", "Proportion":9.242961 }, { "Name":"Indite", "Proportion":2.785426 } ], "Content":"$AsteroidMaterialContent_Medium;", "Content_Localised":"Material Content: Medium", "Remaining":100.000000 }
+{ "timestamp":"2026-11-06T22:13:14Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T22:13:34Z", "event":"ProspectedAsteroid", "Materials":[ { "Name":"Coltan", "Proportion":17.326267 }, { "Name":"Bertrandite", "Proportion":13.547568 }, { "Name":"Gallite", "Proportion":14.813148 } ], "Content":"$AsteroidMaterialContent_Medium;", "Content_Localised":"Material Content: Medium", "Remaining":100.000000 }
+{ "timestamp":"2026-11-06T22:13:45Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T22:14:01Z", "event":"ProspectedAsteroid", "Materials":[ { "Name":"Uraninite", "Proportion":49.382599 } ], "Content":"$AsteroidMaterialContent_Low;", "Content_Localised":"Material Content: Low", "Remaining":100.000000 }
+{ "timestamp":"2026-11-06T22:14:21Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T22:14:26Z", "event":"LaunchDrone", "Type":"Prospector" }
+{ "timestamp":"2026-11-06T22:14:38Z", "event":"ProspectedAsteroid", "Materials":[ { "Name":"Lepidolite", "Proportion":26.186359 }, { "Name":"Coltan", "Proportion":22.345810 }, { "Name":"Samarium", "Proportion":15.033608 } ], "Content":"$AsteroidMaterialContent_High;", "Content_Localised":"Material Content: High", "Remaining":100.000000 }
+{ "timestamp":"2026-11-06T22:14:49Z", "event":"LaunchDrone", "Type":"Collection" }
+{ "timestamp":"2026-11-06T22:14:53Z", "event":"LaunchDrone", "Type":"Collection" }
+{ "timestamp":"2026-11-06T22:14:56Z", "event":"LaunchDrone", "Type":"Collection" }
+{ "timestamp":"2026-11-06T22:15:37Z", "event":"MiningRefined", "Type":"$samarium_name;", "Type_Localised":"Samarium" }
+{ "timestamp":"2026-11-06T22:17:09Z", "event":"EjectCargo", "Type":"samarium", "Count":1, "Abandoned":false }
+{ "timestamp":"2026-11-06T22:17:16Z", "event":"EjectCargo", "Type":"samarium", "Count":1, "Abandoned":true }
+{ "timestamp":"2026-11-06T22:23:02Z", "event":"MarketSell", "MarketID":4401008131, "Type":"samarium", "Count":3, "SellPrice":36834, "TotalSale":110502, "AvgPricePaid":0 }

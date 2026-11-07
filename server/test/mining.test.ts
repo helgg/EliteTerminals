@@ -174,3 +174,32 @@ test('a prospect remembers where the ship was, when the game gave a position', (
   run([{ event: 'Status', Flags: 0 }, prospect()], s);
   assert.equal(s.mining.prospects[0].pos, null);
 });
+
+test('a session starts with the first prospector and ends in supercruise, kept in the past list', () => {
+  const s = run([
+    { event: 'LaunchDrone', Type: 'Prospector' },
+    prospect(),
+    { event: 'MiningRefined', Type: '$platinum_name;', Type_Localised: 'Platinum' },
+    { event: 'MiningRefined', Type: '$platinum_name;', Type_Localised: 'Platinum' },
+    { event: 'SupercruiseEntry' },
+  ]);
+  assert.equal(s.mining.past.length, 1);
+  assert.equal(s.mining.past[0].tons, 2);
+  assert.equal(s.mining.past[0].prospected, 1);
+  assert.equal(s.mining.past[0].refined[0].label, 'Platinum');
+  assert.equal(s.mining.session.startedAt, '');
+  assert.equal(s.mining.session.prospected, 0);
+  assert.equal(s.mining.prospects.length, 0);
+});
+
+test('a jump with nothing mined does not make an empty session; the next prospector opens a new one', () => {
+  const s = run([{ event: 'StartJump', JumpType: 'Hyperspace' }, { event: 'LaunchDrone', Type: 'Prospector' }, prospect(), { event: 'StartJump', JumpType: 'Hyperspace' }, { event: 'LaunchDrone', Type: 'Prospector' }]);
+  assert.equal(s.mining.past.length, 1);
+  assert.notEqual(s.mining.session.startedAt, '');
+});
+
+test('the past list keeps the last 10 sessions', () => {
+  const ev: JournalEvent[] = [];
+  for (let i = 0; i < 12; i++) ev.push({ event: 'LaunchDrone', Type: 'Prospector' }, { event: 'SupercruiseEntry' });
+  assert.equal(run(ev).mining.past.length, 10);
+});

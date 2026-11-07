@@ -76,12 +76,29 @@
   type Kind = 'core' | 'mine' | 'low' | 'skip';
   type Verdict = { kind: Kind; title: string; sub: string };
   const best = (p: Prospect) => p.materials.filter((x) => isTarget(x.label) || isTarget(x.name)).sort((a, b) => b.pct - a.pct)[0];
+  // What a rock is worth: each material's share at the best sell price found, per ton broken off (Cr/t).
+  // INFERRED: a ton of fragments refines in proportion to the shares the prospector shows.
+  const RICH_FLOOR = 2000;
+  const RICH_SHARE = 0.75;
+  const QUERY: Record<string, string> = { lowtemperaturediamonds: 'Low Temperature Diamonds', voidopal: 'Void Opal' };
+  const queryName = (x: { name: string; label: string }) => QUERY[norm(x.name)] ?? x.label;
+  const counted = (x: { name: string; label: string }) => !isIgnored(x.label) && !isIgnored(x.name);
+  const worth = (p: Prospect) => p.materials.reduce((a, x) => a + (counted(x) ? (x.pct / 100) * price(x.name) : 0), 0);
+  const topOre = (p: Prospect) => p.materials.filter(counted).sort((a, b) => b.pct * price(b.name) - a.pct * price(a.name))[0];
+  const worths = $derived(m.prospects.map(worth));
+  const bestWorth = $derived(Math.max(0, ...worths));
+  const rich = (w: number) => w >= RICH_FLOOR && w >= bestWorth * RICH_SHARE && m.prospects.length >= 3;
   function verdict(p: Prospect): Verdict {
     const b = best(p);
+    const w = worth(p);
     if (p.motherlode) return { kind: 'core', title: 'CORE', sub: `${p.motherlode} · crack it` };
     if (b && b.pct >= minPct) return { kind: 'mine', title: 'MINE', sub: `${b.label} ${b.pct.toFixed(1)}%` };
+    if (rich(w)) {
+      const o = topOre(p);
+      return { kind: 'mine', title: 'RICH', sub: `~${short(w)} Cr/t · ${o?.label ?? ''} ${o ? o.pct.toFixed(0) + '%' : ''}` };
+    }
     if (b) return { kind: 'low', title: 'LOW', sub: `${b.label} ${b.pct.toFixed(1)}% < ${minPct}%` };
-    return { kind: 'skip', title: 'SKIP', sub: 'no target material' };
+    return { kind: 'skip', title: 'SKIP', sub: w ? `no target · ~${short(w)} Cr/t` : 'no target material' };
   }
   const kindOf = (p: Prospect) => verdict(p).kind;
   const last = $derived(m.prospects[0]);
@@ -116,13 +133,58 @@
   const holdValue = $derived(ores.reduce((a, i) => a + i.count * price(i.name), 0));
   const refinedValue = $derived(ss.refined.reduce((a, r) => a + r.count * price(r.name), 0));
   const tools = $derived(m.tools);
+  /** Mining with a full hold wastes the trip: warn at 5% free (at least 2 t) and at zero. */
+  const holdAlert = $derived.by(() => {
+    if (!cap || (!ss.startedAt && !ores.length)) return '';
+    const free = cap - used;
+    return free <= 0 ? 'full' : free <= Math.max(2, cap * 0.05) ? 'near' : '';
+  });
+  /** Oldest first, for the value chart. */
+  const chart = $derived(m.prospects.map((p, i) => ({ p, idx: i, w: worths[i] ?? 0, kind: kindOf(p) })).reverse());
+  /** Bar height (%): square-root scale of the value against the best rock, so poor rocks stay visible; with no price
+   *  yet, the biggest share in the rock; an unpriced core always stands tall. */
+  const barH = (c: { p: Prospect; w: number }) => {
+    if (c.w && bestWorth) return Math.max(6, Math.sqrt(c.w / bestWorth) * 100);
+    if (c.p.motherlode) return 100;
+    if (bestWorth) return 0;
+    return Math.min(100, Math.max(0, ...c.p.materials.filter(counted).map((x) => x.pct)) * 2);
+  };
+  /** The rock shown under the chart: the one the player tapped, else the richest of the session. */
+  let pick = $state<number | null>(null);
+  const bestIdx = $derived(Math.max(0, worths.indexOf(bestWorth)));
+  const selIdx = $derived(pick !== null && pick < m.prospects.length ? pick : bestIdx);
+  const sel = $derived(m.prospects[selIdx]);
+  /** Per mineral over every prospected rock: in how many it showed up, its mean and best share (%), and its price. */
+  const mineralStats = $derived.by(() => {
+    const by = new Map<string, { label: string; name: string; rocks: number; sum: number; top: number }>();
+    for (const p of m.prospects) for (const x of p.materials) {
+      const e = by.get(norm(x.name)) ?? { label: x.label, name: x.name, rocks: 0, sum: 0, top: 0 };
+      e.rocks++;
+      e.sum += x.pct;
+      e.top = Math.max(e.top, x.pct);
+      by.set(norm(x.name), e);
+    }
+    return [...by.values()]
+      .map((e) => ({ ...e, avg: e.sum / e.rocks, px: price(e.name), ign: !counted(e) }))
+      .sort((a, b) => Number(a.ign) - Number(b.ign) || b.px * b.avg - a.px * a.avg || b.rocks - a.rocks);
+  });
+  const avgWorth = $derived(worths.length ? worths.reduce((a, b) => a + b, 0) / worths.length : 0);
+  const richCount = $derived(m.prospects.filter((p) => verdict(p).title === 'RICH' || verdict(p).kind === 'core').length);
+  const sinceRich = $derived.by(() => {
+    const i = m.prospects.findIndex((p) => verdict(p).title === 'RICH' || verdict(p).kind === 'core');
+    return i < 0 ? null : i;
+  });
+  /** Minerals that can occur as a motherlode core (community knowledge; INFERRED, the journal does not say). */
+  const CORE_KEYS = new Set(['platinum', 'painite', 'lowtemperaturediamonds', 'voidopal', 'alexandrite', 'benitoite', 'bromellite',
+    'grandidierite', 'monazite', 'musgravite', 'rhodplumsite', 'serendibite', 'tritium']);
+  const coreCapable = (name: string) => CORE_KEYS.has(norm(name));
   const me = $derived(
     s.status.latitude !== null && s.status.longitude !== null
       ? { lat: s.status.latitude, lon: s.status.longitude, alt: s.status.altitude ?? 0 } : null,
   );
 
   // --- right column tabs ---
-  type Tab = 'rings' | 'finder' | 'sell';
+  type Tab = 'rings' | 'finder' | 'ores' | 'sell';
   let tab = $state<Tab>(load('et.mining.tab', 'rings'));
   function setTab(t: Tab) {
     tab = t;
@@ -132,8 +194,18 @@
   // --- rings of this system ---
   const here = $derived(s.location.body);
   const rings = $derived(
-    (m.rings ?? []).slice().sort((a, b) => (b.name === here ? 1 : 0) - (a.name === here ? 1 : 0) || a.ls - b.ls),
+    (m.rings ?? []).slice().sort((a, b) => (b.name === here ? 1 : 0) - (a.name === here ? 1 : 0) || ringValue(b) - ringValue(a) || a.ls - b.ls),
   );
+  /** What a ring is worth to mine: its dearest hotspot mineral at the best sell price nearby (Cr/t; 0 if unpriced). */
+  const ringValue = (r: RingInfo) => r.signals.reduce((a, x) => Math.max(a, counted({ name: x.name, label: x.name }) ? price(x.name) : 0), 0);
+  const bestRing = $derived.by(() => {
+    let top: { ring: RingInfo; ore: string; value: number } | null = null;
+    for (const r of rings) for (const x of r.signals) {
+      const v = counted({ name: x.name, label: x.name }) ? price(x.name) : 0;
+      if (v > (top?.value ?? 0)) top = { ring: r, ore: x.name, value: v };
+    }
+    return top;
+  });
   const ringTone = (r: RingInfo) => ({ Icy: 'icy', 'Metal Rich': 'metal', Metallic: 'metal', Rocky: 'rocky' })[r.type] ?? '';
   const ringHasTarget = (r: RingInfo) => r.signals.some((x) => isTarget(x.name));
 
@@ -179,6 +251,15 @@
   const sellNames = $derived([
     ...new Map<string, string>([...ores.map((i) => i.name), ...ss.refined.map((r) => r.name)].map((n) => [norm(n), n])).values(),
   ].filter((n) => !isIgnored(n) && !isIgnored(sellLabel(n))));
+  /** Everything priced in one query: the hold and the refined ore, plus every material the prospector has shown. */
+  const ORE_LIST = [...VALUABLE, ...COMMON];
+  const priceNames = $derived([
+    ...new Map<string, string>([
+      ...ORE_LIST,
+      ...sellNames,
+      ...m.prospects.flatMap((p) => p.materials).filter(counted).map(queryName),
+    ].map((n) => [norm(n), n])).values(),
+  ]);
   /** The refined label is the game's display name; Cargo often gives only the internal one ("platinum"). */
   function sellLabel(name: string) {
     const refined = ss.refined.find((r) => norm(r.name) === norm(name))?.label;
@@ -191,11 +272,11 @@
     save('et.mining.sell', sellOpts);
   }
   async function scanSells() {
-    if (!sellNames.length) return;
+    if (!priceNames.length) return;
     selling = true;
     sellError = '';
     const q: MiningSellQuery = {
-      names: sellNames, radius: sellOpts.radius, maxAgeH: sellOpts.maxAgeH, pad: sellOpts.pad,
+      names: priceNames, radius: sellOpts.radius, maxAgeH: sellOpts.maxAgeH, pad: sellOpts.pad,
       planetary: sellOpts.planetary, carriers: sellOpts.carriers,
     };
     try {
@@ -212,7 +293,7 @@
   // price the hold once there is something in it, and again when a new commodity shows up
   let pricedFor = '';
   $effect(() => {
-    const key = sellNames.map(norm).sort().join(',');
+    const key = priceNames.map(norm).sort().join(',');
     if (key && key !== pricedFor && s.location.system && !selling) {
       pricedFor = key;
       void scanSells();
@@ -221,6 +302,24 @@
   const sorted = (list: CommodityQuote[]) => list.slice().sort((a, b) =>
     sellOpts.sort === 'distance' ? a.end.fromMe - b.end.fromMe : sellOpts.sort === 'demand' ? b.volume - a.volume : b.price - a.price);
   const inHold = (name: string) => ores.find((i) => norm(i.name) === norm(name))?.count ?? 0;
+
+  // --- ore prices around here: what each mineral pays, to choose which rocks to prospect ---
+  type Show = 'all' | 'targets' | 'here';
+  let show = $state<Show>(load('et.mining.show', 'all'));
+  const hereKeys = $derived(new Set(rings.flatMap((r) => r.signals.map((x) => norm(x.name)))));
+  /** Best price, the mean of the best stations found (up to 20) and how many buy it, within the sell range. */
+  const oreRows = $derived(
+    ORE_LIST.map((name) => {
+      const q = sells?.[norm(name)] ?? [];
+      const best = q.reduce((a, x) => Math.max(a, x.price), 0);
+      const avg = q.length ? q.reduce((a, x) => a + x.price, 0) / q.length : 0;
+      return { name, best, avg, n: q.length, ring: hereKeys.has(norm(name)), core: coreCapable(name) };
+    })
+      .filter((r) => !isIgnored(r.name) || show === 'all')
+      .filter((r) => show === 'all' || (show === 'targets' ? isTarget(r.name) : r.ring))
+      .sort((a, b) => Number(isTarget(b.name)) - Number(isTarget(a.name)) || b.best - a.best),
+  );
+  const maxBest = $derived(Math.max(1, ...oreRows.map((r) => r.best)));
 
   // --- console ---
   let ejectArmed = $state(false);
@@ -306,6 +405,7 @@
           <div><small>CONTENT</small>
             <span class="lvl">{#each [1, 2, 3] as n (n)}<i class:on={(CONTENT[last.content] ?? 0) >= n}></i>{/each}</span>
             <b>{last.content ? last.content.toUpperCase() : '—'}</b></div>
+          <div><small>WORTH</small><b class:warn={rich(worths[0])}>{worths[0] ? `~${short(worths[0])}/t` : '—'}</b></div>
           <div><small>REMAINING</small><b class:warn={last.remaining < 100}>{last.remaining.toFixed(0)}%</b></div>
           <div><small>MOTHERLODE</small><b class:core={!!last.motherlode}>{last.motherlode || 'none'}</b></div>
         </div>
@@ -332,16 +432,17 @@
       {#if m.prospects.length > 1}
         <div class="scroll">
           <table>
-            <thead><tr><th>AGO</th><th>VERDICT</th><th>BEST TARGET</th><th class="r">%</th><th>CONT.</th><th class="r">LEFT</th></tr></thead>
+            <thead><tr><th>AGO</th><th>VERDICT</th><th>BEST TARGET</th><th class="r">%</th><th class="r">CR/T</th><th>CONT.</th><th class="r">LEFT</th></tr></thead>
             <tbody>
               {#each m.prospects.slice(1) as p, i (i)}
                 {@const v = verdict(p)}
                 {@const b = best(p)}
-                <tr>
+                <tr class:picked={selIdx === i + 1} onclick={() => (pick = i + 1)}>
                   <td class="dim">{ago(p.at)}</td>
                   <td><span class="vt v-{v.kind}">{v.title}</span></td>
                   <td class="cut">{p.motherlode ? `◆ ${p.motherlode}` : b?.label ?? '—'}</td>
                   <td class="num r">{b ? b.pct.toFixed(1) : ''}</td>
+                  <td class="num r" class:warn={rich(worths[i + 1])}>{worths[i + 1] ? short(worths[i + 1]) : ''}</td>
                   <td class="dim">{p.content ? p.content[0] : '—'}</td>
                   <td class="num r dim">{p.remaining.toFixed(0)}%</td>
                 </tr>
@@ -357,10 +458,80 @@
 
   <!-- middle: radar, session -->
   <div class="col">
+    {#if me || m.trail.points.length}
     <Panel class="radar" title="Radar" aside={m.trail.body ? `${m.trail.body} · trail and prospects` : 'trail and prospects'} scroll={false}>
       <MiningRadar {me} heading={s.status.heading} radius={m.trail.radius || s.status.planetRadius || 0}
         trail={m.trail.points} prospects={m.prospects} {kindOf} />
     </Panel>
+    {:else}
+    <!-- inside a ring the game gives no position: the radar would be empty, so chart what each rock was worth -->
+    <Panel class="radar" title="Rock value" aside={chart.length ? `${chart.length} asteroids · oldest → newest` : 'prospect a rock'} scroll={false}>
+      {#if chart.length}
+        <div class="vstats">
+          <div><small>BEST</small><b class="warn">{bestWorth ? `~${short(bestWorth)}/t` : '—'}</b></div>
+          <div><small>AVERAGE</small><b>{avgWorth ? `~${short(avgWorth)}/t` : '—'}</b></div>
+          <div><small>RICH</small><b class="ok">{richCount} of {chart.length}</b></div>
+          <div><small>SINCE LAST RICH</small><b>{sinceRich === null ? '—' : sinceRich}</b></div>
+          <div><small>CORES</small><b class:core={cores > 0}>{cores} of {chart.length}</b></div>
+        </div>
+        <div class="vchart" aria-label="Value of each prospected asteroid">
+          {#each chart as c (c.idx)}
+            <button class="vbar v-{c.kind}" class:sel={c.idx === selIdx} onclick={() => (pick = c.idx)}
+              title="{ago(c.p.at)} ago · {c.w ? '~' + short(c.w) + ' Cr/t' : 'no price'} · {c.p.content || '—'} content">
+              <span class="vfill" style:height="{barH(c)}%"></span>
+              {#if c.p.motherlode}<em>◆</em>{/if}
+            </button>
+          {/each}
+        </div>
+        {#if sel}
+          <div class="vsel rock">
+            <div class="vhead">
+              <b>{pick === null ? 'BEST ROCK' : selIdx === 0 ? 'NEWEST ROCK' : 'ROCK'}</b>
+              <span class="dim">{ago(sel.at)} ago · {sel.content ? sel.content.toUpperCase() : '—'} content · {sel.remaining.toFixed(0)}% left</span>
+              <span class="vt v-{verdict(sel).kind}">{verdict(sel).title}</span>
+              {#if pick !== null}<button class="step vreset" onclick={() => (pick = null)}>BEST</button>{/if}
+            </div>
+            <table class="vmats">
+              <tbody>
+                {#each sel.materials as x (x.name)}
+                  {@const px = price(x.name)}
+                  <tr class:tgt={isTarget(x.label) || isTarget(x.name)} class:ign={!counted(x)} onclick={() => cycle(x.label)} title="tap: target → ignore → plain">
+                    <td class="cut">{coreCapable(x.name) ? '◆ ' : ''}{x.label}</td>
+                    <td class="mbar2"><i style:width="{Math.min(100, x.pct * 2)}%"></i></td>
+                    <td class="num r">{x.pct.toFixed(1)}%</td>
+                    <td class="num r dim">{px ? `${short(px)}/t` : '—'}</td>
+                    <td class="num r warn">{px && counted(x) ? short((x.pct / 100) * px) : ''}</td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+            <p class="vnote">Columns: share of the rock · best price per ton · Cr/t it adds. Tap a bar to inspect that rock.</p>
+          </div>
+        {/if}
+        <div class="vsel field">
+          <div class="vhead"><b>MINERALS IN THIS FIELD</b><span class="dim">over {chart.length} rocks</span></div>
+          <table class="vmats">
+            <thead><tr><th>ORE</th><th class="r">ROCKS</th><th class="r">AVG %</th><th class="r">BEST %</th><th class="r">PRICE/T</th></tr></thead>
+            <tbody>
+              {#each mineralStats as e (e.name)}
+                <tr class:tgt={isTarget(e.label) || isTarget(e.name)} class:ign={e.ign} onclick={() => cycle(e.label)} title="tap: target → ignore → plain">
+                  <td class="cut">{coreCapable(e.name) ? '◆ ' : ''}{e.label}</td>
+                  <td class="num r dim">{e.rocks}</td>
+                  <td class="num r">{e.avg.toFixed(1)}</td>
+                  <td class="num r">{e.top.toFixed(1)}</td>
+                  <td class="num r warn">{e.px ? short(e.px) : '—'}</td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
+        {#if !bestWorth}<p class="vnote">No sell price found nearby yet: the bars show the biggest share in each rock until the markets answer. Try a longer RANGE in ORES.</p>{/if}
+      {:else}
+        <p class="none">Fire a prospector limpet at a rock. Inside a ring the game gives no position, so this shows what each
+          rock was worth, to help you spot the rich ones.</p>
+      {/if}
+    </Panel>
+    {/if}
     <Panel class="session" title="Session" aside={hours ? `${(hours * 60).toFixed(0)} min since the first ton` : 'nothing refined yet'} scroll={false}>
       <div class="kpis">
         <div><small>REFINED</small><b class="ok">{refinedTons}t</b></div>
@@ -369,6 +540,9 @@
         <div><small>CR/H</small><b class="tele">{hours && refinedValue ? short(refinedValue / hours) : '—'}</b></div>
         <div><small>CORES</small><b>{ss.cracked}</b></div>
       </div>
+      {#if holdAlert}
+        <p class="fullwarn" class:full={holdAlert === 'full'}>{holdAlert === 'full' ? 'HOLD FULL' : 'HOLD NEARLY FULL'} · {Math.max(0, cap - used)}t free{#if holdAlert === 'full'} · time to sell{/if}</p>
+      {/if}
       <div class="hold">
         <div class="line"><span>HOLD <b>{used}</b>/{cap}t · free <b class:bad={cap > 0 && cap - used < 4}>{Math.max(0, cap - used)}t</b>{#if junkTons} · <b class="bad">{junkTons}t junk</b>{/if}</span>
           <span>LIMPETS <b class:bad={limpets < 4}>{limpets}</b> · used P{ss.prospectors} C{ss.collectors}</span></div>
@@ -380,6 +554,11 @@
           {#each ss.refined as r (r.name)}
             <span class="rf" class:target={isTarget(r.label)} class:ign={isIgnored(r.label)}><b>{r.count}t</b> {r.label}{#if price(r.name) && !isIgnored(r.label)}<small> · {short(r.count * price(r.name))}</small>{/if}</span>
           {/each}
+        </div>
+      {/if}
+      {#if m.past.length}
+        <div class="pastl"><small>PREVIOUS</small>
+          {#each m.past.slice(0, 3) as p (p.endedAt)}<span>{ago(p.endedAt)} ago · <b>{p.tons}t</b> · {p.prospected} rocks{#if p.cracked} · {p.cracked} cores{/if}</span>{/each}
         </div>
       {/if}
       <div class="tools">
@@ -400,12 +579,16 @@
     <section class="tabbed">
       <nav class="tabs">
         <button class:on={tab === 'rings'} onclick={() => setTab('rings')}>RINGS <span class="n">{rings.length}</span></button>
-        <button class:on={tab === 'finder'} onclick={() => setTab('finder')}>HOTSPOT FINDER</button>
+        <button class:on={tab === 'finder'} onclick={() => setTab('finder')}>HOTSPOTS</button>
+        <button class:on={tab === 'ores'} onclick={() => setTab('ores')}>ORES</button>
         <button class:on={tab === 'sell'} onclick={() => setTab('sell')}>SELL {#if holdValue}<span class="n">{short(holdValue)}</span>{/if}</button>
       </nav>
       <div class="tbody">
         {#if tab === 'rings'}
           <p class="sub">{m.rings === null ? 'Asking Spansh about this system…' : `${s.location.system.toUpperCase()} · type, reserve and hotspots · own scans override Spansh`}</p>
+          {#if bestRing}
+            <p class="bestring">BEST HERE <b>{bestRing.ore}</b> · <Name value={bestRing.ring.name} /> · <b class="warn">{short(bestRing.value)} Cr/t</b>{#if bestRing.ring.name === here}<span class="hereTag">YOU ARE HERE</span>{/if}</p>
+          {/if}
           {#if rings.length}
             <div class="scroll">
               {#each rings as r (r.name)}
@@ -415,7 +598,7 @@
                   <span class="rr" class:pristine={r.reserve === 'Pristine'}>{r.reserve.toUpperCase() || '—'}</span>
                   <span class="rl num dim">{r.ls ? `${cr(r.ls)} ls` : ''}</span>
                   <span class="sigs">
-                    {#each r.signals as x (x.name)}<span class="sig" class:target={isTarget(x.name)} title={x.name}>{abbr(x.name)} {x.count}</span>{/each}
+                    {#each r.signals as x (x.name)}<span class="sig" class:target={isTarget(x.name)} title={coreCapable(x.name) ? `${x.name}: can have a motherlode core` : x.name}>{coreCapable(x.name) ? '◆ ' : ''}{abbr(x.name)} {x.count}{#if price(x.name)} · {short(price(x.name))}{/if}</span>{/each}
                     {#if !r.signals.length}<span class="dim">no hotspots known</span>{/if}
                     {#if r.own}<span class="own">OWN SCAN</span>{/if}
                   </span>
@@ -426,16 +609,24 @@
             <p class="none">{m.rings === null ? 'Rings and hotspots of this system come from Spansh.' : 'No ringed bodies known in this system.'}</p>
           {/if}
         {:else if tab === 'finder'}
-          <div class="frow">
-            <select value={finder.commodity} onchange={(e) => setFinder({ commodity: e.currentTarget.value })} aria-label="Commodity">
-              {#each HOT as h (h)}<option value={h}>{h}</option>{/each}
-            </select>
-            <span class="seg">{#each [25, 50, 100, 200] as r (r)}<button class:on={finder.radius === r} onclick={() => setFinder({ radius: r })}>{r}</button>{/each}</span><em>ly</em>
-          </div>
-          <div class="frow">
-            <span class="seg">{#each [1, 2, 3] as n (n)}<button class:on={finder.minCount === n} onclick={() => setFinder({ minCount: n })}>{n}+</button>{/each}</span><em>spots</em>
-            <button class="chip" class:on={finder.pristine} onclick={() => setFinder({ pristine: !finder.pristine })}>PRISTINE</button>
-            <button class="go" class:busy={finding} disabled={finding} onclick={find}>{finding ? 'SEARCHING' : 'FIND'}</button>
+          <div class="fgrid">
+            <div class="fld wide"><span class="cap">MINERAL</span>
+              <select value={finder.commodity} onchange={(e) => setFinder({ commodity: e.currentTarget.value })} aria-label="Commodity">
+                {#each HOT as h (h)}<option value={h}>{h}</option>{/each}
+              </select>
+            </div>
+            <div class="fld"><span class="cap">RADIUS · LY</span>
+              <span class="seg">{#each [25, 50, 100, 200] as r (r)}<button class:on={finder.radius === r} onclick={() => setFinder({ radius: r })}>{r}</button>{/each}</span>
+            </div>
+            <div class="fld"><span class="cap">HOTSPOTS PER RING</span>
+              <span class="seg">{#each [1, 2, 3] as n (n)}<button class:on={finder.minCount === n} onclick={() => setFinder({ minCount: n })}>{n}+</button>{/each}</span>
+            </div>
+            <div class="fld"><span class="cap">RESERVE</span>
+              <span class="seg"><button class:on={!finder.pristine} onclick={() => setFinder({ pristine: false })}>ANY</button><button class:on={finder.pristine} onclick={() => setFinder({ pristine: true })}>PRISTINE</button></span>
+            </div>
+            <div class="fld"><span class="cap">&nbsp;</span>
+              <button class="go" class:busy={finding} disabled={finding} onclick={find}>{finding ? 'SEARCHING' : 'FIND'}</button>
+            </div>
           </div>
           {#if findError}<p class="none warn">{findError}</p>
           {:else if found?.length}
@@ -462,17 +653,50 @@
             <p class="none">Pick a commodity and FIND: rings around {s.location.system.toUpperCase() || 'you'}, nearest first. PLOT sets the route.</p>
           {/if}
           {#if s.macros.plot.error && s.macros.plot.system}<p class="none warn">{s.macros.plot.system.toUpperCase()}: {s.macros.plot.error}</p>{/if}
-        {:else}
-          <div class="frow">
-            <span class="seg">{#each [20, 40, 80] as r (r)}<button class:on={sellOpts.radius === r} onclick={() => setSell({ radius: r })}>{r}</button>{/each}</span><em>ly</em>
-            <span class="seg">{#each ['S', 'M', 'L'] as p (p)}<button class:on={sellOpts.pad === p} onclick={() => setSell({ pad: p as 'S' | 'M' | 'L' })}>{p}</button>{/each}</span><em>pad</em>
-            <button class="chip" class:on={sellOpts.planetary} onclick={() => setSell({ planetary: !sellOpts.planetary })}>SURFACE</button>
-            <button class="chip" class:on={sellOpts.carriers} onclick={() => setSell({ carriers: !sellOpts.carriers })}>CARRIERS</button>
+        {:else if tab === 'ores'}
+          <div class="fgrid">
+            <div class="fld"><span class="cap">RANGE · LY</span>
+              <span class="seg">{#each [20, 40, 80] as r (r)}<button class:on={sellOpts.radius === r} onclick={() => { setSell({ radius: r }); void scanSells(); }}>{r}</button>{/each}</span>
+            </div>
+            <div class="fld"><span class="cap">SHOW</span>
+              <span class="seg">{#each [['all', 'ALL'], ['targets', 'TARGETS'], ['here', 'RINGS HERE']] as [k, l] (k)}<button class:on={show === k} onclick={() => { show = k as Show; save('et.mining.show', show); }}>{l}</button>{/each}</span>
+            </div>
           </div>
-          <div class="frow">
-            <span class="seg">{#each [['price', 'PRICE'], ['demand', 'DEMAND'], ['distance', 'NEAR']] as [k, l] (k)}<button class:on={sellOpts.sort === k} onclick={() => setSell({ sort: k as SellOpts['sort'] })}>{l}</button>{/each}</span><em>sort</em>
-            <span class="dim worth">{holdValue ? `hold ~${short(holdValue)} Cr` : ''}</span>
-            <button class="go" class:busy={selling} disabled={selling || !sellNames.length} onclick={scanSells}>{selling ? 'SCANNING' : 'SCAN'}</button>
+          <div class="scroll">
+            <table class="ores">
+              <thead><tr><th>ORE</th><th class="r">BEST</th><th class="r" title="Mean of the best stations found, up to 20">AVG</th><th class="r">MKTS</th></tr></thead>
+              <tbody>
+                {#each oreRows as r (r.name)}
+                  <tr class:tgt={isTarget(r.name)} class:ign={isIgnored(r.name)} onclick={() => cycle(r.name)} title="Tap: target, ignore, plain">
+                    <td class="cut"><span class="mark">{isTarget(r.name) ? '★' : isIgnored(r.name) ? '✕' : ''}</span>{r.core ? '◆ ' : ''}{r.name}{#if r.ring}<span class="own">RING</span>{/if}</td>
+                    <td class="num r bar" style="--w:{(r.best / maxBest) * 100}%"><b>{r.best ? cr(r.best) : '—'}</b></td>
+                    <td class="num r dim">{r.avg ? cr(Math.round(r.avg)) : '—'}</td>
+                    <td class="num r dim">{r.n || ''}</td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+            {#if !oreRows.length}<p class="none">{show === 'targets' ? 'No target set: tap an ore to mark it.' : show === 'here' ? 'No known hotspots in the rings of this system.' : 'Pricing the ores…'}</p>{/if}
+          </div>
+          <p class="hint">{selling ? 'Pricing…' : sells ? `Sell prices within ${sellOpts.radius} ly, pad ${sellOpts.pad}. AVG is the mean of the best stations found.` : 'Pricing starts in a few seconds.'}</p>
+        {:else}
+          <div class="fgrid">
+            <div class="fld"><span class="cap">RANGE · LY</span>
+              <span class="seg">{#each [20, 40, 80] as r (r)}<button class:on={sellOpts.radius === r} onclick={() => setSell({ radius: r })}>{r}</button>{/each}</span>
+            </div>
+            <div class="fld"><span class="cap">LANDING PAD</span>
+              <span class="seg">{#each ['S', 'M', 'L'] as p (p)}<button class:on={sellOpts.pad === p} onclick={() => setSell({ pad: p as 'S' | 'M' | 'L' })}>{p}</button>{/each}</span>
+            </div>
+            <div class="fld"><span class="cap">SORT BY</span>
+              <span class="seg">{#each [['price', 'PRICE'], ['demand', 'DEMAND'], ['distance', 'NEAR']] as [k, l] (k)}<button class:on={sellOpts.sort === k} onclick={() => setSell({ sort: k as SellOpts['sort'] })}>{l}</button>{/each}</span>
+            </div>
+            <div class="fld"><span class="cap">INCLUDE</span>
+              <span class="seg"><button class:on={sellOpts.planetary} onclick={() => setSell({ planetary: !sellOpts.planetary })}>SURFACE</button><button class:on={sellOpts.carriers} onclick={() => setSell({ carriers: !sellOpts.carriers })}>CARRIERS</button></span>
+            </div>
+            <div class="fld wide scanrow">
+              <span class="dim worth">{holdValue ? `hold ~${short(holdValue)} Cr` : 'hold empty'}</span>
+              <button class="go" class:busy={selling} disabled={selling || !sellNames.length} onclick={scanSells}>{selling ? 'SCANNING' : 'SCAN'}</button>
+            </div>
           </div>
           {#if sellError}<p class="none warn">{sellError}</p>{/if}
           {#if !sellNames.length}
@@ -557,6 +781,7 @@
   .ok { color: var(--ok); } .warn { color: var(--hud-hi); } .bad { color: var(--danger); } .tele { color: var(--telemetry); }
   .scroll { flex: 1; min-height: 0; overflow-y: auto; }
   :global(.panel.history .body), :global(.panel.radar .body), :global(.panel.prospect .body) { display: flex; flex-direction: column; }
+  :global(.panel.radar .body) { flex: 1 1 0; }
 
   /* chips and segmented pickers, thumb-sized; never wrap inside */
   .chip, .seg button, .step, .go, .plot {
@@ -577,8 +802,25 @@
   .chip:active, .seg button:active, .go:active, .step:active, .plot:active { filter: brightness(1.35); transform: translateY(1px); }
   /* filter rows: one line each, by design; the select and the spacer take what is left */
   .frow { display: flex; flex-wrap: nowrap; align-items: center; gap: 6px; margin-bottom: 6px; min-width: 0; }
-  .frow select { flex: 1; min-width: 0; }
-  .worth { flex: 1; text-align: right; font-size: 11px; white-space: nowrap; overflow: hidden; }
+  .worth { flex: 1; font-size: 12px; white-space: nowrap; overflow: hidden; }
+  /* labelled filter grid: two columns, every control stretches to its cell so edges line up */
+  .fgrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px 12px; margin-bottom: 8px; }
+  .fld { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .fld.wide { grid-column: 1 / -1; }
+  .fld .cap { font-size: 10px; letter-spacing: .1em; color: var(--dim); }
+  .fld .seg { display: flex; }
+  .fld .seg button { flex: 1; padding: 0 4px; }
+  .fld select { width: 100%; }
+  .fld .go { margin-left: 0; width: 100%; }
+  .ores tbody tr { cursor: pointer; }
+  .ores tr.tgt td:first-child { color: var(--hud-hi); }
+  .ores tr.ign { opacity: .45; }
+  .ores .mark { display: inline-block; width: 14px; color: var(--hud-hi); }
+  .ores tr.ign .mark { color: var(--danger); }
+  .ores td.bar { background: linear-gradient(to right, rgba(55, 198, 212, .22) var(--w), transparent var(--w)); }
+  .ores .own { margin-left: 6px; }
+  .fld.scanrow { flex-direction: row; align-items: center; gap: 10px; }
+  .fld.scanrow .go { width: auto; flex: 0 0 50%; }
   select { min-height: 34px; background: var(--steel); color: var(--hud-hi); border: 1px solid var(--rule); font: inherit; font-size: 12px; padding: 0 6px; }
 
   /* prospector */
@@ -597,7 +839,43 @@
   .v-core { color: var(--macro); background: rgb(184 108 230 / .16); }
   .v-low { color: var(--hud-hi); background: rgb(255 181 69 / .10); }
   .v-skip { color: var(--danger); background: rgb(209 72 58 / .10); }
-  .facts { display: grid; grid-template-columns: 1.2fr .8fr 1.3fr; gap: 8px; margin-bottom: 8px; }
+  .facts { display: grid; grid-template-columns: 1.1fr 1fr .8fr 1.2fr; gap: 8px; margin-bottom: 8px; }
+  .vstats { display: flex; gap: 18px; padding: 4px 2px 8px; flex-wrap: nowrap; }
+  .vstats small { display: block; color: var(--dim); font-size: var(--fs-xs); letter-spacing: .1em; white-space: nowrap; }
+  .vstats b { font-size: 15px; white-space: nowrap; }
+  .vstats b.core { color: var(--macro); }
+  .vbar { padding: 0; border: 0; background: none; cursor: pointer; }
+  .vbar.sel { outline: 1px solid var(--hud-hi); outline-offset: 1px; }
+  .vsel { margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--rule); min-height: 0; overflow-y: auto; }
+  .fullwarn { margin: 0 0 6px; padding: 4px 8px; font-size: 12px; font-weight: 700; letter-spacing: .08em; color: var(--void); background: var(--hud-hi); }
+  .fullwarn.full { background: var(--danger); color: #fff; animation: busy .6s linear infinite alternate; }
+  .pastl { display: flex; flex-wrap: wrap; gap: 2px 14px; margin: 4px 0; font-size: 11px; color: var(--dim); }
+  .pastl small { letter-spacing: .1em; }
+  .pastl b { color: var(--ok); }
+  .vsel.rock { flex: none; overflow: visible; }
+  .vsel.field { flex: 1 1 0; }
+  .vhead { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; white-space: nowrap; font-size: 11px; }
+  .vhead b { color: var(--hud-hi); letter-spacing: .08em; }
+  .vhead .vreset { margin-left: auto; min-height: 26px; }
+  .vmats { width: 100%; }
+  .vmats th { font-size: 10px; letter-spacing: .08em; color: var(--dim); font-weight: 400; text-align: left; padding: 2px 0; }
+  .vmats th.r { text-align: right; }
+  .vmats th.r, .vmats td.r { padding-left: 12px; }
+  .vmats tr { cursor: pointer; }
+  .vmats tr.tgt td:first-child { color: var(--hud-hi); }
+  .vmats tr.ign { opacity: .45; }
+  .vmats .mbar2 { width: 30%; }
+  .vmats .mbar2 i { display: block; height: 6px; background: var(--hud); opacity: .8; }
+  tr.picked td { background: rgba(255, 122, 24, .10); }
+  .vchart { flex: 0 0 34%; min-height: 72px; display: flex; align-items: flex-end; gap: 3px; padding: 6px 2px 0;
+    border-bottom: 1px solid var(--line); }
+  .vbar { flex: 1 1 0; min-width: 4px; height: 100%; position: relative; display: flex; align-items: flex-end; }
+  .vbar .vfill { display: block; width: 100%; background: var(--dim); opacity: .55; }
+  .vbar.v-mine .vfill { background: var(--ok); opacity: 1; }
+  .vbar.v-core .vfill { background: var(--macro); opacity: 1; }
+  .vbar.v-low .vfill { background: var(--warn, #ffb545); opacity: .8; }
+  .vbar em { position: absolute; top: 0; left: 50%; transform: translateX(-50%); color: var(--macro); font-style: normal; font-size: 12px; }
+  .vnote { color: var(--dim); font-size: var(--fs-xs); margin: 6px 0 0; }
   .facts small, .kpis small { display: block; color: var(--dim); font-size: var(--fs-xs); letter-spacing: .1em; }
   .facts b { font-size: 15px; }
   .facts b.core { color: var(--macro); }
@@ -647,7 +925,7 @@
 
   /* right column: one panel with tabs */
   .tabbed { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--rule); }
-  .tabs { display: grid; grid-template-columns: 1fr 1.4fr 1fr; flex: none; }
+  .tabs { display: grid; grid-template-columns: 1fr 1.5fr .9fr 1fr; flex: none; }
   .tabs button {
     min-height: 40px; font-size: 12px; font-weight: 800; letter-spacing: .14em; color: var(--muted); white-space: nowrap;
     background: linear-gradient(to bottom, #2b2014, var(--steel)); border: 0; border-bottom: 1px solid var(--rule); border-right: 1px solid var(--rule);
@@ -670,6 +948,10 @@
   .rt, .rr { font-size: var(--fs-xs); letter-spacing: .06em; color: var(--muted); white-space: nowrap; }
   .pristine { color: var(--ok) !important; }
   .rl { text-align: right; white-space: nowrap; }
+  .bestring { margin: 0 0 6px; padding: 5px 8px; font-size: 12px; background: rgb(255 122 24 / .08); border-left: 2px solid var(--hud-hi); color: var(--dim); }
+  .bestring b { color: var(--hud-hi); }
+  .bestring .warn { color: var(--ok); }
+  .bestring .hereTag { margin-left: 8px; }
   .sigs { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px; }
   .sig { font-size: var(--fs-xs); padding: 1px 6px; border: 1px solid var(--rule); color: var(--muted); }
   .sig.target { color: var(--void); background: var(--hud-hi); border-color: var(--hud-hi); font-weight: 700; }

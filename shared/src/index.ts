@@ -409,7 +409,20 @@ export interface MiningState {
     collectors: number;
     firstRefinedAt: string;
     lastRefinedAt: string;
+    /** The first prospector or refined ton of this session; empty until mining starts. */
+    startedAt: string;
   };
+  /** Finished sessions, newest first (a session ends when the ship goes to supercruise or jumps). */
+  past: PastSession[];
+}
+
+export interface PastSession {
+  startedAt: string;
+  endedAt: string;
+  prospected: number;
+  tons: number;
+  cracked: number;
+  refined: { label: string; count: number }[];
 }
 
 /** Display names for ship ids whose journal events often come without a `_Localised` name. */
@@ -448,7 +461,8 @@ export function initialMining(): MiningState {
     rings: null,
     scanned: {},
     trail: { body: '', radius: 0, points: [] },
-    session: { prospected: 0, refined: [], cracked: 0, prospectors: 0, collectors: 0, firstRefinedAt: '', lastRefinedAt: '' },
+    session: { prospected: 0, refined: [], cracked: 0, prospectors: 0, collectors: 0, firstRefinedAt: '', lastRefinedAt: '', startedAt: '' },
+    past: [],
   };
 }
 
