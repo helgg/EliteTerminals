@@ -247,19 +247,31 @@ a second.
 
 **MINING** (ship; the surface vehicle is not built yet)
 
+![MINING screen: the last prospected rock, the value of every rock with its axis, the rings of the system with their hotspots and the console](docs/images/mining.jpg)
+
 - **Prospector**: the last rock the prospector limpet read, with a verdict (MINE, RICH, CORE, LOW, SKIP), the share of
-  each mineral and its worth in credits per ton. Mark minerals as targets or to ignore; ignored ones drop out of
-  the verdict, the value and the sale.
-- **Rock value**: one bar per rock, with a value axis in Cr/t and a dashed line where RICH starts. A rock worth
-  nothing gets a short red bar, so the chart never has gaps. Tap a bar to see that rock.
+  each mineral and its worth in credits per ton. Mark minerals as targets (★) or to ignore (✕): ignored ones drop out
+  of the verdict, the value, the hold's junk count and the sale. The marks are the same lists everywhere, so a mark
+  made in ORES shows in TARGETS / IGNORE and the other way round (they are kept on each device).
+- **Rock value**: one bar per rock, with a value axis in Cr/t and a dashed line where RICH starts (a rock is RICH from
+  75% of the best one, at least 2,000 Cr/t). A rock worth nothing (every mineral ignored, or no price known) gets a
+  short red bar, so the chart never has gaps. Tap a bar, or anywhere in the chart, to inspect that rock.
 - **Session**: refined tons, tons and credits per hour, hold space with a warning when it is nearly full, the
   limpets used, and the last three sessions.
-- **RINGS, HOTSPOTS, ORES, SELL**: the rings of a system with their hotspots, a hotspot finder with an overlap
-  filter (rings with 2 or more hotspots of one mineral), the price of every ore around you and the best stations to
-  sell what you mined. **AROUND** points all four at another system; it starts as your current one.
+- **AROUND**: the box above RINGS, HOTSPOTS, ORES and SELL. It starts as your current system; type a name to look at
+  rings, hotspots and prices around another system (for example before you jump there), and HERE goes back.
+- **RINGS**: the rings of the system with type, reserve and hotspots, dearest first, with the price of each hotspot
+  mineral. The **OVERLAP** filter keeps rings with 2, 3 or 4+ hotspots of one mineral.
+- **HOTSPOTS**: a finder for one mineral within a radius of the AROUND system, with the same overlap filter
+  (hotspots per ring) and a PRISTINE switch. The data gives the number of hotspots per ring, not where they sit, so
+  OVERLAP finds rings that can have overlapping hotspots, not a guarantee. PLOT sets the route in the game.
+- **ORES** and **SELL**: what every ore pays within the range you pick (best price, mean of the best stations, how
+  many markets buy it) and the best stations for what is in your hold, by price, demand or distance.
 - Console with your own binds (scoop, hardpoints, lights, fire groups, power presets, eject).
 - Phones get four pages (PROSPECT, SESSION, FIND, CONSOLE); a tablet or monitor on its end shows two columns over
   the console.
+
+![MINING on an iPad standing up and two iPhone pages: the prospector and the rings, one page at a time](docs/images/devices-mining.jpg)
 
 ## How it works
 
