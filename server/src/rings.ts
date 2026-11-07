@@ -100,21 +100,36 @@ export class Rings extends EventEmitter {
     const old = this.cache.get(key);
     this.cache.set(key, { rings: old?.rings ?? null, fetchedAt: Date.now() });
     try {
-      const rings: RingInfo[] = [];
-      for (let page = 0; page < MAX_PAGES; page++) {
-        const { count, results } = await search({
-          filters: { system_name: { value: system } },
-          sort: [{ distance_to_arrival: { direction: 'asc' } }], size: PAGE_SIZE, page,
-        });
-        // the name filter matches loosely: keep this system's bodies only
-        for (const b of results) if (str(b.system_name).toLowerCase() === key) rings.push(...ringsOf(b));
-        if ((page + 1) * PAGE_SIZE >= count) break;
-      }
-      this.cache.set(key, { rings, fetchedAt: Date.now() });
+      await this.load(system, key);
       this.emit('change');
     } catch {
       // stays as it was; retried after RETRY_FAILED_MS
     }
+  }
+
+  private async load(system: string, key: string): Promise<RingInfo[]> {
+    const rings: RingInfo[] = [];
+    for (let page = 0; page < MAX_PAGES; page++) {
+      const { count, results } = await search({
+        filters: { system_name: { value: [system] } }, // an array = the exact name (a string matches loosely)
+        sort: [{ distance_to_arrival: { direction: 'asc' } }], size: PAGE_SIZE, page,
+      });
+      // the name filter matches loosely: keep this system's bodies only
+      for (const b of results) if (str(b.system_name).toLowerCase() === key) rings.push(...ringsOf(b));
+      if ((page + 1) * PAGE_SIZE >= count) break;
+    }
+    // nothing found (a misspelt name matches nothing): not worth remembering
+    if (rings.length) this.cache.set(key, { rings, fetchedAt: Date.now() });
+    return rings;
+  }
+
+  /** The rings of any system, waiting for Spansh when the cache is empty or stale (the MINING "around" picker). */
+  async get(system: string): Promise<RingInfo[]> {
+    const key = system.trim().toLowerCase();
+    if (!key) return [];
+    const e = this.cache.get(key);
+    if (e?.rings && Date.now() - e.fetchedAt <= TTL_MS) return e.rings;
+    return this.load(system.trim(), key);
   }
 
   async hotspots(q: HotspotQuery): Promise<HotspotMatch[]> {

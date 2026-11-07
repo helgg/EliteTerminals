@@ -162,16 +162,17 @@ export class TradeService {
   }
 
   /** Best places to sell each commodity mined, around the current system (the same markets as a scan). */
-  async sells(m: MiningSellQuery): Promise<Record<string, CommodityQuote[]>> {
+  async sells(m: MiningSellQuery, ref?: { name: string; pos: [number, number, number] }): Promise<Record<string, CommodityQuote[]>> {
     const s = this.state();
-    if (!s.location.system) throw new Error('current system unknown (start the game)');
+    if (!ref && !s.location.system) throw new Error('current system unknown (start the game)');
+    const from = ref ?? { name: s.location.system, pos: s.location.pos };
     const q: TradeQuery = {
       radius: m.radius, maxAgeH: m.maxAgeH, pad: m.pad, planetary: m.planetary, carriers: m.carriers,
       exportHere: false, importHere: false, states: [], hops: 1, maxLs: 0, minSupply: 0, minDemand: 0,
       cargo: 0, capital: 0, jumpRange: 0,
     };
-    const markets = this.local(await this.around({ name: s.location.system, pos: s.location.pos }, q, false));
-    return Object.fromEntries(m.names.map((name) => [name, commodityQuotes(markets, name, q, s.location.pos).sell]));
+    const markets = this.local(await this.around(from, q, false));
+    return Object.fromEntries(m.names.map((name) => [name, commodityQuotes(markets, name, q, from.pos).sell]));
   }
 
   quotes(name: string, q: TradeQuery) {

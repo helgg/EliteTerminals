@@ -245,7 +245,21 @@ a second.
   and other signals.
 - Open `http://localhost:8420/?sheet=icons` to see the whole set.
 
-> MINING shows a *coming soon* screen for now. See the [roadmap](#roadmap).
+**MINING** (ship; the surface vehicle is not built yet)
+
+- **Prospector**: the last rock the prospector limpet read, with a verdict (MINE, RICH, CORE, LOW, SKIP), the share of
+  each mineral and its worth in credits per ton. Mark minerals as targets or to ignore; ignored ones drop out of
+  the verdict, the value and the sale.
+- **Rock value**: one bar per rock, with a value axis in Cr/t and a dashed line where RICH starts. A rock worth
+  nothing gets a short red bar, so the chart never has gaps. Tap a bar to see that rock.
+- **Session**: refined tons, tons and credits per hour, hold space with a warning when it is nearly full, the
+  limpets used, and the last three sessions.
+- **RINGS, HOTSPOTS, ORES, SELL**: the rings of a system with their hotspots, a hotspot finder with an overlap
+  filter (rings with 2 or more hotspots of one mineral), the price of every ore around you and the best stations to
+  sell what you mined. **AROUND** points all four at another system; it starts as your current one.
+- Console with your own binds (scoop, hardpoints, lights, fire groups, power presets, eject).
+- Phones get four pages (PROSPECT, SESSION, FIND, CONSOLE); a tablet or monitor on its end shows two columns over
+  the console.
 
 ## How it works
 
@@ -364,7 +378,8 @@ clipped text. Add `?tab=combat` (and `&page=survive` for a phone page) to open e
 - [x] EXPLORE: GALAXY map with layers, the carrier's 500 ly ring and a road to riches; ENGINEERING: where each engineer lives
 - [x] A short tutorial for every screen (? HOW TO USE)
 - [ ] PVP: commanders flagged in the contacts, encounter history, a direct-keys console page
-- [ ] MINING screen (ship first, then surface vehicles)
+- [x] MINING screen for the ship: prospector, rock value, session, rings, hotspot finder with overlap filter, ore prices and where to sell
+- [ ] MINING in the surface vehicle
 - [x] EXPLORE: system map with belts, body sheet, FIND for exobiology and worlds; ENGINEERING: materials and engineers
 - [x] Phone pages for ENGINEERING, EXPLORE and CARRIER
 - [ ] Review of every screen on every viewport

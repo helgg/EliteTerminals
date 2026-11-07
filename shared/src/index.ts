@@ -1025,6 +1025,8 @@ export interface MiningSellQuery {
   pad: 'S' | 'M' | 'L';
   planetary: boolean;
   carriers: boolean;
+  /** Price around this system instead of the current one; '' = here. */
+  reference?: string;
 }
 
 export interface CommodityQuote {

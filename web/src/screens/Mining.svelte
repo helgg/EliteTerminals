@@ -2,7 +2,10 @@
   import type { CommodityQuote, EdState, HotspotMatch, MiningSellQuery, Prospect, RingInfo } from '@et/shared';
   import Panel from '../lib/Panel.svelte';
   import Name from '../lib/Name.svelte';
+  import ReferencePicker from '../lib/trade/ReferencePicker.svelte';
   import MiningRadar from '../lib/MiningRadar.svelte';
+  import PhonePages from '../lib/PhonePages.svelte';
+  import { viewport } from '../lib/viewport.svelte.ts';
   import { keyFor, sendCommand } from '../lib/link.svelte.ts';
   import { busy, canRun, plotTo, runMacro } from '../lib/macros.svelte.ts';
   import { ageLabel, ageTone, cr, short } from '../lib/format.ts';
@@ -143,12 +146,25 @@
   const chart = $derived(m.prospects.map((p, i) => ({ p, idx: i, w: worths[i] ?? 0, kind: kindOf(p) })).reverse());
   /** Bar height (%): square-root scale of the value against the best rock, so poor rocks stay visible; with no price
    *  yet, the biggest share in the rock; an unpriced core always stands tall. */
+  /** A rock worth nothing (every mineral ignored, or none priced) still gets a short red bar, so the chart has no gaps. */
+  const STUB = 5;
+  const empty = (c: { p: Prospect; w: number }) => !c.w && !c.p.motherlode && !!bestWorth;
   const barH = (c: { p: Prospect; w: number }) => {
     if (c.w && bestWorth) return Math.max(6, Math.sqrt(c.w / bestWorth) * 100);
     if (c.p.motherlode) return 100;
-    if (bestWorth) return 0;
+    if (bestWorth) return STUB;
     return Math.min(100, Math.max(0, ...c.p.materials.filter(counted).map((x) => x.pct)) * 2);
   };
+  /** Y axis: bar height is sqrt(value / best), so the ticks sit at the heights of best, a quarter of best and zero. */
+  const ticks = $derived(bestWorth ? [{ h: 100, v: bestWorth }, { h: 50, v: bestWorth / 4 }, { h: 0, v: 0 }] : []);
+  const richLine = $derived(bestWorth ? Math.min(100, Math.sqrt(Math.max(RICH_FLOOR, bestWorth * RICH_SHARE) / bestWorth) * 100) : 0);
+  /** A tap anywhere in the chart picks the bar under it: with 30 rocks each bar is only a few pixels wide. */
+  function pickAt(e: MouseEvent) {
+    const box = e.currentTarget as HTMLElement;
+    const r = box.getBoundingClientRect();
+    const i = Math.min(chart.length - 1, Math.max(0, Math.floor(((e.clientX - r.left) / r.width) * chart.length)));
+    if (chart[i]) pick = chart[i].idx;
+  }
   /** The rock shown under the chart: the one the player tapped, else the richest of the session. */
   let pick = $state<number | null>(null);
   const bestIdx = $derived(Math.max(0, worths.indexOf(bestWorth)));
@@ -183,18 +199,66 @@
       ? { lat: s.status.latitude, lon: s.status.longitude, alt: s.status.altitude ?? 0 } : null,
   );
 
+  // --- layouts per viewport: phones show one page at a time, a tablet on its end gets two columns and a console strip ---
+  type Page = 'prospect' | 'session' | 'find' | 'console';
+  const PAGES: { id: Page; label: string; icon: string }[] = [
+    { id: 'prospect', label: 'PROSPECT', icon: '◉' }, { id: 'session', label: 'SESSION', icon: '▤' },
+    { id: 'find', label: 'FIND', icon: '⌕' }, { id: 'console', label: 'CONSOLE', icon: '⌨' },
+  ];
+  const phone = $derived(viewport.device === 'phone');
+  /** A tablet or a monitor on its end: two columns over the console strip. */
+  const portrait = $derived(viewport.orientation === 'portrait' && viewport.device !== 'phone');
+  const readPage = (): Page => {
+    const asked = new URLSearchParams(location.search).get('page');
+    const v = asked ?? load<string>('et.mining.page', 'prospect');
+    return PAGES.some((x) => x.id === v) ? (v as Page) : 'prospect';
+  };
+  let page = $state<Page>(readPage());
+  $effect(() => save('et.mining.page', page));
+
   // --- right column tabs ---
   type Tab = 'rings' | 'finder' | 'ores' | 'sell';
-  let tab = $state<Tab>(load('et.mining.tab', 'rings'));
+  const readTab = (): Tab => {
+    const v = new URLSearchParams(location.search).get('mtab') ?? load<string>('et.mining.tab', 'rings');
+    return (['rings', 'finder', 'ores', 'sell'] as string[]).includes(v) ? (v as Tab) : 'rings';
+  };
+  let tab = $state<Tab>(readTab());
   function setTab(t: Tab) {
     tab = t;
     save('et.mining.tab', t);
   }
 
-  // --- rings of this system ---
+  // --- the system the tabs look at: here by default, or any system picked in AROUND ---
+  let around = $state('');
+  const remote = $derived(!!around && around.toLowerCase() !== s.location.system.toLowerCase());
+  const viewSystem = $derived(remote ? around : s.location.system);
+  let remoteRings = $state<RingInfo[] | null>(null);
+  let remoteError = $state('');
+  $effect(() => {
+    const name = remote ? around : '';
+    remoteRings = null;
+    remoteError = '';
+    found = null;
+    if (!name) return;
+    let live = true;
+    fetch('/api/mining/rings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ system: name }) })
+      .then(async (r) => { const b = await r.json(); if (!r.ok) throw new Error(b?.error ?? `HTTP ${r.status}`); return b as RingInfo[]; })
+      .then((list) => live && (remoteRings = list))
+      .catch((err: Error) => live && (remoteError = err.message));
+    return () => (live = false);
+  });
+  const ringsKnown = $derived(remote ? remoteRings : m.rings);
+
+  // --- rings of the system in view ---
   const here = $derived(s.location.body);
+  /** Overlapping hotspots: rings holding at least this many hotspots of one mineral (1 = every ring). */
+  let overlap = $state<number>(load('et.mining.overlap', 1));
+  function setOverlap(n: number) {
+    overlap = n;
+    save('et.mining.overlap', n);
+  }
   const rings = $derived(
-    (m.rings ?? []).slice().sort((a, b) => (b.name === here ? 1 : 0) - (a.name === here ? 1 : 0) || ringValue(b) - ringValue(a) || a.ls - b.ls),
+    (ringsKnown ?? []).filter((r) => overlap <= 1 || r.signals.some((x) => x.count >= overlap)).slice().sort((a, b) => (b.name === here ? 1 : 0) - (a.name === here ? 1 : 0) || ringValue(b) - ringValue(a) || a.ls - b.ls),
   );
   /** What a ring is worth to mine: its dearest hotspot mineral at the best sell price nearby (Cr/t; 0 if unpriced). */
   const ringValue = (r: RingInfo) => r.signals.reduce((a, x) => Math.max(a, counted({ name: x.name, label: x.name }) ? price(x.name) : 0), 0);
@@ -228,7 +292,7 @@
     findError = '';
     try {
       const res = await fetch('/api/mining/hotspots', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(finder),
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...finder, reference: remote ? around : '' }),
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body?.error ?? `HTTP ${res.status}`);
@@ -252,10 +316,16 @@
     ...new Map<string, string>([...ores.map((i) => i.name), ...ss.refined.map((r) => r.name)].map((n) => [norm(n), n])).values(),
   ].filter((n) => !isIgnored(n) && !isIgnored(sellLabel(n))));
   /** Everything priced in one query: the hold and the refined ore, plus every material the prospector has shown. */
-  const ORE_LIST = [...VALUABLE, ...COMMON];
+  const BASE_ORES = [...VALUABLE, ...COMMON];
+  /** The fixed list plus any mineral the prospector showed that it lacks, so whatever shows up can be marked or ignored. */
+  const oreList = $derived([
+    ...BASE_ORES,
+    ...[...new Map(m.prospects.flatMap((p) => p.materials).map((x) => [norm(x.name), x.label] as const)).entries()]
+      .filter(([k]) => !BASE_ORES.some((b) => norm(b) === k)).map(([, label]) => label),
+  ]);
   const priceNames = $derived([
     ...new Map<string, string>([
-      ...ORE_LIST,
+      ...oreList,
       ...sellNames,
       ...m.prospects.flatMap((p) => p.materials).filter(counted).map(queryName),
     ].map((n) => [norm(n), n])).values(),
@@ -277,7 +347,7 @@
     sellError = '';
     const q: MiningSellQuery = {
       names: priceNames, radius: sellOpts.radius, maxAgeH: sellOpts.maxAgeH, pad: sellOpts.pad,
-      planetary: sellOpts.planetary, carriers: sellOpts.carriers,
+      planetary: sellOpts.planetary, carriers: sellOpts.carriers, reference: remote ? around : '',
     };
     try {
       const res = await fetch('/api/mining/sell', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(q) });
@@ -293,7 +363,7 @@
   // price the hold once there is something in it, and again when a new commodity shows up
   let pricedFor = '';
   $effect(() => {
-    const key = priceNames.map(norm).sort().join(',');
+    const key = priceNames.map(norm).sort().join(',') + '|' + (remote ? around.toLowerCase() : '');
     if (key && key !== pricedFor && s.location.system && !selling) {
       pricedFor = key;
       void scanSells();
@@ -309,7 +379,7 @@
   const hereKeys = $derived(new Set(rings.flatMap((r) => r.signals.map((x) => norm(x.name)))));
   /** Best price, the mean of the best stations found (up to 20) and how many buy it, within the sell range. */
   const oreRows = $derived(
-    ORE_LIST.map((name) => {
+    oreList.map((name) => {
       const q = sells?.[norm(name)] ?? [];
       const best = q.reduce((a, x) => Math.max(a, x.price), 0);
       const avg = q.length ? q.reduce((a, x) => a + x.price, 0) / q.length : 0;
@@ -366,7 +436,7 @@
 {/snippet}
 
 {#snippet listEditor()}
-  {@const pool = editing === 'targets' ? VALUABLE : [...COMMON, ...VALUABLE]}
+  {@const pool = editing === 'targets' ? VALUABLE : [...new Set([...COMMON, ...VALUABLE, ...oreList])]}
   <div class="editor">
     <p class="hint">{editing === 'targets' ? 'Tap what you mine for: it lights up in the prospector, the rings and the radar.'
       : 'Tap what your collectors should leave: it drops out of the prospector, the sale and the value.'}</p>
@@ -379,394 +449,444 @@
   </div>
 {/snippet}
 
-<div class="mining">
-  <!-- left: the prospector -->
-  <div class="col">
-    <Panel class="prospect" title="Prospector" aside={last ? `${ago(last.at)} ago` : 'launch a prospector limpet'} scroll={false}>
-      <div class="lists">
-        <button class="chip edit" class:open={editing === 'targets'} onclick={() => (editing = editing === 'targets' ? '' : 'targets')}>
-          TARGETS <span class="n">{targets.length}</span></button>
-        <button class="chip edit" class:open={editing === 'ignore'} onclick={() => (editing = editing === 'ignore' ? '' : 'ignore')}>
-          IGNORE <span class="n">{ignored.length}</span></button>
-        <span class="min">
-          <button class="step" onclick={() => stepMin(-5)} aria-label="Lower the threshold">−</button>
-          <span class="num">≥ {minPct}%</span>
-          <button class="step" onclick={() => stepMin(5)} aria-label="Raise the threshold">+</button>
-        </span>
-      </div>
-      {#if editing}
-        {@render listEditor()}
-      {:else if last && lastVerdict}
-        <div class="verdict v-{lastVerdict.kind}">
-          <b>{lastVerdict.title}</b>
-          <span>{lastVerdict.sub}</span>
-        </div>
-        <div class="facts">
-          <div><small>CONTENT</small>
-            <span class="lvl">{#each [1, 2, 3] as n (n)}<i class:on={(CONTENT[last.content] ?? 0) >= n}></i>{/each}</span>
-            <b>{last.content ? last.content.toUpperCase() : '—'}</b></div>
-          <div><small>WORTH</small><b class:warn={rich(worths[0])}>{worths[0] ? `~${short(worths[0])}/t` : '—'}</b></div>
-          <div><small>REMAINING</small><b class:warn={last.remaining < 100}>{last.remaining.toFixed(0)}%</b></div>
-          <div><small>MOTHERLODE</small><b class:core={!!last.motherlode}>{last.motherlode || 'none'}</b></div>
-        </div>
-        <div class="mats">
-          {#each kept as x (x.name)}
-            {@const t = isTarget(x.label) || isTarget(x.name)}
-            <button class="mat" class:target={t} onclick={() => cycle(x.label)} title="tap: target → ignore → plain">
-              <span class="ml">{x.label}</span>
-              <span class="mbar"><i style:width="{Math.min(100, x.pct * 2)}%"></i>{#if t}<em style:left="{Math.min(100, minPct * 2)}%"></em>{/if}</span>
-              <span class="mp num">{x.pct.toFixed(1)}%</span>
-            </button>
+{#snippet pProspect()}
+<Panel class="prospect" title="Prospector" aside={last ? `${ago(last.at)} ago` : 'launch a prospector limpet'} scroll={false}>
+  <div class="lists">
+    <button class="chip edit" class:open={editing === 'targets'} onclick={() => (editing = editing === 'targets' ? '' : 'targets')}>
+      TARGETS <span class="n">{targets.length}</span></button>
+    <button class="chip edit" class:open={editing === 'ignore'} onclick={() => (editing = editing === 'ignore' ? '' : 'ignore')}>
+      IGNORE <span class="n">{ignored.length}</span></button>
+    <span class="min">
+      <button class="step" onclick={() => stepMin(-5)} aria-label="Lower the threshold">−</button>
+      <span class="num">≥ {minPct}%</span>
+      <button class="step" onclick={() => stepMin(5)} aria-label="Raise the threshold">+</button>
+    </span>
+  </div>
+  {#if editing}
+    {@render listEditor()}
+  {:else if last && lastVerdict}
+    <div class="verdict v-{lastVerdict.kind}">
+      <b>{lastVerdict.title}</b>
+      <span>{lastVerdict.sub}</span>
+    </div>
+    <div class="facts">
+      <div><small>CONTENT</small>
+        <span class="lvl">{#each [1, 2, 3] as n (n)}<i class:on={(CONTENT[last.content] ?? 0) >= n}></i>{/each}</span>
+        <b>{last.content ? last.content.toUpperCase() : '—'}</b></div>
+      <div><small>WORTH</small><b class:warn={rich(worths[0])}>{worths[0] ? `~${short(worths[0])}/t` : '—'}</b></div>
+      <div><small>REMAINING</small><b class:warn={last.remaining < 100}>{last.remaining.toFixed(0)}%</b></div>
+      <div><small>MOTHERLODE</small><b class:core={!!last.motherlode}>{last.motherlode || 'none'}</b></div>
+    </div>
+    <div class="mats">
+      {#each kept as x (x.name)}
+        {@const t = isTarget(x.label) || isTarget(x.name)}
+        <button class="mat" class:target={t} onclick={() => cycle(x.label)} title="tap: target → ignore → plain">
+          <span class="ml">{x.label}</span>
+          <span class="mbar"><i style:width="{Math.min(100, x.pct * 2)}%"></i>{#if t}<em style:left="{Math.min(100, minPct * 2)}%"></em>{/if}</span>
+          <span class="mp num">{x.pct.toFixed(1)}%</span>
+        </button>
+      {/each}
+      {#if dropped.length}
+        <p class="dropped">IGNORED · {#each dropped as x, i (x.name)}<button onclick={() => cycle(x.label)}>{x.label} {x.pct.toFixed(0)}%</button>{i < dropped.length - 1 ? ' · ' : ''}{/each}</p>
+      {/if}
+      <p class="hint">tap a material: target → ignore → plain</p>
+    </div>
+  {:else}
+    <p class="none">No asteroid prospected this session. Fire a prospector limpet at a rock: its materials,
+      content and any motherlode core show here.</p>
+  {/if}
+</Panel>
+{/snippet}
+
+{#snippet pHistory()}
+<Panel class="history" title="Asteroids" aside="{ss.prospected} prospected · {hits} worth it · {cores} cores" scroll={false}>
+  {#if m.prospects.length > 1}
+    <div class="scroll">
+      <table>
+        <thead><tr><th>AGO</th><th>VERDICT</th><th>BEST TARGET</th><th class="r">%</th><th class="r">CR/T</th><th>CONT.</th><th class="r">LEFT</th></tr></thead>
+        <tbody>
+          {#each m.prospects.slice(1) as p, i (i)}
+            {@const v = verdict(p)}
+            {@const b = best(p)}
+            <tr class:picked={selIdx === i + 1} onclick={() => (pick = i + 1)}>
+              <td class="dim">{ago(p.at)}</td>
+              <td><span class="vt v-{v.kind}">{v.title}</span></td>
+              <td class="cut">{p.motherlode ? `◆ ${p.motherlode}` : b?.label ?? '—'}</td>
+              <td class="num r">{b ? b.pct.toFixed(1) : ''}</td>
+              <td class="num r" class:warn={rich(worths[i + 1])}>{worths[i + 1] ? short(worths[i + 1]) : ''}</td>
+              <td class="dim">{p.content ? p.content[0] : '—'}</td>
+              <td class="num r dim">{p.remaining.toFixed(0)}%</td>
+            </tr>
           {/each}
-          {#if dropped.length}
-            <p class="dropped">IGNORED · {#each dropped as x, i (x.name)}<button onclick={() => cycle(x.label)}>{x.label} {x.pct.toFixed(0)}%</button>{i < dropped.length - 1 ? ' · ' : ''}{/each}</p>
-          {/if}
-          <p class="hint">tap a material: target → ignore → plain</p>
+        </tbody>
+      </table>
+    </div>
+  {:else}
+    <p class="none">The asteroids prospected before the last one, newest first.</p>
+  {/if}
+</Panel>
+{/snippet}
+
+{#snippet pRadar()}
+{#if me || m.trail.points.length}
+<Panel class="radar" title="Radar" aside={m.trail.body ? `${m.trail.body} · trail and prospects` : 'trail and prospects'} scroll={false}>
+  <MiningRadar {me} heading={s.status.heading} radius={m.trail.radius || s.status.planetRadius || 0}
+    trail={m.trail.points} prospects={m.prospects} {kindOf} />
+</Panel>
+{:else}
+<!-- inside a ring the game gives no position: the radar would be empty, so chart what each rock was worth -->
+<Panel class="radar" title="Rock value" aside={chart.length ? `${chart.length} asteroids · oldest → newest` : 'prospect a rock'} scroll={false}>
+  {#if chart.length}
+    <div class="vstats">
+      <div><small>BEST</small><b class="warn">{bestWorth ? `~${short(bestWorth)}/t` : '—'}</b></div>
+      <div><small>AVERAGE</small><b>{avgWorth ? `~${short(avgWorth)}/t` : '—'}</b></div>
+      <div><small>RICH</small><b class="ok">{richCount} of {chart.length}</b></div>
+      <div><small>SINCE LAST RICH</small><b>{sinceRich === null ? '—' : sinceRich}</b></div>
+      <div><small>CORES</small><b class:core={cores > 0}>{cores} of {chart.length}</b></div>
+    </div>
+    <div class="vwrap">
+      <div class="vaxis" aria-hidden="true">
+        {#each ticks as k (k.h)}<span style:bottom="{k.h}%">{k.v ? short(k.v) : '0'}</span>{/each}
+      </div>
+      <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions (each bar is a button; this only widens the target) -->
+      <div class="vchart" role="group" aria-label="Value of each prospected asteroid, Cr per ton" onclick={pickAt}>
+        {#each ticks as k (k.h)}<i class="grid" style:bottom="{k.h}%"></i>{/each}
+        {#if richLine}<i class="richline" style:bottom="{richLine}%" title="RICH from here"></i>{/if}
+        {#each chart as c (c.idx)}
+          <button class="vbar v-{c.kind}" class:none={empty(c)} class:sel={c.idx === selIdx} onclick={() => (pick = c.idx)}
+            title="{ago(c.p.at)} ago · {c.w ? '~' + short(c.w) + ' Cr/t' : empty(c) ? 'worth nothing: every mineral ignored or unpriced' : 'no price'} · {c.p.content || '—'} content">
+            <span class="vfill" style:height="{barH(c)}%"></span>
+            {#if c.p.motherlode}<em>◆</em>{/if}
+          </button>
+        {/each}
+      </div>
+    </div>
+    {#if sel}
+      <div class="vsel rock">
+        <div class="vhead">
+          <b>{pick === null ? 'BEST ROCK' : selIdx === 0 ? 'NEWEST ROCK' : 'ROCK'}</b>
+          <span class="dim">{ago(sel.at)} ago · {sel.content ? sel.content.toUpperCase() : '—'} content · {sel.remaining.toFixed(0)}% left</span>
+          <span class="vt v-{verdict(sel).kind}">{verdict(sel).title}</span>
+          {#if pick !== null}<button class="step vreset" onclick={() => (pick = null)}>BEST</button>{/if}
+        </div>
+        <table class="vmats">
+          <tbody>
+            {#each sel.materials as x (x.name)}
+              {@const px = price(x.name)}
+              <tr class:tgt={isTarget(x.label) || isTarget(x.name)} class:ign={!counted(x)} onclick={() => cycle(x.label)} title="tap: target → ignore → plain">
+                <td class="cut">{coreCapable(x.name) ? '◆ ' : ''}{x.label}</td>
+                <td class="mbar2"><i style:width="{Math.min(100, x.pct * 2)}%"></i></td>
+                <td class="num r">{x.pct.toFixed(1)}%</td>
+                <td class="num r dim">{px ? `${short(px)}/t` : '—'}</td>
+                <td class="num r warn">{px && counted(x) ? short((x.pct / 100) * px) : ''}</td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+        <p class="vnote">Columns: share of the rock · best price per ton · Cr/t it adds. Tap a bar to inspect that rock.</p>
+      </div>
+    {/if}
+    <div class="vsel field">
+      <div class="vhead"><b>MINERALS IN THIS FIELD</b><span class="dim">over {chart.length} rocks</span></div>
+      <table class="vmats">
+        <thead><tr><th>ORE</th><th class="r">ROCKS</th><th class="r">AVG %</th><th class="r">BEST %</th><th class="r">PRICE/T</th></tr></thead>
+        <tbody>
+          {#each mineralStats as e (e.name)}
+            <tr class:tgt={isTarget(e.label) || isTarget(e.name)} class:ign={e.ign} onclick={() => cycle(e.label)} title="tap: target → ignore → plain">
+              <td class="cut">{coreCapable(e.name) ? '◆ ' : ''}{e.label}</td>
+              <td class="num r dim">{e.rocks}</td>
+              <td class="num r">{e.avg.toFixed(1)}</td>
+              <td class="num r">{e.top.toFixed(1)}</td>
+              <td class="num r warn">{e.px ? short(e.px) : '—'}</td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    </div>
+    {#if !bestWorth}<p class="vnote">No sell price found nearby yet: the bars show the biggest share in each rock until the markets answer. Try a longer RANGE in ORES.</p>{/if}
+  {:else}
+    <p class="none">Fire a prospector limpet at a rock. Inside a ring the game gives no position, so this shows what each
+      rock was worth, to help you spot the rich ones.</p>
+  {/if}
+</Panel>
+{/if}
+{/snippet}
+
+{#snippet pSession()}
+<Panel class="session" title="Session" aside={hours ? `${(hours * 60).toFixed(0)} min since the first ton` : 'nothing refined yet'} scroll={false}>
+  <div class="kpis">
+    <div><small>REFINED</small><b class="ok">{refinedTons}t</b></div>
+    <div><small>T/H</small><b class="tele">{hours ? (refinedTons / hours).toFixed(1) : '—'}</b></div>
+    <div><small>VALUE</small><b class="warn">{refinedValue ? short(refinedValue) : '—'}</b></div>
+    <div><small>CR/H</small><b class="tele">{hours && refinedValue ? short(refinedValue / hours) : '—'}</b></div>
+    <div><small>CORES</small><b>{ss.cracked}</b></div>
+  </div>
+  {#if holdAlert}
+    <p class="fullwarn" class:full={holdAlert === 'full'}>{holdAlert === 'full' ? 'HOLD FULL' : 'HOLD NEARLY FULL'} · {Math.max(0, cap - used)}t free{#if holdAlert === 'full'} · time to sell{/if}</p>
+  {/if}
+  <div class="hold">
+    <div class="line"><span>HOLD <b>{used}</b>/{cap}t · free <b class:bad={cap > 0 && cap - used < 4}>{Math.max(0, cap - used)}t</b>{#if junkTons} · <b class="bad">{junkTons}t junk</b>{/if}</span>
+      <span>LIMPETS <b class:bad={limpets < 4}>{limpets}</b> · used P{ss.prospectors} C{ss.collectors}</span></div>
+    <div class="t"><i style:width="{cap ? Math.min(100, ((used - junkTons) / cap) * 100) : 0}%"></i><i class="junk"
+      style:left="{cap ? Math.min(100, ((used - junkTons) / cap) * 100) : 0}%" style:width="{cap ? Math.min(100, (junkTons / cap) * 100) : 0}%"></i></div>
+  </div>
+  {#if ss.refined.length}
+    <div class="refined">
+      {#each ss.refined as r (r.name)}
+        <span class="rf" class:target={isTarget(r.label)} class:ign={isIgnored(r.label)}><b>{r.count}t</b> {r.label}{#if price(r.name) && !isIgnored(r.label)}<small> · {short(r.count * price(r.name))}</small>{/if}</span>
+      {/each}
+    </div>
+  {/if}
+  {#if m.past.length}
+    <div class="pastl"><small>PREVIOUS</small>
+      {#each m.past.slice(0, 3) as p (p.endedAt)}<span>{ago(p.endedAt)} ago · <b>{p.tons}t</b> · {p.prospected} rocks{#if p.cracked} · {p.cracked} cores{/if}</span>{/each}
+    </div>
+  {/if}
+  <div class="tools">
+    <span class:on={tools.lasers > 0}>LASER{tools.lasers > 1 ? ` ×${tools.lasers}` : ''}</span>
+    <span class:on={tools.abrasion > 0}>ABRASION</span>
+    <span class:on={tools.seismic > 0}>SEISMIC</span>
+    <span class:on={tools.subsurface > 0}>SUB-SURFACE</span>
+    <span class:on={tools.pulseWave}>PULSE WAVE</span>
+    <span class:on={tools.prospector}>PROSPECTOR</span>
+    <span class:on={tools.collector}>COLLECTOR</span>
+    <span class:on={tools.refinery}>REFINERY</span>
+  </div>
+</Panel>
+{/snippet}
+
+{#snippet pFind()}
+<section class="tabbed">
+  <div class="around"><ReferencePicker bind:value={around} current={s.location.system} stations={false} label="AROUND" /></div>
+  <nav class="tabs">
+    <button class:on={tab === 'rings'} onclick={() => setTab('rings')}>RINGS <span class="n">{rings.length}</span></button>
+    <button class:on={tab === 'finder'} onclick={() => setTab('finder')}>HOTSPOTS</button>
+    <button class:on={tab === 'ores'} onclick={() => setTab('ores')}>ORES</button>
+    <button class:on={tab === 'sell'} onclick={() => setTab('sell')}>SELL {#if holdValue}<span class="n">{short(holdValue)}</span>{/if}</button>
+  </nav>
+  <div class="tbody">
+    {#if tab === 'rings'}
+      <p class="sub">{ringsKnown === null ? 'Asking Spansh about this system…' : `${viewSystem.toUpperCase()} · type, reserve and hotspots${remote ? '' : ' · own scans override Spansh'}`}</p>
+      {#if remoteError}<p class="none warn">{remoteError}</p>{/if}
+      <div class="fgrid"><div class="fld"><span class="cap">OVERLAP · HOTSPOTS OF ONE MINERAL</span>
+        <span class="seg">{#each [1, 2, 3, 4] as n (n)}<button class:on={overlap === n} onclick={() => setOverlap(n)}>{n === 1 ? 'ANY' : `${n}+`}</button>{/each}</span>
+      </div></div>
+      {#if bestRing}
+        <p class="bestring">BEST HERE <b>{bestRing.ore}</b> · <Name value={bestRing.ring.name} /> · <b class="warn">{short(bestRing.value)} Cr/t</b>{#if bestRing.ring.name === here}<span class="hereTag">YOU ARE HERE</span>{/if}</p>
+      {/if}
+      {#if rings.length}
+        <div class="scroll">
+          {#each rings as r (r.name)}
+            <div class="ring {ringTone(r)}" class:here={r.name === here} class:hasT={ringHasTarget(r)}>
+              <span class="rn">{#if r.name === here}<span class="hereTag">HERE</span>{/if}<Name value={r.name} /></span>
+              <span class="rt">{r.type.toUpperCase() || '—'}</span>
+              <span class="rr" class:pristine={r.reserve === 'Pristine'}>{r.reserve.toUpperCase() || '—'}</span>
+              <span class="rl num dim">{r.ls ? `${cr(r.ls)} ls` : ''}</span>
+              <span class="sigs">
+                {#each r.signals as x (x.name)}<span class="sig" class:target={isTarget(x.name)} title={coreCapable(x.name) ? `${x.name}: can have a motherlode core` : x.name}>{coreCapable(x.name) ? '◆ ' : ''}{abbr(x.name)} {x.count}{#if price(x.name)} · {short(price(x.name))}{/if}</span>{/each}
+                {#if !r.signals.length}<span class="dim">no hotspots known</span>{/if}
+                {#if r.own}<span class="own">OWN SCAN</span>{/if}
+              </span>
+            </div>
+          {/each}
         </div>
       {:else}
-        <p class="none">No asteroid prospected this session. Fire a prospector limpet at a rock: its materials,
-          content and any motherlode core show here.</p>
+        <p class="none">{ringsKnown === null ? 'Rings and hotspots of this system come from Spansh.' : overlap > 1 && (ringsKnown?.length ?? 0) ? `No ring with ${overlap}+ hotspots of one mineral.` : 'No ringed bodies known in this system.'}</p>
       {/if}
-    </Panel>
-    <Panel class="history" title="Asteroids" aside="{ss.prospected} prospected · {hits} worth it · {cores} cores" scroll={false}>
-      {#if m.prospects.length > 1}
+    {:else if tab === 'finder'}
+      <div class="fgrid f3">
+        <div class="fld fm"><span class="cap">MINERAL</span>
+          <select value={finder.commodity} onchange={(e) => setFinder({ commodity: e.currentTarget.value })} aria-label="Commodity">
+            {#each HOT as h (h)}<option value={h}>{h}</option>{/each}
+          </select>
+        </div>
+        <div class="fld s2 frad"><span class="cap">RADIUS · LY</span>
+          <span class="seg">{#each [25, 50, 100, 200] as r (r)}<button class:on={finder.radius === r} onclick={() => setFinder({ radius: r })}>{r}</button>{/each}</span>
+        </div>
+        <div class="fld fo"><span class="cap">OVERLAP · SPOTS/RING</span>
+          <span class="seg">{#each [1, 2, 3] as n (n)}<button class:on={finder.minCount === n} onclick={() => setFinder({ minCount: n })}>{n}+</button>{/each}</span>
+        </div>
+        <div class="fld fr"><span class="cap">RESERVE</span>
+          <span class="seg"><button class:on={!finder.pristine} onclick={() => setFinder({ pristine: false })}>ANY</button><button class:on={finder.pristine} onclick={() => setFinder({ pristine: true })}>PRISTINE</button></span>
+        </div>
+        <div class="fld ff"><span class="cap">&nbsp;</span>
+          <button class="go" class:busy={finding} disabled={finding} onclick={find}>{finding ? 'SEARCHING' : 'FIND'}</button>
+        </div>
+      </div>
+      {#if findError}<p class="none warn">{findError}</p>
+      {:else if found?.length}
         <div class="scroll">
           <table>
-            <thead><tr><th>AGO</th><th>VERDICT</th><th>BEST TARGET</th><th class="r">%</th><th class="r">CR/T</th><th>CONT.</th><th class="r">LEFT</th></tr></thead>
+            <thead><tr><th>SYSTEM / RING</th><th>RESERVE</th><th class="r">SPOTS</th><th class="r">LY</th><th></th></tr></thead>
             <tbody>
-              {#each m.prospects.slice(1) as p, i (i)}
-                {@const v = verdict(p)}
-                {@const b = best(p)}
-                <tr class:picked={selIdx === i + 1} onclick={() => (pick = i + 1)}>
-                  <td class="dim">{ago(p.at)}</td>
-                  <td><span class="vt v-{v.kind}">{v.title}</span></td>
-                  <td class="cut">{p.motherlode ? `◆ ${p.motherlode}` : b?.label ?? '—'}</td>
-                  <td class="num r">{b ? b.pct.toFixed(1) : ''}</td>
-                  <td class="num r" class:warn={rich(worths[i + 1])}>{worths[i + 1] ? short(worths[i + 1]) : ''}</td>
-                  <td class="dim">{p.content ? p.content[0] : '—'}</td>
-                  <td class="num r dim">{p.remaining.toFixed(0)}%</td>
+              {#each found as h (h.ring)}
+                {@const busy = plotting === h.system}
+                <tr class:here={h.system.toLowerCase() === s.location.system.toLowerCase()}>
+                  <td class="cut"><Name value={h.system} system /><small class="dim sub2">{h.ring.slice(h.system.length + 1).replace(/ Ring$/i, '')} · {h.type} · {short(h.ls)} ls</small></td>
+                  <td class:pristine={h.reserve === 'Pristine'}>{h.reserve}</td>
+                  <td class="num r"><b class="warn">{h.count}</b></td>
+                  <td class="num r">{h.distance.toFixed(1)}</td>
+                  <td class="r"><button class="plot" class:busy disabled={!!plotting && !busy} onclick={() => plotTo(h.system)}>{busy ? 'STOP' : 'PLOT'}</button></td>
                 </tr>
               {/each}
             </tbody>
           </table>
         </div>
+      {:else if found}
+        <p class="none">No ring with {finder.minCount}+ {finder.commodity} hotspots within {finder.radius} ly.</p>
       {:else}
-        <p class="none">The asteroids prospected before the last one, newest first.</p>
+        <p class="none">Pick a commodity and FIND: rings around {viewSystem.toUpperCase() || 'you'}, nearest first. PLOT sets the route.</p>
       {/if}
-    </Panel>
-  </div>
-
-  <!-- middle: radar, session -->
-  <div class="col">
-    {#if me || m.trail.points.length}
-    <Panel class="radar" title="Radar" aside={m.trail.body ? `${m.trail.body} · trail and prospects` : 'trail and prospects'} scroll={false}>
-      <MiningRadar {me} heading={s.status.heading} radius={m.trail.radius || s.status.planetRadius || 0}
-        trail={m.trail.points} prospects={m.prospects} {kindOf} />
-    </Panel>
-    {:else}
-    <!-- inside a ring the game gives no position: the radar would be empty, so chart what each rock was worth -->
-    <Panel class="radar" title="Rock value" aside={chart.length ? `${chart.length} asteroids · oldest → newest` : 'prospect a rock'} scroll={false}>
-      {#if chart.length}
-        <div class="vstats">
-          <div><small>BEST</small><b class="warn">{bestWorth ? `~${short(bestWorth)}/t` : '—'}</b></div>
-          <div><small>AVERAGE</small><b>{avgWorth ? `~${short(avgWorth)}/t` : '—'}</b></div>
-          <div><small>RICH</small><b class="ok">{richCount} of {chart.length}</b></div>
-          <div><small>SINCE LAST RICH</small><b>{sinceRich === null ? '—' : sinceRich}</b></div>
-          <div><small>CORES</small><b class:core={cores > 0}>{cores} of {chart.length}</b></div>
+      {#if s.macros.plot.error && s.macros.plot.system}<p class="none warn">{s.macros.plot.system.toUpperCase()}: {s.macros.plot.error}</p>{/if}
+    {:else if tab === 'ores'}
+      <div class="fgrid">
+        <div class="fld"><span class="cap">RANGE · LY</span>
+          <span class="seg">{#each [20, 40, 80] as r (r)}<button class:on={sellOpts.radius === r} onclick={() => { setSell({ radius: r }); void scanSells(); }}>{r}</button>{/each}</span>
         </div>
-        <div class="vchart" aria-label="Value of each prospected asteroid">
-          {#each chart as c (c.idx)}
-            <button class="vbar v-{c.kind}" class:sel={c.idx === selIdx} onclick={() => (pick = c.idx)}
-              title="{ago(c.p.at)} ago · {c.w ? '~' + short(c.w) + ' Cr/t' : 'no price'} · {c.p.content || '—'} content">
-              <span class="vfill" style:height="{barH(c)}%"></span>
-              {#if c.p.motherlode}<em>◆</em>{/if}
-            </button>
-          {/each}
+        <div class="fld"><span class="cap">SHOW</span>
+          <span class="seg">{#each [['all', 'ALL'], ['targets', 'TARGETS'], ['here', 'RINGS HERE']] as [k, l] (k)}<button class:on={show === k} onclick={() => { show = k as Show; save('et.mining.show', show); }}>{l}</button>{/each}</span>
         </div>
-        {#if sel}
-          <div class="vsel rock">
-            <div class="vhead">
-              <b>{pick === null ? 'BEST ROCK' : selIdx === 0 ? 'NEWEST ROCK' : 'ROCK'}</b>
-              <span class="dim">{ago(sel.at)} ago · {sel.content ? sel.content.toUpperCase() : '—'} content · {sel.remaining.toFixed(0)}% left</span>
-              <span class="vt v-{verdict(sel).kind}">{verdict(sel).title}</span>
-              {#if pick !== null}<button class="step vreset" onclick={() => (pick = null)}>BEST</button>{/if}
-            </div>
-            <table class="vmats">
-              <tbody>
-                {#each sel.materials as x (x.name)}
-                  {@const px = price(x.name)}
-                  <tr class:tgt={isTarget(x.label) || isTarget(x.name)} class:ign={!counted(x)} onclick={() => cycle(x.label)} title="tap: target → ignore → plain">
-                    <td class="cut">{coreCapable(x.name) ? '◆ ' : ''}{x.label}</td>
-                    <td class="mbar2"><i style:width="{Math.min(100, x.pct * 2)}%"></i></td>
-                    <td class="num r">{x.pct.toFixed(1)}%</td>
-                    <td class="num r dim">{px ? `${short(px)}/t` : '—'}</td>
-                    <td class="num r warn">{px && counted(x) ? short((x.pct / 100) * px) : ''}</td>
-                  </tr>
-                {/each}
-              </tbody>
-            </table>
-            <p class="vnote">Columns: share of the rock · best price per ton · Cr/t it adds. Tap a bar to inspect that rock.</p>
-          </div>
-        {/if}
-        <div class="vsel field">
-          <div class="vhead"><b>MINERALS IN THIS FIELD</b><span class="dim">over {chart.length} rocks</span></div>
-          <table class="vmats">
-            <thead><tr><th>ORE</th><th class="r">ROCKS</th><th class="r">AVG %</th><th class="r">BEST %</th><th class="r">PRICE/T</th></tr></thead>
-            <tbody>
-              {#each mineralStats as e (e.name)}
-                <tr class:tgt={isTarget(e.label) || isTarget(e.name)} class:ign={e.ign} onclick={() => cycle(e.label)} title="tap: target → ignore → plain">
-                  <td class="cut">{coreCapable(e.name) ? '◆ ' : ''}{e.label}</td>
-                  <td class="num r dim">{e.rocks}</td>
-                  <td class="num r">{e.avg.toFixed(1)}</td>
-                  <td class="num r">{e.top.toFixed(1)}</td>
-                  <td class="num r warn">{e.px ? short(e.px) : '—'}</td>
-                </tr>
-              {/each}
-            </tbody>
-          </table>
-        </div>
-        {#if !bestWorth}<p class="vnote">No sell price found nearby yet: the bars show the biggest share in each rock until the markets answer. Try a longer RANGE in ORES.</p>{/if}
-      {:else}
-        <p class="none">Fire a prospector limpet at a rock. Inside a ring the game gives no position, so this shows what each
-          rock was worth, to help you spot the rich ones.</p>
-      {/if}
-    </Panel>
-    {/if}
-    <Panel class="session" title="Session" aside={hours ? `${(hours * 60).toFixed(0)} min since the first ton` : 'nothing refined yet'} scroll={false}>
-      <div class="kpis">
-        <div><small>REFINED</small><b class="ok">{refinedTons}t</b></div>
-        <div><small>T/H</small><b class="tele">{hours ? (refinedTons / hours).toFixed(1) : '—'}</b></div>
-        <div><small>VALUE</small><b class="warn">{refinedValue ? short(refinedValue) : '—'}</b></div>
-        <div><small>CR/H</small><b class="tele">{hours && refinedValue ? short(refinedValue / hours) : '—'}</b></div>
-        <div><small>CORES</small><b>{ss.cracked}</b></div>
       </div>
-      {#if holdAlert}
-        <p class="fullwarn" class:full={holdAlert === 'full'}>{holdAlert === 'full' ? 'HOLD FULL' : 'HOLD NEARLY FULL'} · {Math.max(0, cap - used)}t free{#if holdAlert === 'full'} · time to sell{/if}</p>
-      {/if}
-      <div class="hold">
-        <div class="line"><span>HOLD <b>{used}</b>/{cap}t · free <b class:bad={cap > 0 && cap - used < 4}>{Math.max(0, cap - used)}t</b>{#if junkTons} · <b class="bad">{junkTons}t junk</b>{/if}</span>
-          <span>LIMPETS <b class:bad={limpets < 4}>{limpets}</b> · used P{ss.prospectors} C{ss.collectors}</span></div>
-        <div class="t"><i style:width="{cap ? Math.min(100, ((used - junkTons) / cap) * 100) : 0}%"></i><i class="junk"
-          style:left="{cap ? Math.min(100, ((used - junkTons) / cap) * 100) : 0}%" style:width="{cap ? Math.min(100, (junkTons / cap) * 100) : 0}%"></i></div>
-      </div>
-      {#if ss.refined.length}
-        <div class="refined">
-          {#each ss.refined as r (r.name)}
-            <span class="rf" class:target={isTarget(r.label)} class:ign={isIgnored(r.label)}><b>{r.count}t</b> {r.label}{#if price(r.name) && !isIgnored(r.label)}<small> · {short(r.count * price(r.name))}</small>{/if}</span>
-          {/each}
-        </div>
-      {/if}
-      {#if m.past.length}
-        <div class="pastl"><small>PREVIOUS</small>
-          {#each m.past.slice(0, 3) as p (p.endedAt)}<span>{ago(p.endedAt)} ago · <b>{p.tons}t</b> · {p.prospected} rocks{#if p.cracked} · {p.cracked} cores{/if}</span>{/each}
-        </div>
-      {/if}
-      <div class="tools">
-        <span class:on={tools.lasers > 0}>LASER{tools.lasers > 1 ? ` ×${tools.lasers}` : ''}</span>
-        <span class:on={tools.abrasion > 0}>ABRASION</span>
-        <span class:on={tools.seismic > 0}>SEISMIC</span>
-        <span class:on={tools.subsurface > 0}>SUB-SURFACE</span>
-        <span class:on={tools.pulseWave}>PULSE WAVE</span>
-        <span class:on={tools.prospector}>PROSPECTOR</span>
-        <span class:on={tools.collector}>COLLECTOR</span>
-        <span class:on={tools.refinery}>REFINERY</span>
-      </div>
-    </Panel>
-  </div>
-
-  <!-- right: rings / finder / sell, console -->
-  <div class="col">
-    <section class="tabbed">
-      <nav class="tabs">
-        <button class:on={tab === 'rings'} onclick={() => setTab('rings')}>RINGS <span class="n">{rings.length}</span></button>
-        <button class:on={tab === 'finder'} onclick={() => setTab('finder')}>HOTSPOTS</button>
-        <button class:on={tab === 'ores'} onclick={() => setTab('ores')}>ORES</button>
-        <button class:on={tab === 'sell'} onclick={() => setTab('sell')}>SELL {#if holdValue}<span class="n">{short(holdValue)}</span>{/if}</button>
-      </nav>
-      <div class="tbody">
-        {#if tab === 'rings'}
-          <p class="sub">{m.rings === null ? 'Asking Spansh about this system…' : `${s.location.system.toUpperCase()} · type, reserve and hotspots · own scans override Spansh`}</p>
-          {#if bestRing}
-            <p class="bestring">BEST HERE <b>{bestRing.ore}</b> · <Name value={bestRing.ring.name} /> · <b class="warn">{short(bestRing.value)} Cr/t</b>{#if bestRing.ring.name === here}<span class="hereTag">YOU ARE HERE</span>{/if}</p>
-          {/if}
-          {#if rings.length}
-            <div class="scroll">
-              {#each rings as r (r.name)}
-                <div class="ring {ringTone(r)}" class:here={r.name === here} class:hasT={ringHasTarget(r)}>
-                  <span class="rn">{#if r.name === here}<span class="hereTag">HERE</span>{/if}<Name value={r.name} /></span>
-                  <span class="rt">{r.type.toUpperCase() || '—'}</span>
-                  <span class="rr" class:pristine={r.reserve === 'Pristine'}>{r.reserve.toUpperCase() || '—'}</span>
-                  <span class="rl num dim">{r.ls ? `${cr(r.ls)} ls` : ''}</span>
-                  <span class="sigs">
-                    {#each r.signals as x (x.name)}<span class="sig" class:target={isTarget(x.name)} title={coreCapable(x.name) ? `${x.name}: can have a motherlode core` : x.name}>{coreCapable(x.name) ? '◆ ' : ''}{abbr(x.name)} {x.count}{#if price(x.name)} · {short(price(x.name))}{/if}</span>{/each}
-                    {#if !r.signals.length}<span class="dim">no hotspots known</span>{/if}
-                    {#if r.own}<span class="own">OWN SCAN</span>{/if}
-                  </span>
-                </div>
-              {/each}
-            </div>
-          {:else}
-            <p class="none">{m.rings === null ? 'Rings and hotspots of this system come from Spansh.' : 'No ringed bodies known in this system.'}</p>
-          {/if}
-        {:else if tab === 'finder'}
-          <div class="fgrid">
-            <div class="fld wide"><span class="cap">MINERAL</span>
-              <select value={finder.commodity} onchange={(e) => setFinder({ commodity: e.currentTarget.value })} aria-label="Commodity">
-                {#each HOT as h (h)}<option value={h}>{h}</option>{/each}
-              </select>
-            </div>
-            <div class="fld"><span class="cap">RADIUS · LY</span>
-              <span class="seg">{#each [25, 50, 100, 200] as r (r)}<button class:on={finder.radius === r} onclick={() => setFinder({ radius: r })}>{r}</button>{/each}</span>
-            </div>
-            <div class="fld"><span class="cap">HOTSPOTS PER RING</span>
-              <span class="seg">{#each [1, 2, 3] as n (n)}<button class:on={finder.minCount === n} onclick={() => setFinder({ minCount: n })}>{n}+</button>{/each}</span>
-            </div>
-            <div class="fld"><span class="cap">RESERVE</span>
-              <span class="seg"><button class:on={!finder.pristine} onclick={() => setFinder({ pristine: false })}>ANY</button><button class:on={finder.pristine} onclick={() => setFinder({ pristine: true })}>PRISTINE</button></span>
-            </div>
-            <div class="fld"><span class="cap">&nbsp;</span>
-              <button class="go" class:busy={finding} disabled={finding} onclick={find}>{finding ? 'SEARCHING' : 'FIND'}</button>
-            </div>
-          </div>
-          {#if findError}<p class="none warn">{findError}</p>
-          {:else if found?.length}
-            <div class="scroll">
-              <table>
-                <thead><tr><th>SYSTEM / RING</th><th>RESERVE</th><th class="r">SPOTS</th><th class="r">LY</th><th></th></tr></thead>
-                <tbody>
-                  {#each found as h (h.ring)}
-                    {@const busy = plotting === h.system}
-                    <tr class:here={h.system.toLowerCase() === s.location.system.toLowerCase()}>
-                      <td class="cut"><Name value={h.system} system /><small class="dim"> {h.ring.slice(h.system.length + 1).replace(/ Ring$/i, '')} · {h.type} · {short(h.ls)} ls</small></td>
-                      <td class:pristine={h.reserve === 'Pristine'}>{h.reserve}</td>
-                      <td class="num r"><b class="warn">{h.count}</b></td>
-                      <td class="num r">{h.distance.toFixed(1)}</td>
-                      <td class="r"><button class="plot" class:busy disabled={!!plotting && !busy} onclick={() => plotTo(h.system)}>{busy ? 'STOP' : 'PLOT'}</button></td>
-                    </tr>
-                  {/each}
-                </tbody>
-              </table>
-            </div>
-          {:else if found}
-            <p class="none">No ring with {finder.minCount}+ {finder.commodity} hotspots within {finder.radius} ly.</p>
-          {:else}
-            <p class="none">Pick a commodity and FIND: rings around {s.location.system.toUpperCase() || 'you'}, nearest first. PLOT sets the route.</p>
-          {/if}
-          {#if s.macros.plot.error && s.macros.plot.system}<p class="none warn">{s.macros.plot.system.toUpperCase()}: {s.macros.plot.error}</p>{/if}
-        {:else if tab === 'ores'}
-          <div class="fgrid">
-            <div class="fld"><span class="cap">RANGE · LY</span>
-              <span class="seg">{#each [20, 40, 80] as r (r)}<button class:on={sellOpts.radius === r} onclick={() => { setSell({ radius: r }); void scanSells(); }}>{r}</button>{/each}</span>
-            </div>
-            <div class="fld"><span class="cap">SHOW</span>
-              <span class="seg">{#each [['all', 'ALL'], ['targets', 'TARGETS'], ['here', 'RINGS HERE']] as [k, l] (k)}<button class:on={show === k} onclick={() => { show = k as Show; save('et.mining.show', show); }}>{l}</button>{/each}</span>
-            </div>
-          </div>
-          <div class="scroll">
-            <table class="ores">
-              <thead><tr><th>ORE</th><th class="r">BEST</th><th class="r" title="Mean of the best stations found, up to 20">AVG</th><th class="r">MKTS</th></tr></thead>
-              <tbody>
-                {#each oreRows as r (r.name)}
-                  <tr class:tgt={isTarget(r.name)} class:ign={isIgnored(r.name)} onclick={() => cycle(r.name)} title="Tap: target, ignore, plain">
-                    <td class="cut"><span class="mark">{isTarget(r.name) ? '★' : isIgnored(r.name) ? '✕' : ''}</span>{r.core ? '◆ ' : ''}{r.name}{#if r.ring}<span class="own">RING</span>{/if}</td>
-                    <td class="num r bar" style="--w:{(r.best / maxBest) * 100}%"><b>{r.best ? cr(r.best) : '—'}</b></td>
-                    <td class="num r dim">{r.avg ? cr(Math.round(r.avg)) : '—'}</td>
-                    <td class="num r dim">{r.n || ''}</td>
-                  </tr>
-                {/each}
-              </tbody>
-            </table>
-            {#if !oreRows.length}<p class="none">{show === 'targets' ? 'No target set: tap an ore to mark it.' : show === 'here' ? 'No known hotspots in the rings of this system.' : 'Pricing the ores…'}</p>{/if}
-          </div>
-          <p class="hint">{selling ? 'Pricing…' : sells ? `Sell prices within ${sellOpts.radius} ly, pad ${sellOpts.pad}. AVG is the mean of the best stations found.` : 'Pricing starts in a few seconds.'}</p>
-        {:else}
-          <div class="fgrid">
-            <div class="fld"><span class="cap">RANGE · LY</span>
-              <span class="seg">{#each [20, 40, 80] as r (r)}<button class:on={sellOpts.radius === r} onclick={() => setSell({ radius: r })}>{r}</button>{/each}</span>
-            </div>
-            <div class="fld"><span class="cap">LANDING PAD</span>
-              <span class="seg">{#each ['S', 'M', 'L'] as p (p)}<button class:on={sellOpts.pad === p} onclick={() => setSell({ pad: p as 'S' | 'M' | 'L' })}>{p}</button>{/each}</span>
-            </div>
-            <div class="fld"><span class="cap">SORT BY</span>
-              <span class="seg">{#each [['price', 'PRICE'], ['demand', 'DEMAND'], ['distance', 'NEAR']] as [k, l] (k)}<button class:on={sellOpts.sort === k} onclick={() => setSell({ sort: k as SellOpts['sort'] })}>{l}</button>{/each}</span>
-            </div>
-            <div class="fld"><span class="cap">INCLUDE</span>
-              <span class="seg"><button class:on={sellOpts.planetary} onclick={() => setSell({ planetary: !sellOpts.planetary })}>SURFACE</button><button class:on={sellOpts.carriers} onclick={() => setSell({ carriers: !sellOpts.carriers })}>CARRIERS</button></span>
-            </div>
-            <div class="fld wide scanrow">
-              <span class="dim worth">{holdValue ? `hold ~${short(holdValue)} Cr` : 'hold empty'}</span>
-              <button class="go" class:busy={selling} disabled={selling || !sellNames.length} onclick={scanSells}>{selling ? 'SCANNING' : 'SCAN'}</button>
-            </div>
-          </div>
-          {#if sellError}<p class="none warn">{sellError}</p>{/if}
-          {#if !sellNames.length}
-            <p class="none">Nothing mined in the hold yet. Refined ores get priced here: the best stations within {sellOpts.radius} ly.</p>
-          {:else}
-            <div class="scroll">
-              {#each sellNames as name (name)}
-                {@const list = sorted(sells?.[norm(name)] ?? []).slice(0, 4)}
-                <div class="com">
-                  <div class="ch"><b class:target={isTarget(sellLabel(name))}>{sellLabel(name)}</b>
-                    <span class="dim">{inHold(name) ? `${inHold(name)}t in hold` : 'refined earlier'}{#if inHold(name) && price(name)} · <b class="warn">{short(inHold(name) * price(name))} Cr</b>{/if}</span></div>
-                  {#if list.length}
-                    <table>
-                      <tbody>
-                        {#each list as q (q.end.marketId)}
-                          <tr>
-                            <td class="cut"><Name value={q.end.station} stationType={q.end.type} icon /><small class="dim sys"><Name value={q.end.system} system /></small></td>
-                            <td class="num r"><b>{cr(q.price)}</b></td>
-                            <td class="num r dim">{short(q.volume)}</td>
-                            <td class="num r">{q.end.fromMe.toFixed(1)}<small class="dim">ly</small></td>
-                            <td class="dim">{q.end.pad}</td>
-                            <td class="num r age {ageTone(q.end.ageH)}">{q.end.live ? 'OWN' : ageLabel(q.end.ageH)}</td>
-                          </tr>
-                        {/each}
-                      </tbody>
-                    </table>
-                  {:else}
-                    <p class="none">{selling ? 'scanning…' : sells ? 'no buyer within the filters' : ''}</p>
-                  {/if}
-                </div>
-              {/each}
-            </div>
-          {/if}
-        {/if}
-      </div>
-    </section>
-
-    <div class="console">
-      <section class="bay g-mine">
-        <h4>MINING<span class="st">FG {FG[s.status.fireGroup] ?? '—'}</span></h4>
-        <div class="tiles">
-          {@render macroTile('MineReady', 'READY', 'scoop · hardpoints · lasers', 'x2')}
-          {@render macroTile('MineLeave', 'LEAVE', 'all in · power to engines', 'x2')}
-          {@render keyTile('ToggleCargoScoop', 'SCOOP', '', 'amber', s.flags.cargoScoopDeployed)}
-          {@render keyTile('DeployHardpointToggle', 'HARDPTS', '', 'amber', s.flags.hardpointsDeployed)}
-          {@render keyTile('NightVisionToggle', 'NIGHT VIS.', '', '', s.flags.nightVision)}
-          {@render keyTile('ShipSpotLightToggle', 'LIGHTS', '', '', s.flags.lightsOn)}
-          <div class="fgs">
-            {#each FG as g, n (g)}
-              {@render macroTile(`FireGroup${n}`, g, '', 'fg', s.status.fireGroup === n)}
+      <div class="scroll">
+        <table class="ores">
+          <thead><tr><th>ORE</th><th class="r">BEST</th><th class="r opt" title="Mean of the best stations found, up to 20">AVG</th><th class="r opt">MKTS</th><th class="r" title="Mark as target / ignore">MARK</th></tr></thead>
+          <tbody>
+            {#each oreRows as r (r.name)}
+              <tr class:tgt={isTarget(r.name)} class:ign={isIgnored(r.name)} >
+                <td class="cut"><span class="mark">{isTarget(r.name) ? '★' : isIgnored(r.name) ? '✕' : ''}</span>{r.core ? '◆ ' : ''}{r.name}{#if r.ring}<span class="own">RING</span>{/if}</td>
+                <td class="num r bar" style="--w:{(r.best / maxBest) * 100}%"><b>{r.best ? cr(r.best) : '—'}</b></td>
+                <td class="num r dim opt">{r.avg ? cr(Math.round(r.avg)) : '—'}</td>
+                <td class="num r dim opt">{r.n || ''}</td>
+                <td class="r mk">
+                  <button class="mkb" class:on={isTarget(r.name)} onclick={() => toggleTarget(r.name)} aria-label="Target {r.name}" title="Target">★</button>
+                  <button class="mkb ig" class:on={isIgnored(r.name)} onclick={() => toggleIgnore(r.name)} aria-label="Ignore {r.name}" title="Ignore">✕</button>
+                </td>
+              </tr>
             {/each}
-            {@render keyTile('CycleFireGroupNext', 'FG ▶', '', 'cyan fg')}
-          </div>
+          </tbody>
+        </table>
+        {#if !oreRows.length}<p class="none">{show === 'targets' ? 'No target set: tap an ore to mark it.' : show === 'here' ? 'No known hotspots in the rings of this system.' : 'Pricing the ores…'}</p>{/if}
+      </div>
+      <p class="hint">{selling ? 'Pricing…' : sells ? `Sell prices within ${sellOpts.radius} ly of ${remote ? around.toUpperCase() : 'here'}, pad ${sellOpts.pad}. AVG is the mean of the best stations found.` : 'Pricing starts in a few seconds.'}</p>
+    {:else}
+      <div class="fgrid f3">
+        <div class="fld"><span class="cap">RANGE · LY</span>
+          <span class="seg">{#each [20, 40, 80] as r (r)}<button class:on={sellOpts.radius === r} onclick={() => setSell({ radius: r })}>{r}</button>{/each}</span>
         </div>
-      </section>
-      <section class="bay g-power">
-        <h4>POWER</h4>
-        <div class="tiles">
-          {@render power('PowerATK', 'LASERS', pipBars(2, 0, 4))}
-          {@render power('PowerDEF', 'DEF', pipBars(4, 2, 0))}
-          {@render power('PowerRUN', 'RUN', pipBars(2, 4, 0))}
-          <button class="act danger" class:armed={ejectArmed} disabled={!keyFor('EjectAllCargo')} class:disabled={!keyFor('EjectAllCargo')} onclick={eject}>
-            <b>{ejectArmed ? 'AGAIN' : 'EJECT ALL'}</b><small>{ejectArmed ? 'dumps the hold' : 'two taps'}</small>
-            {#if !keyFor('EjectAllCargo')}<span class="key nobind">NO BIND</span>{/if}
-          </button>
+        <div class="fld"><span class="cap">LANDING PAD</span>
+          <span class="seg">{#each ['S', 'M', 'L'] as p (p)}<button class:on={sellOpts.pad === p} onclick={() => setSell({ pad: p as 'S' | 'M' | 'L' })}>{p}</button>{/each}</span>
         </div>
-      </section>
-    </div>
+        <div class="fld sortf"><span class="cap">SORT BY</span>
+          <span class="seg">{#each [['price', 'PRICE'], ['demand', 'DEMAND'], ['distance', 'NEAR']] as [k, l] (k)}<button class:on={sellOpts.sort === k} onclick={() => setSell({ sort: k as SellOpts['sort'] })}>{l}</button>{/each}</span>
+        </div>
+        <div class="fld s2"><span class="cap">INCLUDE</span>
+          <span class="seg"><button class:on={sellOpts.planetary} onclick={() => setSell({ planetary: !sellOpts.planetary })}>SURFACE</button><button class:on={sellOpts.carriers} onclick={() => setSell({ carriers: !sellOpts.carriers })}>CARRIERS</button></span>
+        </div>
+        <div class="fld scanf">
+          <span class="cap">{holdValue ? `HOLD ~${short(holdValue)} CR` : 'HOLD EMPTY'}</span>
+          <button class="go" class:busy={selling} disabled={selling || !sellNames.length} onclick={scanSells}>{selling ? 'SCANNING' : 'SCAN'}</button>
+        </div>
+      </div>
+      {#if sellError}<p class="none warn">{sellError}</p>{/if}
+      {#if !sellNames.length}
+        <p class="none">Nothing mined in the hold yet. Refined ores get priced here: the best stations within {sellOpts.radius} ly of {remote ? around.toUpperCase() : 'here'}.</p>
+      {:else}
+        <div class="scroll">
+          {#each sellNames as name (name)}
+            {@const list = sorted(sells?.[norm(name)] ?? []).slice(0, 4)}
+            <div class="com">
+              <div class="ch"><b class:target={isTarget(sellLabel(name))}>{sellLabel(name)}</b>
+                <span class="dim">{inHold(name) ? `${inHold(name)}t in hold` : 'refined earlier'}{#if inHold(name) && price(name)} · <b class="warn">{short(inHold(name) * price(name))} Cr</b>{/if}</span></div>
+              {#if list.length}
+                <table>
+                  <tbody>
+                    {#each list as q (q.end.marketId)}
+                      <tr>
+                        <td class="cut"><Name value={q.end.station} stationType={q.end.type} icon /><small class="dim sys"><Name value={q.end.system} system /></small></td>
+                        <td class="num r"><b>{cr(q.price)}</b></td>
+                        <td class="num r dim">{short(q.volume)}</td>
+                        <td class="num r">{q.end.fromMe.toFixed(1)}<small class="dim">ly</small></td>
+                        <td class="dim">{q.end.pad}</td>
+                        <td class="num r age {ageTone(q.end.ageH)}">{q.end.live ? 'OWN' : ageLabel(q.end.ageH)}</td>
+                      </tr>
+                    {/each}
+                  </tbody>
+                </table>
+              {:else}
+                <p class="none">{selling ? 'scanning…' : sells ? 'no buyer within the filters' : ''}</p>
+              {/if}
+            </div>
+          {/each}
+        </div>
+      {/if}
+    {/if}
   </div>
+</section>
+{/snippet}
+
+{#snippet pConsole()}
+<div class="console">
+  <section class="bay g-mine">
+    <h4>MINING<span class="st">FG {FG[s.status.fireGroup] ?? '—'}</span></h4>
+    <div class="tiles">
+      {@render macroTile('MineReady', 'READY', 'scoop · hardpoints · lasers', 'x2')}
+      {@render macroTile('MineLeave', 'LEAVE', 'all in · power to engines', 'x2')}
+      {@render keyTile('ToggleCargoScoop', 'SCOOP', '', 'amber', s.flags.cargoScoopDeployed)}
+      {@render keyTile('DeployHardpointToggle', 'HARDPTS', '', 'amber', s.flags.hardpointsDeployed)}
+      {@render keyTile('NightVisionToggle', 'NIGHT VIS.', '', '', s.flags.nightVision)}
+      {@render keyTile('ShipSpotLightToggle', 'LIGHTS', '', '', s.flags.lightsOn)}
+      <div class="fgs">
+        {#each FG as g, n (g)}
+          {@render macroTile(`FireGroup${n}`, g, '', 'fg', s.status.fireGroup === n)}
+        {/each}
+        {@render keyTile('CycleFireGroupNext', 'FG ▶', '', 'cyan fg')}
+      </div>
+    </div>
+  </section>
+  <section class="bay g-power">
+    <h4>POWER</h4>
+    <div class="tiles">
+      {@render power('PowerATK', 'LASERS', pipBars(2, 0, 4))}
+      {@render power('PowerDEF', 'DEF', pipBars(4, 2, 0))}
+      {@render power('PowerRUN', 'RUN', pipBars(2, 4, 0))}
+      <button class="act danger" class:armed={ejectArmed} disabled={!keyFor('EjectAllCargo')} class:disabled={!keyFor('EjectAllCargo')} onclick={eject}>
+        <b>{ejectArmed ? 'AGAIN' : 'EJECT ALL'}</b><small>{ejectArmed ? 'dumps the hold' : 'two taps'}</small>
+        {#if !keyFor('EjectAllCargo')}<span class="key nobind">NO BIND</span>{/if}
+      </button>
+    </div>
+  </section>
 </div>
+{/snippet}
+
+{#if phone}
+  <PhonePages pages={PAGES} bind:page>
+    <div class="phonepage p-{page} {viewport.orientation}">
+      {#if page === 'prospect'}
+        {@render pProspect()}{@render pRadar()}{@render pHistory()}
+      {:else if page === 'session'}
+        {@render pSession()}
+      {:else if page === 'find'}
+        {@render pFind()}
+      {:else}
+        {@render pConsole()}
+      {/if}
+    </div>
+  </PhonePages>
+{:else if portrait}
+  <!-- tablet on its end: two columns over a full-width console strip -->
+  <div class="mining tp">
+    <div class="col">{@render pProspect()}{@render pRadar()}{@render pHistory()}</div>
+    <div class="col">{@render pFind()}{@render pSession()}</div>
+    <div class="strip">{@render pConsole()}</div>
+  </div>
+{:else}
+<div class="mining">
+  <div class="col">{@render pProspect()}{@render pHistory()}</div>
+  <div class="col">{@render pRadar()}{@render pSession()}</div>
+  <div class="col">{@render pFind()}{@render pConsole()}</div>
+</div>
+{/if}
+
 
 <style>
   .mining { height: 100%; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: 8px; min-height: 0; }
@@ -807,12 +927,18 @@
   .fgrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px 12px; margin-bottom: 8px; }
   .fld { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
   .fld.wide { grid-column: 1 / -1; }
+  .fgrid.f3 { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 8px; }
+  .fld.s2 { grid-column: span 2; }
   .fld .cap { font-size: 10px; letter-spacing: .1em; color: var(--dim); }
   .fld .seg { display: flex; }
   .fld .seg button { flex: 1; padding: 0 4px; }
   .fld select { width: 100%; }
   .fld .go { margin-left: 0; width: 100%; }
-  .ores tbody tr { cursor: pointer; }
+  .ores .mk { white-space: nowrap; width: 1%; }
+  .mkb { min-width: 34px; min-height: 28px; margin-left: 4px; font-size: 13px; color: var(--dim); background: var(--steel); border: 1px solid var(--rule); }
+  .mkb.on { color: var(--void); background: var(--hud-hi); border-color: var(--hud-hi); }
+  .mkb.ig.on { color: #fff; background: var(--danger); border-color: var(--danger); }
+  :global(html:not([data-device='desktop'])) .mkb { min-width: 44px; min-height: 40px; }
   .ores tr.tgt td:first-child { color: var(--hud-hi); }
   .ores tr.ign { opacity: .45; }
   .ores .mark { display: inline-block; width: 14px; color: var(--hud-hi); }
@@ -840,7 +966,7 @@
   .v-low { color: var(--hud-hi); background: rgb(255 181 69 / .10); }
   .v-skip { color: var(--danger); background: rgb(209 72 58 / .10); }
   .facts { display: grid; grid-template-columns: 1.1fr 1fr .8fr 1.2fr; gap: 8px; margin-bottom: 8px; }
-  .vstats { display: flex; gap: 18px; padding: 4px 2px 8px; flex-wrap: nowrap; }
+  .vstats { display: flex; gap: 6px 18px; padding: 4px 2px 8px; flex-wrap: wrap; }
   .vstats small { display: block; color: var(--dim); font-size: var(--fs-xs); letter-spacing: .1em; white-space: nowrap; }
   .vstats b { font-size: 15px; white-space: nowrap; }
   .vstats b.core { color: var(--macro); }
@@ -867,11 +993,17 @@
   .vmats .mbar2 { width: 30%; }
   .vmats .mbar2 i { display: block; height: 6px; background: var(--hud); opacity: .8; }
   tr.picked td { background: rgba(255, 122, 24, .10); }
-  .vchart { flex: 0 0 34%; min-height: 72px; display: flex; align-items: flex-end; gap: 3px; padding: 6px 2px 0;
-    border-bottom: 1px solid var(--line); }
+  .vwrap { flex: 0 0 34%; min-height: 150px; display: flex; gap: 4px; padding-top: 6px; }
+  .vaxis { position: relative; flex: none; width: 34px; margin-bottom: 0; }
+  .vaxis span { position: absolute; right: 2px; transform: translateY(50%); font-size: 10px; color: var(--dim); line-height: 1; }
+  .vchart { position: relative; flex: 1; min-width: 0; display: flex; align-items: flex-end; gap: 3px; padding: 0 2px;
+    border-bottom: 1px solid var(--line); border-left: 1px solid var(--line); }
+  .vchart .grid { position: absolute; left: 0; right: 0; height: 0; border-top: 1px dotted var(--rule); pointer-events: none; }
+  .vchart .richline { position: absolute; left: 0; right: 0; height: 0; border-top: 1px dashed var(--ok); opacity: .55; pointer-events: none; }
   .vbar { flex: 1 1 0; min-width: 4px; height: 100%; position: relative; display: flex; align-items: flex-end; }
   .vbar .vfill { display: block; width: 100%; background: var(--dim); opacity: .55; }
   .vbar.v-mine .vfill { background: var(--ok); opacity: 1; }
+  .vbar.none .vfill { background: var(--danger); opacity: .9; }
   .vbar.v-core .vfill { background: var(--macro); opacity: 1; }
   .vbar.v-low .vfill { background: var(--warn, #ffb545); opacity: .8; }
   .vbar em { position: absolute; top: 0; left: 50%; transform: translateX(-50%); color: var(--macro); font-style: normal; font-size: 12px; }
@@ -906,7 +1038,7 @@
   .vt.v-core { background: var(--macro); color: var(--void); }
 
   /* session */
-  .kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(74px, 1fr)); gap: 6px; }
   .kpis b { font-size: 16px; }
   .hold { margin-top: 8px; font-size: 12px; color: var(--dim); }
   .hold b { color: var(--text); }
@@ -925,6 +1057,8 @@
 
   /* right column: one panel with tabs */
   .tabbed { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--rule); }
+  .sub2 { display: block; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .around { flex: none; padding: 4px 6px; border-bottom: 1px solid var(--rule); }
   .tabs { display: grid; grid-template-columns: 1fr 1.5fr .9fr 1fr; flex: none; }
   .tabs button {
     min-height: 40px; font-size: 12px; font-weight: 800; letter-spacing: .14em; color: var(--muted); white-space: nowrap;
@@ -1017,4 +1151,61 @@
   .act.danger.armed { animation: busy .35s linear infinite alternate; box-shadow: 0 0 18px rgb(209 72 58 / .6); }
   .pips { display: flex; gap: 4px; align-items: flex-end; height: 22px; margin-top: 2px; }
   .pips i { width: 14px; background: var(--macro); }
+
+  /* tablet on its side: the console column is wider so the tile names fit */
+  :global(html[data-vp='tablet-landscape']) .mining { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.4fr); }
+  /* --- tablet on its end: two columns over the console --- */
+  .mining.tp { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; }
+  .mining.tp .col { overflow-y: auto; }
+  .mining.tp .col > :global(.panel) { flex: none; }
+  .mining.tp :global(.panel.radar .body), .mining.tp :global(.panel.history .body), .mining.tp :global(.panel.prospect .body) { flex: none; }
+  .mining.tp .scroll { flex: none; max-height: 240px; }
+  .mining.tp .tabbed { flex: 1 0 auto; min-height: 440px; }
+  .mining.tp .tabbed .scroll { flex: 1; max-height: none; min-height: 200px; }
+  .mining.tp :global(.panel.session) { flex: none; }
+  .vwrap { flex-shrink: 0; }
+  .strip { grid-column: 1 / -1; display: flex; }
+  .strip :global(.console) { flex: 1; flex-direction: row; height: 232px; }
+  .strip :global(.g-mine) { flex: 3 1 0; }
+  .strip :global(.g-power) { flex: 1.3 1 0; }
+  .strip :global(.g-power .tiles) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .strip :global(.g-mine .tiles) { grid-auto-rows: minmax(40px, 1fr); }
+
+  /* --- phones: one page at a time (PhonePages) --- */
+  .phonepage { display: flex; flex-direction: column; gap: 8px; min-height: 0; min-width: 0; flex: 1; }
+  .phonepage.p-find { overflow: hidden; }
+  .phonepage.p-find .tabbed { flex: 1 1 0; }
+  .phonepage > :global(.panel) { flex: none; }
+  .phonepage :global(.panel .scroll), .phonepage :global(.panel .body) { max-height: none; }
+  .phonepage .scroll { flex: none; max-height: 46vh; }
+  .phonepage.p-find .scroll { flex: 1; max-height: none; }
+  .phonepage .console { height: auto; flex-direction: column; }
+  .phonepage :global(.bay) { flex: none; }
+  .phonepage :global(.g-mine .tiles) { flex: 1; }
+  .phonepage .tiles { grid-auto-rows: minmax(56px, auto); }
+  .phonepage :global(.g-power .tiles) { grid-auto-rows: minmax(70px, auto); }
+  .phonepage :global(.panel.radar .body), .phonepage :global(.panel.history .body), .phonepage :global(.panel.prospect .body) { flex: none; }
+  .phonepage .fgs { grid-auto-rows: 56px; }
+  .phonepage.portrait .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .phonepage.portrait .fgs { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .phonepage.portrait .fgs :global(.act.cyan) { grid-column: span 2; }
+  .phonepage .facts { grid-template-columns: 1fr 1fr; }
+  .phonepage .tabs button { letter-spacing: .06em; }
+  .phonepage .lists { flex-wrap: wrap; }
+
+  /* --- every touch screen: comfortable targets (the PC layouts keep their size) --- */
+  :global(html:not([data-device='desktop'])) .chip, :global(html:not([data-device='desktop'])) .step { min-height: 44px; min-width: 44px; }
+  :global(html:not([data-device='desktop'])) .seg button { min-height: 40px; min-width: 40px; }
+  :global(html:not([data-device='desktop'])) .around :global(input), :global(html:not([data-device='desktop'])) .around :global(.here) { min-height: 44px; }
+  :global(html:not([data-device='desktop'])) .act small { white-space: normal; line-height: 1.15; }
+  :global(html:not([data-device='desktop'])) .act.x2 small { display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; }
+  :global(html:not([data-device='desktop'])) .act b { font-size: 12px; letter-spacing: 0; }
+
+  /* phone in portrait: the filters in two columns, in a thumb-friendly order */
+  .phonepage.portrait .fgrid.f3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .phonepage.portrait .fgrid .fm { order: 1; } .phonepage.portrait .fgrid .fr { order: 2; }
+  .phonepage.portrait .fgrid .frad { order: 3; } .phonepage.portrait .fgrid .fo { order: 4; } .phonepage.portrait .fgrid .ff { order: 5; }
+  .phonepage.portrait .fgrid .sortf, .phonepage.portrait .fgrid .scanf { grid-column: span 2; }
+  .phonepage.portrait .fgrid:not(.f3) { grid-template-columns: minmax(0, 1fr); }
+  .phonepage.portrait .ores .opt { display: none; }
 </style>

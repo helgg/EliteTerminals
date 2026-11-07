@@ -575,9 +575,26 @@ app.post('/api/trade/commodity', async (req) => {
 
 app.post('/api/mining/sell', async (req, reply) => {
   try {
-    return await trade.sells(req.body as MiningSellQuery);
+    const q = req.body as MiningSellQuery;
+    const want = String(q.reference ?? '').trim();
+    const loc = reader.state.location;
+    // another system (the MINING "around" picker): the price database knows where it is once it was picked from the list
+    const ref = want && want.toLowerCase() !== loc.system.toLowerCase() ? prices.system(want) : null;
+    if (want && !ref && want.toLowerCase() !== loc.system.toLowerCase()) return reply.code(404).send({ error: `unknown system "${want}": pick it from the list` });
+    return await trade.sells(q, ref ?? undefined);
   } catch (err) {
     app.log.warn({ error: (err as Error).message }, 'mining sell scan failed');
+    return reply.code(502).send({ error: (err as Error).message });
+  }
+});
+
+app.post('/api/mining/rings', async (req, reply) => {
+  const system = String((req.body as { system?: string })?.system ?? '').trim();
+  if (!system) return reply.code(400).send({ error: 'No system' });
+  try {
+    return await rings.get(system);
+  } catch (err) {
+    app.log.warn({ error: (err as Error).message }, 'rings lookup failed');
     return reply.code(502).send({ error: (err as Error).message });
   }
 });
