@@ -929,7 +929,7 @@
   .fld.wide { grid-column: 1 / -1; }
   .fgrid.f3 { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 8px; }
   .fld.s2 { grid-column: span 2; }
-  .fld .cap { font-size: 10px; letter-spacing: .1em; color: var(--dim); }
+  .fld .cap { font-size: 11px; letter-spacing: .1em; color: var(--dim); }
   .fld .seg { display: flex; }
   .fld .seg button { flex: 1; padding: 0 4px; }
   .fld select { width: 100%; }
