@@ -368,7 +368,10 @@
   /* a phone: the page scrolls as a whole (PhonePages), the panels take the height of what they hold */
   .ex.phone { height: auto; min-height: min-content; gap: 8px; }
   .ex.phone :global(.panel) { flex: none; }
-  .ex.phone .strip { flex-wrap: nowrap; overflow-x: auto; flex: none; }
+  .ex.phone .strip { flex-wrap: nowrap; overflow-x: auto; flex: none;
+    /* the strip scrolls sideways: a fade at the right edge says there is more (the system name is already in the top bar) */
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent); }
+  .ex.phone .strip .who { display: none; }
   .ex.phone .strip > div { flex: none; padding: 5px 10px; }
   .ex.phone .strip, .ex.phone .strip * { white-space: nowrap; }
   .ex.phone .who { flex: none; max-width: 70%; }
@@ -412,6 +415,8 @@
   .galbox { height: 100%; min-height: 380px; }
   .cols.gal { grid-template-columns: minmax(0, 1fr) 380px; }
   .ex.phone .galbox { height: 340px; min-height: 0; }
+  /* standing up there is height to spare: the layer chips and zoom buttons covered a third of a 340 px map */
+  @media (orientation: portrait) { .ex.phone .galbox { height: 470px; } }
 
   .focus { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
   .focus .k { margin-right: 6px; }
