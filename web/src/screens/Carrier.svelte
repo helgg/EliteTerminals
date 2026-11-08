@@ -124,7 +124,7 @@
     return { inn, out, net: inn - out, days, pct: weekly ? (inn / weekly) * 100 : 0 };
   });
   const GOAL_SCALE = 200; // the bar runs to 200% of the goal, the mark at 100%
-  const day = (t: number) => new Date(t).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+  const day = (t: number) => new Date(t).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   const span = (weeks: number) => {
     const m = Math.floor((weeks * 7) / 30.44);
     return m >= 12 ? `${Math.floor(m / 12)}y ${m % 12}m` : m >= 1 ? `${m} mo` : `${Math.floor(weeks)} wk`;
@@ -143,7 +143,8 @@
     try { localStorage.setItem('et.carrier.page', page); } catch {}
   });
   const phone = $derived(viewport.device === 'phone');
-  const wide = $derived(viewport.vp === 'desktop-landscape' || viewport.vp === 'tablet-landscape');
+  // two columns whenever there is width for them: an iPad standing up (834 px) has room, and its single column pushed the jump planner below the fold
+  const wide = $derived(viewport.vp === 'desktop-landscape' || viewport.vp === 'tablet-landscape' || viewport.vp === 'tablet-portrait');
   const untracked = $derived(carrierUntracked(c));
   const tracked = $derived(c.cargo.reduce((t, x) => t + x.count, 0));
   const seg = (n: number) => `${c.space.total ? (n / c.space.total) * 100 : 0}%`;
