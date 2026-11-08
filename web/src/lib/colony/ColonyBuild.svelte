@@ -514,8 +514,8 @@
   .tb { margin-right: 6px; color: var(--hud-hi); font-size: var(--fs-xs); font-weight: 600; opacity: 0.8; }
   .tb.ok { color: var(--ok); }
   td.bar, th.bar { width: 22%; }
-  /* a phone standing up: the progress bar gives way so Need and Cr/t are not cut off */
-  @media (max-width: 520px) { td.bar, th.bar { display: none; } td { padding: 5px 3px; } }
+  /* a phone standing up: the progress bar and the Cr/t column give way (Cr/t was cut off at the edge) so Left, Hold, Carrier and Need all fit */
+  @media (max-width: 520px) { td.bar, th.bar, tr > :last-child { display: none; } td { padding: 5px 3px; } }
   .mini { display: block; height: 6px; background: var(--steel); }
   .mini span { display: block; height: 100%; background: var(--ok); }
 

@@ -303,11 +303,12 @@
   <Panel class="right" title="System" aside={picked ? `${picked.bodiesKnown} bodies` : ''}>
     <div class="pane">
       {#if phone && !picked}
-        <p class="dim">No system picked yet.</p>
+        <p class="dim">No system picked yet. {result ? 'Tap one in the list to see its bodies.' : 'Search first, then tap a system in the list.'}</p>
         <button class="back" onclick={() => (page = result ? 'list' : 'search')}>{result ? 'SHOW THE SYSTEMS' : 'GO TO SEARCH'}</button>
+      {:else}
+        <ColonyDetail sys={picked} reach={result?.query.maxPopulatedLy ?? f.maxPopulatedLy}
+          onhide={(reason) => picked && hide(picked.id64, picked.name, reason)} />
       {/if}
-      <ColonyDetail sys={picked} reach={result?.query.maxPopulatedLy ?? f.maxPopulatedLy}
-        onhide={(reason) => picked && hide(picked.id64, picked.name, reason)} />
     </div>
   </Panel>
 {/snippet}

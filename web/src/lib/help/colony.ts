@@ -20,6 +20,7 @@ export const colony: HelpDoc = {
     'PLAN ↗ in the finder opens the system in RavenColonial.',
     'EXP next to PLOT opens the system in EXPLORE.',
     'The age of each system\'s data is shown, so you know how stale a claim check may be.',
+    'On a phone standing up the shopping list hides the Cr/t column so Left, Hold, Carrier and Need fit; turn the phone to see it.',
   ],
   data: 'Sites come from your journal. Systems and bodies come from Spansh; facilities from RavenColonial. Everything is kept on the PC.',
   reviewed: '0.1.0',
