@@ -403,6 +403,10 @@
   .strip > div { padding: 6px 14px; border-right: 1px solid var(--rule); display: flex; flex-direction: column; justify-content: center; min-width: 0; }
   .strip > div:last-child { border-right: 0; }
   .who { flex: 1 1 260px; flex-direction: row !important; align-items: center; justify-content: flex-start !important; gap: 10px; }
+  /* a long system name wraps inside its cell instead of running over REGION (the portrait monitor) */
+  .who { min-width: 0; }
+  .who .v { min-width: 0; }
+  .who :global(.text) { white-space: normal; overflow-wrap: anywhere; }
   .k { font-size: var(--fs-2xs); letter-spacing: 0.14em; color: var(--dim); }
   .v { font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
   .v em { font-style: normal; font-weight: 400; color: var(--dim); font-size: 12px; }
