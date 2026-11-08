@@ -72,7 +72,7 @@ a second.
   recall & jump), defence (heat sink, shield cell, chaff, ECM, silent running, combos) and wing assist.
 - Macros press one key at a time and wait for the game to confirm each step (status flags, pips, the targeted
   ship and subsystem) before the next. Tap a running macro again to stop it, from any screen.
-- Phones get four pages (TARGETS, ATTACK, FIGHTER, SURVIVE); the iPad keeps a narrow targets column beside
+- Phones get four pages (TARGETS, ATTACK, FIGHTER, SURVIVE; FIGHTER appears only with a fighter bay, and larger screens shrink that group to a note); the iPad keeps a narrow targets column beside
   the whole console.
 
 **TRADE**

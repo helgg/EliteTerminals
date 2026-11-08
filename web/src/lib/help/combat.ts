@@ -17,7 +17,7 @@ export const combat: HelpDoc = {
   tips: [
     'Ships with the same type and pilot name (patrols) are told apart by their rank.',
     'Several devices stay in step: after a kill only the screen you used last picks the next target.',
-    'On phones the pages are TARGETS, ATTACK, FIGHTER and SURVIVE.',
+    'On phones the pages are TARGETS, ATTACK, FIGHTER and SURVIVE; FIGHTER only appears when your ship has a fighter bay. Without one, the console on larger screens shrinks the fighter group to a short note.',
   ],
   data: 'Everything comes from your own journals and Status.json. Nothing here uses the network.',
   reviewed: '0.1.0',

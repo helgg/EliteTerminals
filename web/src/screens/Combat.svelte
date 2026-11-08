@@ -160,6 +160,8 @@
   ];
   // This ship has no fighter bay: orders would go nowhere.
   const noBay = $derived(c.fighter === 'none');
+  // phones: without a bay the FIGHTER page has nothing to press, so its button waits until there is one (unless you are on it)
+  const shownPages = $derived(PAGES.filter((p) => p.id !== 'fighter' || !noBay || page === 'fighter'));
   const pipBars = (sys: number, eng: number, wep: number) => [sys, eng, wep].map((v) => v * 5 + 2);
 </script>
 
@@ -329,8 +331,11 @@
 {/snippet}
 
 {#snippet bayFighter()}
-  <section class="bay g-fighter" style:--rows="3">
+  <section class="bay g-fighter" class:nobay={noBay} style:--rows="3">
     <h4>FIGHTER<span class="st">{fighterText}</span></h4>
+    {#if noBay}
+      <p class="nobay-note">This ship has no fighter bay. Fighter orders appear when you fly one with a bay.</p>
+    {:else}
     <div class="tiles">
       <button class="act macro disabled" disabled>
         <span class="exp">COMING SOON</span><b>LAUNCH</b><small>NPC crew</small>
@@ -344,6 +349,7 @@
       {@render macroTile('Cripple', 'CRIPPLE', 'drives → focus', '', { fighter: true })}
       {@render macroTile('FighterSafe', 'FIGHTER SAFE', 'follow · hold', '', { fighter: true })}
     </div>
+    {/if}
   </section>
 {/snippet}
 
@@ -394,8 +400,8 @@
 {#if phone}
   <!-- PHONES: one page at a time, no scrolling; tabs at the bottom (portrait) or down the left (landscape) -->
   <div class="combat phone narrow {viewport.orientation}">
-    <nav class="pages" aria-label="Combat pages">
-      {#each PAGES as p (p.id)}
+    <nav class="pages" aria-label="Combat pages" style:--n={shownPages.length}>
+      {#each shownPages as p (p.id)}
         <button class:on={page === p.id} onclick={() => setPage(p.id)}>
           <span class="pi">{p.icon}</span>{p.label}
           {#if p.id === 'targets' && autoNext()}<span class="dot"></span>{/if}
@@ -503,7 +509,7 @@
   .combat.phone.landscape { grid-template-columns: 74px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
   .phone.portrait .pages { grid-row: 2; }
   .phone.portrait .page { grid-row: 1; }
-  .pages { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+  .pages { display: grid; grid-template-columns: repeat(var(--n, 4), 1fr); gap: 4px; }
   .landscape .pages { grid-template-columns: 1fr; grid-auto-rows: 1fr; }
   .pages button {
     position: relative; min-height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
@@ -601,6 +607,9 @@
   .g-power { --g: var(--macro); }
   .g-target { --g: var(--hud); }
   .g-fighter { --g: var(--telemetry); }
+  /* no bay: one short note instead of twelve dead tiles; the freed height goes to the other bays */
+  .bay.nobay, .page > .bay.nobay { flex: 0 0 auto; min-height: 96px; }
+  .nobay-note { margin: 0; padding: 12px 14px; align-self: center; color: var(--dim); font-size: var(--fs-sm, 12px); line-height: 1.4; }
   .g-escape { --g: var(--danger); }
   .g-defence { --g: var(--hud-hi); }
   .g-weapons { --g: var(--ok); }
