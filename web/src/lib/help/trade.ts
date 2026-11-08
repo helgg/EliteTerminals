@@ -21,7 +21,7 @@ export const trade: HelpDoc = {
     'Tap a station or system name to copy it to the PC\'s clipboard, ready to paste in the galaxy map.',
     'A start or end whose prices are older than the filter stays in an A → B path, but nothing is traded there.',
     'Pins are kept on the PC, so every device sees the same ones. Prices of visited and watched markets are kept for 7 days.',
-    'On a phone the pages are SCAN, ROUTES, ROUTE and MARKET.',
+    'On a phone the pages are SCAN, ROUTES, ROUTE and MARKET; SCAN stays at the foot of the filters in both orientations.',
   ],
   data: 'Markets and prices come from your own Market.json, Spansh and the EDDN network. Pins are kept on the PC.',
   reviewed: '0.1.0',

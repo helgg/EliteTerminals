@@ -657,10 +657,11 @@
   /* standing up: thumb-sized controls (the page scrolls) and SCAN stays in reach at the foot */
   .phone.portrait .p-scan .chips button, .phone.portrait .p-scan .toggles button { min-height: 40px; }
   .phone.landscape .p-scan .chips button, .phone.landscape .p-scan .toggles button { min-height: 36px; }
-  .phone.portrait .p-scan :global(.body) { overflow: visible; }
-  .phone.portrait .p-scan :global(.panel) { overflow: visible; }
+  .phone .p-scan :global(.body), .phone .p-scan :global(.panel) { overflow: visible; }
   .phone.portrait .p-scan .go { position: sticky; bottom: 0; z-index: 2; padding: 6px 0 2px; background: var(--void); }
   .phone.landscape .p-scan .filters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px 10px; align-content: start; }
+  /* SCAN stays in reach at the foot on a phone on its side too (it sat below the fold of the 3-column filters) */
+  .phone.landscape .p-scan .go { position: sticky; bottom: 0; z-index: 2; background: var(--void); padding: 4px 0 2px; }
   .phone.landscape .p-scan .go { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 2px 10px; align-items: center; }
   .phone.landscape .p-scan .go .scan { grid-row: span 2; padding: 8px; }
   .phone.landscape .p-scan .chips button, .phone.landscape .p-scan .toggles button { padding: 6px 2px; min-width: 34px; }

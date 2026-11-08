@@ -79,6 +79,8 @@
     flex: 1; min-width: 0; padding: 7px 8px; background: var(--void); border: 1px solid var(--rule);
     color: var(--text); font: inherit;
   }
+  /* touch screens: the search field and its button are used every time (viewport-review T1) */
+  :global(html[data-device='tablet']) .search input, :global(html[data-device='tablet']) .search button, :global(html[data-device='phone']) .search input, :global(html[data-device='phone']) .search button { min-height: 44px; }
   .search button { padding: 0 14px; background: var(--hud); color: var(--void); border: 0; font-weight: 700; letter-spacing: 0.08em; }
   .cols { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; overflow-y: auto; overflow-x: hidden; }
   .side { min-width: 0; }
