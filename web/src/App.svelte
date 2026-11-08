@@ -307,8 +307,7 @@
     height: 100%;
     padding: 8px;
     /* full screen on iPhone/iPad: keep clear of the notch, rounded corners and home indicator */
-    padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right))
-      max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+    padding: max(8px, var(--safe-t)) var(--safe-r) var(--safe-b) var(--safe-l);
   }
   .top {
     grid-column: 1 / -1;
@@ -435,7 +434,7 @@
   .shell.phone { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
 
   /* phone bar */
-  .shell.phone { gap: 6px; padding-top: max(6px, env(safe-area-inset-top)); }
+  .shell.phone { gap: 6px; padding-top: var(--safe-t); }
   .top.slim { gap: 8px; padding: 4px 6px 4px 8px; position: sticky; top: 0; z-index: 5; }
   .top.slim .logo { font-size: 16px; }
   .top.slim .sys { font-size: 13px; line-height: 1.15; }
@@ -459,7 +458,7 @@
   .burger.on { border-color: var(--hud); }
   .sheet-bg {
     position: fixed; inset: 0; z-index: 40; background: rgb(5 3 2 / 0.7);
-    padding: calc(max(6px, env(safe-area-inset-top)) + 52px) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+    padding: calc(var(--safe-t) + 52px) var(--safe-r) var(--safe-b) var(--safe-l);
     display: flex; flex-direction: column;
   }
   .sheet {
@@ -480,7 +479,7 @@
   .sheet .meta { grid-column: 1 / -1; font-size: 11px; text-align: center; }
   .toast {
     position: fixed; left: 50%; transform: translateX(-50%); z-index: 30;
-    bottom: calc(max(10px, env(safe-area-inset-bottom)) + 4px);
+    bottom: calc(max(10px, var(--safe-b)) + 4px);
     max-width: calc(100% - 24px); padding: 6px 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     background: var(--rail); border: 1px solid currentColor; font-size: 12px; font-weight: 700;
     pointer-events: none;

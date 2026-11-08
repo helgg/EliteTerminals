@@ -609,6 +609,7 @@
   .g-fighter { --g: var(--telemetry); }
   /* no bay: one short note instead of twelve dead tiles; the freed height goes to the other bays */
   .bay.nobay, .page > .bay.nobay { flex: 0 0 auto; min-height: 96px; }
+  .bay.nobay h4 .st { display: none; }
   .nobay-note { margin: 0; padding: 12px 14px; align-self: center; color: var(--dim); font-size: var(--fs-sm, 12px); line-height: 1.4; }
   .g-escape { --g: var(--danger); }
   .g-defence { --g: var(--hud-hi); }
