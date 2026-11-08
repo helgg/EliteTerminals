@@ -24,7 +24,9 @@
   .name:active { filter: brightness(1.5); }
   .text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   /* touch screens: a taller hit area for the copy-on-tap, without moving the text (viewport-review T2) */
-  :global(html[data-device='tablet']) .name, :global(html[data-device='phone']) .name { padding: 9px 4px; margin: -9px -4px; }
+  /* (a pseudo-element, not padding: padding made the name wider than its shrink-to-fit parent and the text ended in an ellipsis) */
+  :global(html[data-device='tablet']) .name, :global(html[data-device='phone']) .name { position: relative; }
+  :global(html[data-device='tablet']) .name::after, :global(html[data-device='phone']) .name::after { content: ''; position: absolute; inset: -9px -5px; }
   .tok { white-space: nowrap; }
   .system .text { letter-spacing: 0.03em; }
 </style>

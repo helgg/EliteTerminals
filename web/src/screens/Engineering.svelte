@@ -215,6 +215,9 @@
   .where .sys { flex: none; font-weight: 700; }
   .where .base { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
   .where .away { flex: none; font-size: 11px; font-variant-numeric: tabular-nums; }
+  /* phones: engineer and base names wrap onto a second line instead of ending in an ellipsis; EXP and PLOT get a thumb-sized height */
+  :global(html[data-device='phone']) .eg .name, :global(html[data-device='phone']) .where .base { white-space: normal; overflow-wrap: anywhere; text-overflow: clip; }
+  :global(html[data-device='phone']) .where :global(button) { min-height: 40px; }
   .st { flex: none; font-size: var(--fs-xs); letter-spacing: 0.1em; color: var(--dim); }
   .st.unlocked { color: var(--ok); }
   .st.invited { color: var(--hud-hi); }
