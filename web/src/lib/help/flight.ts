@@ -21,7 +21,7 @@ export const flight: HelpDoc = {
     'Hover a button on a PC to see which key it sends.',
     'The status bar shows the result of every command, and a failed one says why.',
     'The game keeps its bookmarks on Frontier\'s servers, so favourites live on your PC and every device shows the same ones.',
-    'On tablets the favourites open from ★ FAV in the route strip; on phones switch between ROUTE and FAVORITES.',
+    'On tablets the favourites open from ★ FAV in the route strip; on phones the TARGET page switches between ROUTE and FAVORITES.',
   ],
   data: 'Ship, route, target and drive come from your own journals and Status.json. Systems, stations and rings are enriched from Spansh. Favourites are kept on the PC.',
   reviewed: '0.1.0',

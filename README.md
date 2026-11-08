@@ -48,7 +48,7 @@ a second.
 - Target hologram and route list with star class, fuel stars, jump distance, security and powerplay,
   enriched from Spansh. Station targets show the landing pad and services; ringed planets show their rings.
 - Monitors split the right-hand column between the route and the favourites; tablets open the favourites from the
-  route strip (★ FAV), and phones switch between ROUTE and FAVORITES on the route page.
+  route strip (★ FAV), and phones switch between ROUTE and FAVORITES on the TARGET page.
 
 ![FLIGHT on an iPad lying down and on an iPhone](docs/images/devices.jpg)
 

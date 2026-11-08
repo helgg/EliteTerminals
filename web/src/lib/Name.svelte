@@ -24,7 +24,7 @@
   .name:active { filter: brightness(1.5); }
   .text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   /* touch screens: a taller hit area for the copy-on-tap, without moving the text (viewport-review T2) */
-  :global(html[data-device='tablet']) .name, :global(html[data-device='phone']) .name { padding-block: 5px; margin-block: -5px; }
+  :global(html[data-device='tablet']) .name, :global(html[data-device='phone']) .name { padding: 9px 4px; margin: -9px -4px; }
   .tok { white-space: nowrap; }
   .system .text { letter-spacing: 0.03em; }
 </style>

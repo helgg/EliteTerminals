@@ -70,7 +70,7 @@
     { id: 'drive', label: 'DRIVE', icon: '»' },
     { id: 'systems', label: 'SYSTEMS', icon: '▦' },
     { id: 'power', label: 'POWER', icon: '▮' },
-    { id: 'route', label: 'ROUTE', icon: '⋯' },
+    { id: 'route', label: 'TARGET', icon: '⌖' },
   ];
   let page = $state<Page>(readPage());
   function readPage(): Page {
@@ -299,7 +299,7 @@
       {/each}
     </ol>
   {:else}
-    <p class="dim">No route plotted.</p>
+    <p class="dim">No route plotted. Plot one in the game's galaxy map and it shows up here, or open ★ FAVORITES and tap PLOT.</p>
   {/if}
 {/snippet}
 
