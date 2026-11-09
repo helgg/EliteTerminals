@@ -606,6 +606,7 @@ app.post('/api/mining/hotspots', async (req, reply) => {
     return await rings.hotspots({
       commodity: String(q.commodity ?? ''), reference: String(q.reference || reader.state.location.system || 'Sol'),
       radius: Math.min(Math.max(Number(q.radius) || 50, 5), 500), minCount: Number(q.minCount) || 1, pristine: q.pristine === true,
+      ringType: ['Metallic', 'Metal Rich', 'Rocky', 'Icy'].includes(String(q.ringType)) ? String(q.ringType) : '',
     });
   } catch (err) {
     app.log.warn({ error: (err as Error).message }, 'hotspot search failed');

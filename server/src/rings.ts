@@ -44,6 +44,8 @@ export interface HotspotQuery {
   /** Hotspots of the commodity in one ring; 2+ means overlapping hotspots. */
   minCount: number;
   pristine: boolean;
+  /** Metallic, Metal Rich, Rocky or Icy; empty = any. */
+  ringType?: string;
 }
 
 export function hotspotBody(q: HotspotQuery, page: number) {
@@ -56,12 +58,13 @@ export function hotspotBody(q: HotspotQuery, page: number) {
 }
 
 /** Spansh results → one row per ring holding the commodity, nearest first. Pure, for tests. */
-export function hotspotMatches(results: any[], q: Pick<HotspotQuery, 'commodity' | 'minCount'>): HotspotMatch[] {
+export function hotspotMatches(results: any[], q: Pick<HotspotQuery, 'commodity' | 'minCount' | 'ringType'>): HotspotMatch[] {
   const out: HotspotMatch[] = [];
   for (const b of results) {
     for (const r of ringsOf(b)) {
       const count = r.signals.find((x) => x.name === q.commodity)?.count ?? 0;
       if (count < Math.max(1, q.minCount)) continue;
+      if (q.ringType && r.type !== q.ringType) continue;
       out.push({
         system: str(b.system_name), body: r.body, ring: r.name, type: r.type, reserve: r.reserve,
         distance: num(b.distance), ls: r.ls, count, signals: r.signals,

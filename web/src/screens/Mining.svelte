@@ -287,8 +287,8 @@
     'Platinum', 'Painite', 'Low Temperature Diamonds', 'Void Opal', 'Alexandrite', 'Benitoite', 'Bromellite',
     'Grandidierite', 'Monazite', 'Musgravite', 'Rhodplumsite', 'Serendibite', 'Tritium',
   ];
-  type Finder = { commodity: string; radius: number; minCount: number; pristine: boolean };
-  let finder = $state<Finder>(load('et.mining.finder', { commodity: 'Platinum', radius: 50, minCount: 1, pristine: false }));
+  type Finder = { commodity: string; radius: number; minCount: number; pristine: boolean; ringType: string };
+  let finder = $state<Finder>(load('et.mining.finder', { commodity: 'Platinum', radius: 50, minCount: 1, pristine: false, ringType: '' }));
   let found = $state<HotspotMatch[] | null>(null);
   let finding = $state(false);
   let findError = $state('');
@@ -703,22 +703,25 @@
         <p class="none">{ringsKnown === null ? 'Rings and hotspots of this system come from Spansh.' : overlap > 1 && (ringsKnown?.length ?? 0) ? `No ring with ${overlap}+ hotspots of one mineral.` : 'No ringed bodies known in this system.'}</p>
       {/if}
     {:else if tab === 'finder'}
-      <div class="fgrid f3">
-        <div class="fld fm"><span class="cap">MINERAL</span>
+      <div class="fgrid f3 f2r">
+        <div class="fld fm c4"><span class="cap">MINERAL</span>
           <select value={finder.commodity} onchange={(e) => setFinder({ commodity: e.currentTarget.value })} aria-label="Commodity">
             {#each HOT as h (h)}<option value={h}>{h}</option>{/each}
           </select>
         </div>
-        <div class="fld s2 frad"><span class="cap">RADIUS · LY</span>
+        <div class="fld frad c4"><span class="cap">RADIUS · LY</span>
           <span class="seg">{#each [25, 50, 100, 200] as r (r)}<button class:on={finder.radius === r} onclick={() => setFinder({ radius: r })}>{r}</button>{/each}</span>
         </div>
-        <div class="fld fo"><span class="cap">OVERLAP · SPOTS/RING</span>
+        <div class="fld fo c4"><span class="cap">OVERLAP · SPOTS/RING</span>
           <span class="seg">{#each [1, 2, 3] as n (n)}<button class:on={finder.minCount === n} onclick={() => setFinder({ minCount: n })}>{n}+</button>{/each}</span>
         </div>
-        <div class="fld fr"><span class="cap">RESERVE</span>
+        <div class="fld fo ft c7"><span class="cap">RING TYPE</span>
+          <span class="seg"><button class:on={!finder.ringType} onclick={() => setFinder({ ringType: '' })}>ALL</button>{#each ['Metallic', 'Metal Rich', 'Rocky', 'Icy'] as t (t)}<button class:on={finder.ringType === t} onclick={() => setFinder({ ringType: t })}>{t.toUpperCase()}</button>{/each}</span>
+        </div>
+        <div class="fld fr c3"><span class="cap">RESERVE</span>
           <span class="seg"><button class:on={!finder.pristine} onclick={() => setFinder({ pristine: false })}>ANY</button><button class:on={finder.pristine} onclick={() => setFinder({ pristine: true })}>PRISTINE</button></span>
         </div>
-        <div class="fld ff"><span class="cap">&nbsp;</span>
+        <div class="fld ff c2"><span class="cap">&nbsp;</span>
           <button class="go" class:busy={finding} disabled={finding} onclick={find}>{finding ? 'SEARCHING' : 'FIND'}</button>
         </div>
       </div>
@@ -742,7 +745,7 @@
           </table>
         </div>
       {:else if found}
-        <p class="none">No ring with {finder.minCount}+ {finder.commodity} hotspots within {finder.radius} ly.</p>
+        <p class="none">No {finder.ringType ? finder.ringType + ' ' : ''}ring with {finder.minCount}+ {finder.commodity} hotspots within {finder.radius} ly.</p>
       {:else}
         <p class="none">Pick a commodity and FIND: rings around {viewSystem.toUpperCase() || 'you'}, nearest first. PLOT sets the route.</p>
       {/if}
@@ -969,6 +972,10 @@
   .fld.wide { grid-column: 1 / -1; }
   .fgrid.f3 { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 8px; }
   .fld.s2 { grid-column: span 2; }
+  /* HOTSPOTS filter: two rows (mineral · radius · overlap / ring type · reserve · FIND) */
+  .fgrid.f2r { grid-template-columns: repeat(12, minmax(0, 1fr)); }
+  .f2r .c3 { grid-column: span 3; } .f2r .c4 { grid-column: span 4; } .f2r .c6 { grid-column: span 6; } .f2r .c7 { grid-column: span 7; } .f2r .c2 { grid-column: span 2; }
+  .f2r .fld.ft .seg button { padding: 0 3px; font-size: 11px; white-space: nowrap; }
   .fld .cap { font-size: 11px; letter-spacing: .1em; color: var(--dim); }
   .fld .seg { display: flex; }
   .fld .seg button { flex: 1; padding: 0 4px; }
@@ -1248,6 +1255,7 @@
 
   /* phone in portrait: the filters in two columns, in a thumb-friendly order */
   .phonepage.portrait .fgrid.f3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .phonepage.portrait .f2r .fld { grid-column: auto; } .phonepage.portrait .f2r .fld.ft { grid-column: span 2; }
   .phonepage.portrait .fgrid .fm { order: 1; } .phonepage.portrait .fgrid .fr { order: 2; }
   .phonepage.portrait .fgrid .frad { order: 3; } .phonepage.portrait .fgrid .fo { order: 4; } .phonepage.portrait .fgrid .ff { order: 5; }
   .phonepage.portrait .fgrid .sortf, .phonepage.portrait .fgrid .scanf { grid-column: span 2; }
