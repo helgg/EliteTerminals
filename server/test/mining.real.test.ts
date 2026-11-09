@@ -23,7 +23,9 @@ test('real session: counts match what the journal holds', () => {
   assert.equal(m.session.prospected, n('ProspectedAsteroid'));
   assert.equal(m.session.prospectors, events.filter((e) => e.event === 'LaunchDrone' && e.Type === 'Prospector').length);
   assert.equal(m.session.collectors, events.filter((e) => e.event === 'LaunchDrone' && e.Type === 'Collection').length);
-  assert.equal(m.session.refined.reduce((a, r) => a + r.count, 0), n('MiningRefined'));
+  // ejected tons no longer count as refined (this session threw 2 t of Samarium out)
+  const ejected = events.filter((e) => e.event === 'EjectCargo').reduce((a, e) => a + Number(e.Count), 0);
+  assert.equal(m.session.refined.reduce((a, r) => a + r.count, 0), n('MiningRefined') - ejected);
   assert.equal(m.session.cracked, 0);
 });
 

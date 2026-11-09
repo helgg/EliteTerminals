@@ -132,9 +132,18 @@
   const ores = $derived(s.cargo.items.filter((i) => norm(i.name) !== 'limpet' && i.count > 0));
   const junk = $derived(ores.filter((i) => isIgnored(i.label) || isIgnored(i.name)));
   const junkTons = $derived(junk.reduce((a, i) => a + i.count, 0));
-  const price = (name: string) => sells?.[norm(name)]?.[0]?.price ?? 0;
+  /** What a ton realistically fetches: the mean of the 5 best buyers that want a real amount (the single top quote is
+   *  often a tiny, stale demand and made every rock look richer than it is). Falls back to any buyer when none is deep. */
+  const DEEP_DEMAND = 100;
+  const typical = (quotes: CommodityQuote[] | undefined) => {
+    const all = quotes ?? [];
+    const deep = all.filter((x) => x.volume >= DEEP_DEMAND);
+    const top = (deep.length ? deep : all).slice().sort((a, b) => b.price - a.price).slice(0, 5);
+    return top.length ? top.reduce((a, x) => a + x.price, 0) / top.length : 0;
+  };
+  const price = (name: string) => typical(sells?.[norm(name)]);
   const holdValue = $derived(ores.reduce((a, i) => a + i.count * price(i.name), 0));
-  const refinedValue = $derived(ss.refined.reduce((a, r) => a + r.count * price(r.name), 0));
+  const refinedValue = $derived(ss.refined.reduce((a, r) => a + (isIgnored(r.label) || isIgnored(r.name) ? 0 : r.count * price(r.name)), 0));
   const tools = $derived(m.tools);
   /** Mining with a full hold wastes the trip: warn at 5% free (at least 2 t) and at zero. */
   const holdAlert = $derived.by(() => {
@@ -372,6 +381,32 @@
   const sorted = (list: CommodityQuote[]) => list.slice().sort((a, b) =>
     sellOpts.sort === 'distance' ? a.end.fromMe - b.end.fromMe : sellOpts.sort === 'demand' ? b.volume - a.volume : b.price - a.price);
   const inHold = (name: string) => ores.find((i) => norm(i.name) === norm(name))?.count ?? 0;
+  /** SELL view: each ore on its own, or the one station that pays most for the whole hold at once. */
+  let sellView = $state<'ore' | 'all'>(load('et.mining.sellView', 'ore'));
+  function setSellView(v: 'ore' | 'all') {
+    sellView = v;
+    save('et.mining.sellView', v);
+  }
+  /** Stations ranked by what the whole hold fetches there: per ore, the tons held (capped by the station's demand) at its price.
+   *  A station that buys only some of the ores still shows, with what it leaves unsold. */
+  const sellAll = $derived.by(() => {
+    const held = sellNames.filter((n) => inHold(n) > 0);
+    const by = new Map<number, { end: CommodityQuote['end']; total: number; lines: { label: string; t: number; short: boolean }[] }>();
+    for (const name of held) {
+      const tons = inHold(name);
+      for (const q of sells?.[norm(name)] ?? []) {
+        const row = by.get(q.end.marketId) ?? { end: q.end, total: 0, lines: [] };
+        const t = Math.min(tons, q.volume);
+        row.total += t * q.price;
+        row.lines.push({ label: sellLabel(name), t, short: q.volume < tons });
+        by.set(q.end.marketId, row);
+      }
+    }
+    const tonsHeld = held.reduce((a, n) => a + inHold(n), 0);
+    const rows = [...by.values()].map((r) => ({ ...r, kinds: r.lines.length, tons: r.lines.reduce((a, l) => a + l.t, 0) }))
+      .sort((a, b) => b.total - a.total || a.end.fromMe - b.end.fromMe);
+    return { held: held.length, tonsHeld, rows };
+  });
 
   // --- ore prices around here: what each mineral pays, to choose which rocks to prospect ---
   type Show = 'all' | 'targets' | 'here';
@@ -382,7 +417,7 @@
     oreList.map((name) => {
       const q = sells?.[norm(name)] ?? [];
       const best = q.reduce((a, x) => Math.max(a, x.price), 0);
-      const avg = q.length ? q.reduce((a, x) => a + x.price, 0) / q.length : 0;
+      const avg = typical(q);
       return { name, best, avg, n: q.length, ring: hereKeys.has(norm(name)), core: coreCapable(name) };
     })
       .filter((r) => !isIgnored(r.name) || show === 'all')
@@ -498,48 +533,23 @@
 </Panel>
 {/snippet}
 
-{#snippet pHistory()}
-<Panel class="history" title="Asteroids" aside="{ss.prospected} prospected · {hits} worth it · {cores} cores" scroll={false}>
-  {#if m.prospects.length > 1}
-    <div class="scroll">
-      <table>
-        <thead><tr><th>AGO</th><th>VERDICT</th><th>BEST TARGET</th><th class="r">%</th><th class="r">CR/T</th><th>CONT.</th><th class="r">LEFT</th></tr></thead>
-        <tbody>
-          {#each m.prospects.slice(1) as p, i (i)}
-            {@const v = verdict(p)}
-            {@const b = best(p)}
-            <tr class:picked={selIdx === i + 1} onclick={() => (pick = i + 1)}>
-              <td class="dim">{ago(p.at)}</td>
-              <td><span class="vt v-{v.kind}">{v.title}</span></td>
-              <td class="cut">{p.motherlode ? `◆ ${p.motherlode}` : b?.label ?? '—'}</td>
-              <td class="num r">{b ? b.pct.toFixed(1) : ''}</td>
-              <td class="num r" class:warn={rich(worths[i + 1])}>{worths[i + 1] ? short(worths[i + 1]) : ''}</td>
-              <td class="dim">{p.content ? p.content[0] : '—'}</td>
-              <td class="num r dim">{p.remaining.toFixed(0)}%</td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
-    </div>
-  {:else}
-    <p class="none">The asteroids prospected before the last one, newest first.</p>
-  {/if}
-</Panel>
-{/snippet}
-
 {#snippet pRadar()}
+<!-- inside a ring the game gives no position: the radar only shows when the ship has one -->
 {#if me || m.trail.points.length}
 <Panel class="radar" title="Radar" aside={m.trail.body ? `${m.trail.body} · trail and prospects` : 'trail and prospects'} scroll={false}>
   <MiningRadar {me} heading={s.status.heading} radius={m.trail.radius || s.status.planetRadius || 0}
     trail={m.trail.points} prospects={m.prospects} {kindOf} />
 </Panel>
-{:else}
-<!-- inside a ring the game gives no position: the radar would be empty, so chart what each rock was worth -->
-<Panel class="radar" title="Rock value" aside={chart.length ? `${chart.length} asteroids · oldest → newest` : 'prospect a rock'} scroll={false}>
+{/if}
+{/snippet}
+
+{#snippet pRock()}
+<Panel class="rock" title="Rock value" aside={chart.length ? `${ss.prospected} prospected · last ${chart.length} charted, oldest → newest` : 'prospect a rock'} scroll={false}>
   {#if chart.length}
     <div class="vstats">
       <div><small>BEST</small><b class="warn">{bestWorth ? `~${short(bestWorth)}/t` : '—'}</b></div>
       <div><small>AVERAGE</small><b>{avgWorth ? `~${short(avgWorth)}/t` : '—'}</b></div>
+      <div><small>WORTH IT</small><b class="ok">{hits} of {chart.length}</b></div>
       <div><small>RICH</small><b class="ok">{richCount} of {chart.length}</b></div>
       <div><small>SINCE LAST RICH</small><b>{sinceRich === null ? '—' : sinceRich}</b></div>
       <div><small>CORES</small><b class:core={cores > 0}>{cores} of {chart.length}</b></div>
@@ -609,7 +619,6 @@
       rock was worth, to help you spot the rich ones.</p>
   {/if}
 </Panel>
-{/if}
 {/snippet}
 
 {#snippet pSession()}
@@ -767,7 +776,7 @@
         </table>
         {#if !oreRows.length}<p class="none">{show === 'targets' ? 'No target set: tap an ore to mark it.' : show === 'here' ? 'No known hotspots in the rings of this system.' : 'Pricing the ores…'}</p>{/if}
       </div>
-      <p class="hint">{selling ? 'Pricing…' : sells ? `Sell prices within ${sellOpts.radius} ly of ${remote ? around.toUpperCase() : 'here'}, pad ${sellOpts.pad}. AVG is the mean of the best stations found.` : 'Pricing starts in a few seconds.'}</p>
+      <p class="hint">{selling ? 'Pricing…' : sells ? `Sell prices within ${sellOpts.radius} ly of ${remote ? around.toUpperCase() : 'here'}, pad ${sellOpts.pad}. AVG is the mean of the 5 best buyers with ${DEEP_DEMAND}+ t of demand, the price used to value rocks and the session.` : 'Pricing starts in a few seconds.'}</p>
     {:else}
       <div class="fgrid f3">
         <div class="fld"><span class="cap">RANGE · LY</span>
@@ -779,8 +788,14 @@
         <div class="fld sortf"><span class="cap">SORT BY</span>
           <span class="seg">{#each [['price', 'PRICE'], ['demand', 'DEMAND'], ['distance', 'NEAR']] as [k, l] (k)}<button class:on={sellOpts.sort === k} onclick={() => setSell({ sort: k as SellOpts['sort'] })}>{l}</button>{/each}</span>
         </div>
-        <div class="fld s2"><span class="cap">INCLUDE</span>
+        <div class="fld"><span class="cap">INCLUDE</span>
           <span class="seg"><button class:on={sellOpts.planetary} onclick={() => setSell({ planetary: !sellOpts.planetary })}>SURFACE</button><button class:on={sellOpts.carriers} onclick={() => setSell({ carriers: !sellOpts.carriers })}>CARRIERS</button></span>
+        </div>
+        <div class="fld"><span class="cap">SHOW</span>
+          <span class="seg">
+            <button class:on={sellView === 'ore'} onclick={() => setSellView('ore')}>BY ORE</button>
+            <button class:on={sellView === 'all'} onclick={() => setSellView('all')} title="The one station that pays most for the whole hold">ALL AT ONCE</button>
+          </span>
         </div>
         <div class="fld scanf">
           <span class="cap">{holdValue ? `HOLD ~${short(holdValue)} CR` : 'HOLD EMPTY'}</span>
@@ -791,6 +806,30 @@
       {#if !sellNames.length}
         <p class="none">Nothing mined in the hold yet. Refined ores get priced here: the best stations within {sellOpts.radius} ly of {remote ? around.toUpperCase() : 'here'}.</p>
       {:else}
+        {#if sellView === 'all'}
+        <div class="scroll">
+          {#if !sellAll.held}
+            <p class="none">The hold has no ore to sell (refined ore already sold or ignored).</p>
+          {:else if !sellAll.rows.length}
+            <p class="none">{selling ? 'scanning…' : sells ? 'no buyer within the filters' : ''}</p>
+          {:else}
+            <p class="hint top">Hold: {sellAll.tonsHeld} t of {sellAll.held} ore{sellAll.held > 1 ? 's' : ''}. Stations ranked by what the whole hold fetches there; demand caps the tons counted.</p>
+            {#each sellAll.rows.slice(0, 12) as r (r.end.marketId)}
+              <div class="com allrow">
+                <div class="ch"><b class="warn">{short(r.total)} Cr</b>
+                  <span class="dim">{r.tons} of {sellAll.tonsHeld} t · {r.kinds === sellAll.held ? 'all ores' : `${r.kinds} of ${sellAll.held} ores`}</span></div>
+                <table><tbody><tr>
+                  <td class="cut"><Name value={r.end.station} stationType={r.end.type} icon /><small class="dim sys"><Name value={r.end.system} system /></small></td>
+                  <td class="num r">{r.end.fromMe.toFixed(1)}<small class="dim">ly</small></td>
+                  <td class="dim">{r.end.pad}</td>
+                  <td class="num r age {ageTone(r.end.ageH)}">{r.end.live ? 'OWN' : ageLabel(r.end.ageH)}</td>
+                </tr></tbody></table>
+                <p class="lines dim">{#each r.lines as l, i (l.label)}<span class:bad={l.short}>{l.t}t {l.label}</span>{i < r.lines.length - 1 ? ' · ' : ''}{/each}</p>
+              </div>
+            {/each}
+          {/if}
+        </div>
+        {:else}
         <div class="scroll">
           {#each sellNames as name (name)}
             {@const list = sorted(sells?.[norm(name)] ?? []).slice(0, 4)}
@@ -818,6 +857,7 @@
             </div>
           {/each}
         </div>
+        {/if}
       {/if}
     {/if}
   </div>
@@ -862,7 +902,7 @@
   <PhonePages pages={PAGES} bind:page>
     <div class="phonepage p-{page} {viewport.orientation}">
       {#if page === 'prospect'}
-        {@render pProspect()}{@render pRadar()}{@render pHistory()}
+        {@render pProspect()}{@render pRadar()}{@render pRock()}
       {:else if page === 'session'}
         {@render pSession()}
       {:else if page === 'find'}
@@ -875,14 +915,14 @@
 {:else if portrait}
   <!-- tablet on its end: two columns over a full-width console strip -->
   <div class="mining tp">
-    <div class="col">{@render pProspect()}{@render pRadar()}{@render pHistory()}</div>
+    <div class="col">{@render pProspect()}{@render pRadar()}{@render pRock()}</div>
     <div class="col">{@render pFind()}{@render pSession()}</div>
     <div class="strip">{@render pConsole()}</div>
   </div>
 {:else}
 <div class="mining">
-  <div class="col">{@render pProspect()}{@render pHistory()}</div>
-  <div class="col">{@render pRadar()}{@render pSession()}</div>
+  <div class="col">{@render pProspect()}{@render pSession()}</div>
+  <div class="col">{@render pRadar()}{@render pRock()}</div>
   <div class="col">{@render pFind()}{@render pConsole()}</div>
 </div>
 {/if}
@@ -892,7 +932,7 @@
   .mining { height: 100%; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: 8px; min-height: 0; }
   .col { display: flex; flex-direction: column; gap: 8px; min-height: 0; min-width: 0; }
   .col > :global(.prospect) { flex: 1.15 1 0; }
-  .col > :global(.history) { flex: 1 1 0; }
+  .col > :global(.rock) { flex: 1.4 1 0; }
   .col > :global(.radar) { flex: 1 1 0; }
   .col > :global(.session) { flex: none; }
   .none { padding: 10px 4px; color: var(--dim); margin: 0; font-size: 12px; }
@@ -900,8 +940,8 @@
   .r { text-align: right; }
   .ok { color: var(--ok); } .warn { color: var(--hud-hi); } .bad { color: var(--danger); } .tele { color: var(--telemetry); }
   .scroll { flex: 1; min-height: 0; overflow-y: auto; }
-  :global(.panel.history .body), :global(.panel.radar .body), :global(.panel.prospect .body) { display: flex; flex-direction: column; }
-  :global(.panel.radar .body) { flex: 1 1 0; }
+  :global(.panel.rock .body), :global(.panel.radar .body), :global(.panel.prospect .body) { display: flex; flex-direction: column; }
+  :global(.panel.radar .body), :global(.panel.rock .body) { flex: 1 1 0; }
 
   /* chips and segmented pickers, thumb-sized; never wrap inside */
   .chip, .seg button, .step, .go, .plot {
@@ -992,7 +1032,6 @@
   .vmats tr.ign { opacity: .45; }
   .vmats .mbar2 { width: 30%; }
   .vmats .mbar2 i { display: block; height: 6px; background: var(--hud); opacity: .8; }
-  tr.picked td { background: rgba(255, 122, 24, .10); }
   .vwrap { flex: 0 0 34%; min-height: 150px; display: flex; gap: 4px; padding-top: 6px; }
   .vaxis { position: relative; flex: none; width: 34px; margin-bottom: 0; }
   .vaxis span { position: absolute; right: 2px; transform: translateY(50%); font-size: 10px; color: var(--dim); line-height: 1; }
@@ -1100,6 +1139,8 @@
   .ch { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 12.5px; padding: 3px 0; border-bottom: 1px solid var(--rule); white-space: nowrap; }
   .ch b.target { color: var(--hud-hi); }
   .sys { margin-left: 8px; }
+  .hint.top { margin: 0 0 6px; }
+  .lines { margin: 2px 0 0; font-size: var(--fs-xs); }
   .age.fresh { color: var(--ok); } .age.ok { color: var(--muted); } .age.stale { color: var(--danger); }
 
   /* console: COMBAT's bays and tiles, four columns so the labels fit any monitor */
@@ -1158,7 +1199,7 @@
   .mining.tp { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; }
   .mining.tp .col { overflow-y: auto; }
   .mining.tp .col > :global(.panel) { flex: none; }
-  .mining.tp :global(.panel.radar .body), .mining.tp :global(.panel.history .body), .mining.tp :global(.panel.prospect .body) { flex: none; }
+  .mining.tp :global(.panel.radar .body), .mining.tp :global(.panel.rock .body), .mining.tp :global(.panel.prospect .body) { flex: none; }
   .mining.tp .scroll { flex: none; max-height: 240px; }
   .mining.tp .tabbed { flex: 1 0 auto; min-height: 440px; }
   .mining.tp .tabbed .scroll { flex: 1; max-height: none; min-height: 200px; }
@@ -1179,13 +1220,17 @@
   .phonepage :global(.panel .scroll), .phonepage :global(.panel .body) { max-height: none; }
   .phonepage .scroll { flex: none; max-height: 46vh; }
   .phonepage.p-find .scroll { flex: 1; max-height: none; }
-  .phonepage .console { height: auto; flex-direction: column; }
-  .phonepage :global(.bay) { flex: none; }
-  .phonepage :global(.g-mine .tiles) { flex: 1; }
-  .phonepage .tiles { grid-auto-rows: minmax(56px, auto); }
-  .phonepage :global(.g-power .tiles) { grid-auto-rows: minmax(70px, auto); }
-  .phonepage :global(.panel.radar .body), .phonepage :global(.panel.history .body), .phonepage :global(.panel.prospect .body) { flex: none; }
-  .phonepage .fgs { grid-auto-rows: 56px; }
+  /* the console page fills the screen's height: the bays stretch (mining 3 : power 1.1) and so do their rows */
+  .phonepage .console { height: auto; flex: 1 1 0; flex-direction: column; }
+  .phonepage :global(.g-mine) { flex: 3 1 0; }
+  .phonepage :global(.g-power) { flex: 1.1 1 0; }
+  /* on its end: 6 rows of buttons in MINING against 2 in POWER, so every row ends up the same height */
+  .phonepage.portrait :global(.g-mine) { flex: 6 1 0; }
+  .phonepage.portrait :global(.g-power) { flex: 2 1 0; }
+  .phonepage .tiles { grid-auto-rows: minmax(0, 1fr); }
+  .phonepage :global(.g-power .tiles) { grid-auto-rows: minmax(0, 1fr); }
+  .phonepage :global(.panel.radar .body), .phonepage :global(.panel.rock .body), .phonepage :global(.panel.prospect .body) { flex: none; }
+  .phonepage .fgs { grid-auto-rows: minmax(0, 1fr); }
   .phonepage.portrait .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .phonepage.portrait .fgs { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .phonepage.portrait .fgs :global(.act.cyan) { grid-column: span 2; }

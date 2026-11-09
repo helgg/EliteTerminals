@@ -61,6 +61,18 @@ test('refined tons count per commodity, most first, with the time span', () => {
   assert.equal(ss.collectors, 2);
 });
 
+test('ejected cargo comes off the refined tally and never goes below zero', () => {
+  const s = run([
+    { event: 'MiningRefined', Type: '$bauxite_name;', Type_Localised: 'Bauxite' },
+    { event: 'MiningRefined', Type: '$bauxite_name;', Type_Localised: 'Bauxite' },
+    { event: 'MiningRefined', Type: '$painite_name;', Type_Localised: 'Painite' },
+    { event: 'EjectCargo', Type: 'bauxite', Count: 1, Abandoned: false },
+    { event: 'EjectCargo', Type: 'painite', Count: 5, Abandoned: false },
+    { event: 'EjectCargo', Type: 'gold', Count: 3, Abandoned: false },
+  ]);
+  assert.deepEqual(s.mining.session.refined, [{ name: 'bauxite', label: 'Bauxite', count: 1 }]);
+});
+
 test('a new game session restarts the counters but keeps the tools', () => {
   const s = run([
     { event: 'Loadout', Ship: 'python', Modules: [{ Item: 'hpt_mininglaser_fixed_medium' }] },

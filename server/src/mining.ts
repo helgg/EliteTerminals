@@ -74,6 +74,15 @@ export function applyMining(state: EdState, e: JournalEvent): void {
       break;
     }
 
+    case 'EjectCargo': {
+      // tons thrown out of the hold no longer count as mined: take them off the session's refined tally
+      const row = ss.refined.find((r) => r.name === internalName(e.Type));
+      if (!row) break;
+      row.count = Math.max(0, row.count - Math.max(0, Math.floor(num(e.Count))));
+      if (!row.count) ss.refined.splice(ss.refined.indexOf(row), 1);
+      break;
+    }
+
     case 'AsteroidCracked':
       ss.cracked += 1;
       break;
