@@ -10,21 +10,31 @@
   let name = $state('');
   let result = $state<{ buy: CommodityQuote[]; sell: CommodityQuote[] } | null>(null);
   let error = $state('');
+  let busy = $state(false);
 
+  // The server answers from its cached markets, so no SCAN is needed first; the scan only feeds the suggestions.
   async function look() {
-    const match = names.find((n) => n.toLowerCase() === name.trim().toLowerCase());
-    if (!match) {
-      error = 'commodity not found in the scanned area';
-      result = null;
-      return;
-    }
+    const typed = name.trim();
+    if (!typed) { error = 'type a commodity, e.g. Gold'; result = null; return; }
+    const match = names.find((n) => n.toLowerCase() === typed.toLowerCase()) ?? typed;
     error = '';
-    const res = await fetch('/api/trade/commodity', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: match, query }),
-    });
-    result = await res.json();
+    busy = true;
+    try {
+      const res = await fetch('/api/trade/commodity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: match, query }),
+      });
+      if (!res.ok) throw new Error(`server answered ${res.status}`);
+      const r = await res.json();
+      result = r;
+      if (!r.buy.length && !r.sell.length) error = `no market in range lists "${typed}" with the current filters`;
+    } catch (e) {
+      result = null;
+      error = `search failed: ${(e as Error).message}`;
+    } finally {
+      busy = false;
+    }
   }
 </script>
 
@@ -59,7 +69,7 @@
     <datalist id="et-commodities">
       {#each names as n (n)}<option value={n}></option>{/each}
     </datalist>
-    <button type="submit">SEARCH</button>
+    <button type="submit" disabled={busy}>{busy ? 'SEARCHING…' : 'SEARCH'}</button>
   </form>
   {#if error}<p class="bad">{error}</p>{/if}
   {#if result}
@@ -68,7 +78,7 @@
       {@render list('BEST TO SELL', result.sell, 'Demand')}
     </div>
   {:else if !names.length}
-    <p class="dim">Scan the area (SCAN button) to search commodities.</p>
+    <p class="dim">Type a commodity and tap SEARCH. A SCAN of the area also fills in name suggestions.</p>
   {/if}
 </div>
 

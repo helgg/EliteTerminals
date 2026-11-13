@@ -228,6 +228,8 @@ export interface EdState {
   macros: MacroState;
   mining: MiningState;
   engineering: EngineeringState;
+  /** Changes whenever the fleet does: the fleet itself (GET /api/fleet) is too big to push with every state. */
+  fleet: { rev: number };
   explore: ExploreState;
   cargo: { items: CargoItem[]; count: number };
   /** Construction sites the player docked at (COLONY v2), newest first; kept on disk across sessions. */
@@ -678,6 +680,95 @@ export function compareOrbit(a: { name: string; ls: number; id: number }, b: { n
 
 export type MaterialCategory = 'Raw' | 'Manufactured' | 'Encoded';
 
+export type ModuleGroup = 'hardpoint' | 'utility' | 'armour' | 'core' | 'internal';
+
+/** One module of a ship's fit, as the FLEET card lists it. */
+export interface FleetModule {
+  slot: string;
+  item: string;
+  group: ModuleGroup;
+  label: string;
+  /** Slot size (class number); 0 for utility mounts and armour. */
+  size: number;
+  /** A to E, or '' when the module has none. */
+  rating: string;
+  /** fixed / gimbal / turret for weapons. */
+  mount: string;
+  on: boolean;
+  health: number;
+  value: number;
+  engineering: { blueprint: string; level: number; quality: number; experimental: string } | null;
+}
+
+/** A ship's fit as the game last reported it (it only does so for the ship that is flown). */
+export interface FleetLoadout {
+  at: string;
+  maxJump: number;
+  mass: number;
+  cargo: number;
+  fuelMain: number;
+  fuelReserve: number;
+  hullHealth: number;
+  rebuy: number;
+  hullValue: number;
+  modulesValue: number;
+  modules: FleetModule[];
+}
+
+export interface FleetShip {
+  id: number;
+  /** The game's ship id ("federation_corvette"); its case varies between events. */
+  type: string;
+  label: string;
+  name: string;
+  ident: string;
+  value: number;
+  hot: boolean;
+  system: string;
+  station: string;
+  /** When this ship was last mentioned by the journal. */
+  at: string;
+  loadout: FleetLoadout | null;
+}
+
+export interface FleetSnapshot {
+  /** The ship flown now (0 = unknown). */
+  currentId: number;
+  /** Ship ids (lower case) that have a hologram picture in the user's art folder (GET /api/fleet/art/<id>.png). */
+  art?: string[];
+  storedAt: string;
+  ships: FleetShip[];
+}
+
+/** The search for the nearest material traders: one kind of trader, around a system. */
+export interface TraderQuery {
+  kind: MaterialCategory;
+  reference: string;
+}
+
+/** A station with a material trader of the kind asked for. */
+export interface TraderStation {
+  station: string;
+  system: string;
+  /** Distance from the reference system. */
+  ly: number;
+  /** Distance from the star to the station. */
+  ls: number;
+  type: string;
+  planetary: boolean;
+  /** Largest landing pad the station has. */
+  pad: 'L' | 'M' | 'S' | '';
+  updatedAt: string;
+}
+
+export interface TraderResult {
+  query: TraderQuery;
+  /** Every station with such a trader, not only the nearest shown. */
+  total: number;
+  stations: TraderStation[];
+  fetchedAt: string;
+}
+
 /** One engineering material the commander holds (or knows of). */
 export interface MaterialStock {
   /** The journal's lower-case name. */
@@ -751,6 +842,7 @@ export function initialState(): EdState {
     },
     mining: initialMining(),
     engineering: initialEngineering(),
+    fleet: { rev: 0 },
     explore: initialExplore(),
     cargo: { items: [], count: 0 },
     colony: { depots: [], sites: [] },

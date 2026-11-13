@@ -16,6 +16,8 @@ const SCHEMAS = 'https://eddn.edcd.io/schemas/';
 
 /** Events older than this are history (a replayed journal), not news. */
 const FRESH_MS = 15 * 60e3;
+/** The game's clock and this PC's clock are rarely in step (a minute or more is common): an event slightly in the future is still live. */
+const SKEW_MS = 10 * 60e3;
 const RETRY_MS = 60e3; // EDDN: wait at least a minute before sending a failed message again
 const MAX_TRIES = 5;
 const QUEUE_MAX = 500;
@@ -402,7 +404,7 @@ export class EddnUploader extends EventEmitter {
     observe(this.ctx, e);
     if (!live || !this.enabled || !canSend(this.ctx)) return;
     const age = Date.now() - Date.parse(str(e.timestamp));
-    if (!(age >= -60e3 && age <= FRESH_MS)) return;
+    if (!(age >= -SKEW_MS && age <= FRESH_MS)) return;
     const station = STATION_FILES[str(e.event)];
     if (station) {
       void this.fromFile(e, station);

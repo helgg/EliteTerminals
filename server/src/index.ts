@@ -1,5 +1,5 @@
 // Local server: reads the game's journals and serves state + the web UI to the LAN.
-import { copyFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -31,6 +31,8 @@ import { Favorites, toFavorite } from './favorites.ts';
 import { TradePins, toPin } from './tradePins.ts';
 import { HOTSPOT_COMMODITIES, Rings, type HotspotQuery } from './rings.ts';
 import { ExploreService } from './explore/service.ts';
+import { TraderFinder, TRADER_KINDS } from './traders.ts';
+import { FleetStore } from './fleet.ts';
 import { cleanRiches } from './explore/riches.ts';
 import { systemRings } from './mining.ts';
 import { mergeCarrier, setCarrierCargo } from './carrier/state.ts';
@@ -52,6 +54,7 @@ const galaxy = new Galaxy(CACHE_DIR);
 await galaxy.load();
 const rings = new Rings();
 const explore = new ExploreService();
+const traders = new TraderFinder();
 const scanner = new MarketScanner(CACHE_DIR);
 await scanner.load();
 const history = new MarketHistory(CACHE_DIR);
@@ -132,7 +135,17 @@ const syncUpload = () => {
   reader.state.eddnUpload = uploader.stats;
 };
 syncUpload();
+// The fleet: ships and their fits, kept on disk (the game only reports a fit while the ship is flown)
+const fleet = new FleetStore(CACHE_DIR);
+await fleet.load();
+await fleet.scan(JOURNAL_DIR, fleet.rev || fleet.ships.size ? Date.now() - 2 * 86400e3 : 0);
+reader.state.fleet.rev = fleet.rev;
+void fleet.save().catch(() => {});
 reader.on('event', (e: Record<string, unknown>, live: boolean) => {
+  if (fleet.apply(e)) {
+    reader.state.fleet.rev = fleet.rev;
+    void fleet.save().catch((err: Error) => app.log.warn({ error: err.message }, 'fleet not saved'));
+  }
   uploader.setJournal(reader.state.meta.journal);
   uploader.feed(e, live);
 });
@@ -610,6 +623,37 @@ app.post('/api/mining/hotspots', async (req, reply) => {
     });
   } catch (err) {
     app.log.warn({ error: (err as Error).message }, 'hotspot search failed');
+    return reply.code(502).send({ error: (err as Error).message });
+  }
+});
+
+// Hologram pictures the user keeps in their own folder (never part of the app): <cache>/fleet-art/<ship id>.png
+const ART_DIR = join(CACHE_DIR, 'fleet-art');
+const artIds = (): string[] => {
+  try {
+    return readdirSync(ART_DIR).filter((n) => /^[a-z0-9_]+\.png$/.test(n)).map((n) => n.slice(0, -4));
+  } catch {
+    return [];
+  }
+};
+app.get('/api/fleet', async () => ({ ...fleet.snapshot(), art: artIds() }));
+app.get('/api/fleet/art/:file', async (req, reply) => {
+  const file = String((req.params as { file?: string }).file ?? '');
+  if (!/^[a-z0-9_]+\.png$/.test(file) || !existsSync(join(ART_DIR, file))) return reply.code(404).send();
+  return reply.type('image/png').header('Cache-Control', 'no-cache').send(readFileSync(join(ART_DIR, file)));
+});
+
+// ENGINEERING: the nearest material trader of a kind (Raw, Manufactured, Encoded) around a system
+app.post('/api/engineering/traders', async (req, reply) => {
+  const q = req.body as { kind?: string; reference?: string };
+  const kind = TRADER_KINDS.find((k) => k === q?.kind);
+  if (!kind) return reply.code(400).send({ error: 'Unknown trader kind' });
+  const reference = String(q.reference || reader.state.location.system || '').trim();
+  if (!reference) return reply.code(400).send({ error: 'No system: the game has not told where the ship is' });
+  try {
+    return await traders.find({ kind, reference });
+  } catch (err) {
+    app.log.warn({ error: (err as Error).message }, 'trader search failed');
     return reply.code(502).send({ error: (err as Error).message });
   }
 });

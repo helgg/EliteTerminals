@@ -11,6 +11,7 @@
   import Colony from './screens/Colony.svelte';
   import Carrier from './screens/Carrier.svelte';
   import Engineering from './screens/Engineering.svelte';
+  import Fleet from './screens/Fleet.svelte';
   import Explore from './screens/Explore.svelte';
   import Mining from './screens/Mining.svelte';
   import { exploreRequest } from './lib/explore/nav.svelte.ts';
@@ -50,7 +51,7 @@
   // TRADE needs the width for its tables, COMBAT for its console (it has its own POWER bay).
   // MINING has its own console and power presets, and no use for the flight panels (SHIP, SYSTEM).
   const side = $derived(
-    tab !== 'TRADE' && tab !== 'COMBAT' && tab !== 'MINING' && tab !== 'COLONY' && tab !== 'CARRIER' && tab !== 'ENGINEERING' && tab !== 'EXPLORE' && (viewport.vp === 'desktop-landscape' || viewport.vp === 'tablet-landscape'),
+    tab !== 'TRADE' && tab !== 'COMBAT' && tab !== 'MINING' && tab !== 'COLONY' && tab !== 'CARRIER' && tab !== 'ENGINEERING' && tab !== 'FLEET' && tab !== 'EXPLORE' && (viewport.vp === 'desktop-landscape' || viewport.vp === 'tablet-landscape'),
   );
 
   // an EXP button on another screen asks for EXPLORE
@@ -230,6 +231,8 @@
       <Explore {s} />
     {:else if tab === 'ENGINEERING'}
       <Engineering {s} />
+    {:else if tab === 'FLEET'}
+      <Fleet {s} />
     {:else}
       <Mining {s} {now} />
     {/if}

@@ -202,6 +202,17 @@ test('a replayed journal and old events are never sent', async () => {
   s.done();
 });
 
+test('a game clock a couple of minutes ahead of the PC clock still counts as live', async () => {
+  const calls: Call[] = [];
+  const s = sender(200, calls);
+  s.prime();
+  s.up.setEnabled(true);
+  s.up.feed(jump(new Date(Date.now() + 90e3).toISOString().replace(/\.\d+Z$/, 'Z')), true);
+  await s.up.pump();
+  assert.equal(calls.length, 1);
+  s.done();
+});
+
 test('a refused message is dropped for good, a network failure is kept for a later retry', async () => {
   const bad: Call[] = [];
   const a = sender(400, bad);

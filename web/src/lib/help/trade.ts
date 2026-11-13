@@ -12,7 +12,7 @@ export const trade: HelpDoc = {
     { title: 'LOOP ROUTES', text: 'A → B → A routes. Tap a route to see its detail: the stations, the commodities and the live prices.' },
     { title: 'LINEAR ROUTES', text: 'Chains of up to five stops. Set STOPS next to the tabs. The trip to the first stop is drawn as an amber INITIAL TRIP lane.' },
     { title: 'A → B', text: 'Pick a start and a destination (each with an optional station) and get the best trade path for every number of stops along the corridor, up to 500 ly, with PLOT on each stop.' },
-    { title: 'COMMODITY and MARKET', text: 'COMMODITY finds where a commodity sells or buys best. MARKET shows the station you are docked at, your visited markets and the session profit.' },
+    { title: 'COMMODITY and MARKET', text: 'COMMODITY finds where a commodity sells or buys best: type the name and tap SEARCH (a SCAN first only adds name suggestions). MARKET shows the station you are docked at, your visited markets and the session profit.' },
     { title: 'Filters', text: 'Maximum price age, landing pad, distance from the star, minimum supply and demand, EXPORT and IMPORT of a chosen station, faction states, PLANETARY and CARRIERS. Mixed loads fill your hold within your stock, demand and credits.' },
     { title: 'Pins and watch', text: 'Tap ◇ on a route to pin it: pinned routes keep a cyan rail in later scans and PINNED lists only them (marked "not in this scan" if a scan left them out). A picked route is priced again whenever one of its markets gets new prices, and a warning shows what changed.' },
     { title: 'Favourites', text: 'The ☆ beside a station or system saves it to the FLIGHT favourites for one-tap plotting.' },

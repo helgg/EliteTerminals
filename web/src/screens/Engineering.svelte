@@ -4,6 +4,7 @@
   import PhonePages from '../lib/PhonePages.svelte';
   import Name from '../lib/Name.svelte';
   import PlotButton from '../lib/trade/PlotButton.svelte';
+  import TraderFinder from '../lib/engineering/TraderFinder.svelte';
   import ExpButton from '../lib/explore/ExpButton.svelte';
   import { viewport } from '../lib/viewport.svelte.ts';
 
@@ -58,14 +59,18 @@
   const unlocked = $derived(s.engineering.engineers.filter((e) => e.progress === 'Unlocked').length);
 
   // phones: one list at a time, picked from the bar at the bottom
-  type Page = 'Raw' | 'Manufactured' | 'Encoded' | 'Engineers';
+  type Page = 'Raw' | 'Manufactured' | 'Encoded' | 'Engineers' | 'Traders';
   const PAGES: { id: Page; label: string; icon: string }[] = [
     { id: 'Raw', label: 'RAW', icon: '◆' }, { id: 'Manufactured', label: 'MANUF', icon: '⚙' },
     { id: 'Encoded', label: 'ENCODED', icon: '▦' }, { id: 'Engineers', label: 'ENGINEERS', icon: '☺' },
+    { id: 'Traders', label: 'TRADERS', icon: '⌖' },
   ];
   let page = $state<Page>((read('et.eng.page', 'Raw') as Page));
   $effect(() => save('et.eng.page', page));
   const phone = $derived(viewport.device === 'phone');
+  // the last column holds the engineers or the search for material traders
+  let side = $state<'Engineers' | 'Traders'>(read('et.eng.side', 'Engineers') === 'Traders' ? 'Traders' : 'Engineers');
+  $effect(() => save('et.eng.side', side));
 </script>
 
 {#snippet materials(k: (typeof KINDS)[number])}
@@ -134,10 +139,12 @@
 {#if phone}
   <PhonePages pages={PAGES} bind:page>
     <div class="eng">
-      {#if page !== 'Engineers'}{@render tools()}{/if}
+      {#if page !== 'Engineers' && page !== 'Traders'}{@render tools()}{/if}
       <div class="one">
         {#if page === 'Engineers'}
           {@render engineersPanel()}
+        {:else if page === 'Traders'}
+          <TraderFinder current={s.location.system} />
         {:else}
           {@render materials(KINDS.find((k) => k.cat === page)!)}
         {/if}
@@ -152,7 +159,17 @@
     {#each KINDS as k (k.cat)}
       {@render materials(k)}
     {/each}
-    {@render engineersPanel()}
+    <div class="side">
+      <div class="toggles" role="group" aria-label="Last column">
+        <button class:on={side === 'Engineers'} onclick={() => (side = 'Engineers')}>ENGINEERS</button>
+        <button class:on={side === 'Traders'} onclick={() => (side = 'Traders')}>TRADERS</button>
+      </div>
+      {#if side === 'Traders'}
+        <TraderFinder current={s.location.system} />
+      {:else}
+        {@render engineersPanel()}
+      {/if}
+    </div>
   </div>
 </div>
 {/if}
@@ -179,6 +196,9 @@
   }
   @media (max-width: 1100px) { .cols { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   .cols :global(.panel) { min-height: 0; }
+  .side { display: flex; flex-direction: column; gap: 6px; min-height: 0; }
+  .side > :global(.panel) { flex: 1; }
+  .side .toggles button { flex: 1; }
   /* a phone shows one list at a time (PhonePages); the panel fills the page and scrolls inside */
   .one { flex: 1; min-height: 0; display: flex; flex-direction: column; }
   .one :global(.panel) { flex: 1; min-height: 0; }
