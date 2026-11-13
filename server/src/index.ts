@@ -627,20 +627,26 @@ app.post('/api/mining/hotspots', async (req, reply) => {
   }
 });
 
-// Hologram pictures the user keeps in their own folder (never part of the app): <cache>/fleet-art/<ship id>.png
-const ART_DIR = join(CACHE_DIR, 'fleet-art');
+// Hologram pictures of the ships (<ship id>.png): the ones shipped with the app (server/fleet-art), plus any the player drops in
+// <cache>/fleet-art, which win over the shipped one of the same ship
+const ART_DIRS = [join(CACHE_DIR, 'fleet-art'), resolve(import.meta.dirname, '../fleet-art')];
 const artIds = (): string[] => {
-  try {
-    return readdirSync(ART_DIR).filter((n) => /^[a-z0-9_]+\.png$/.test(n)).map((n) => n.slice(0, -4));
-  } catch {
-    return [];
+  const ids = new Set<string>();
+  for (const dir of ART_DIRS) {
+    try {
+      for (const n of readdirSync(dir)) if (/^[a-z0-9_]+\.png$/.test(n)) ids.add(n.slice(0, -4));
+    } catch {
+      /* the folder may not exist */
+    }
   }
+  return [...ids];
 };
 app.get('/api/fleet', async () => ({ ...fleet.snapshot(), art: artIds() }));
 app.get('/api/fleet/art/:file', async (req, reply) => {
   const file = String((req.params as { file?: string }).file ?? '');
-  if (!/^[a-z0-9_]+\.png$/.test(file) || !existsSync(join(ART_DIR, file))) return reply.code(404).send();
-  return reply.type('image/png').header('Cache-Control', 'no-cache').send(readFileSync(join(ART_DIR, file)));
+  const path = /^[a-z0-9_]+\.png$/.test(file) ? ART_DIRS.map((d) => join(d, file)).find((p) => existsSync(p)) : undefined;
+  if (!path) return reply.code(404).send();
+  return reply.type('image/png').header('Cache-Control', 'no-cache').send(readFileSync(path));
 });
 
 // ENGINEERING: the nearest material trader of a kind (Raw, Manufactured, Encoded) around a system

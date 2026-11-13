@@ -273,6 +273,18 @@ a second.
 
 ![MINING on an iPad standing up and two iPhone pages: the prospector and the rings, one page at a time](docs/images/devices-mining.jpg)
 
+**FLEET**
+
+- One **card per ship you own**, from the game's own list: model, name and ident, jump range, mass, cargo, fuel, value
+  and rebuy cost, and where the ship is stored. The ship you are flying is marked **IN USE** and comes first.
+- A **hologram** of each ship: a still wireframe illustration with a bright scan line sweeping down it now and then.
+  A ship without a picture shows a terminal that reads SCAN NOT AVAILABLE. You can replace any picture by dropping a
+  PNG named after the ship id into the `fleet-art` folder of the EliteTerminals folder in your local app data.
+- **Tap a card to turn it over**: every module fitted (hardpoints, utility, armour, core, internal) with size, rating
+  and mount, and the engineering applied to each.
+- The game reports how a ship is fitted only while you fly it, so a ship you have not flown since the panel began
+  reading shows **FIT NOT SEEN YET**. Fly it once and its last fit is kept on your PC, with the date it was read.
+
 ## How it works
 
 ```
@@ -392,6 +404,7 @@ clipped text. Add `?tab=combat` (and `&page=survive` for a phone page) to open e
 - [x] MINING screen for the ship: prospector, rock value, session, rings, hotspot finder with overlap filter, ore prices and where to sell
 - [x] EXPLORE: system map with belts, body sheet, FIND for exobiology and worlds; ENGINEERING: materials and engineers
 - [x] Phone pages for ENGINEERING, EXPLORE and CARRIER
+- [x] FLEET: a card per ship with its hologram, the numbers and the fitted modules on the back
 - [ ] PVP: commanders flagged in the contacts, encounter history, a direct-keys console page
 - [ ] MINING in the surface vehicle
 - [ ] CARRIER: carrier market and orders, where to park and what to stock
@@ -413,7 +426,7 @@ nothing in the app depends on it.
 ## Disclaimer
 
 EliteTerminals is an unofficial fan project and is not affiliated with or endorsed by Frontier Developments.
-Elite Dangerous is a trademark of Frontier Developments plc. All panel art is drawn in code; no game assets are used.
+Elite Dangerous is a trademark of Frontier Developments plc. Panel art is drawn in code, apart from the ship holograms in FLEET: stylised illustrations that only resemble the ships and are not Frontier's artwork. No game files or assets are used.
 
 ## License
 

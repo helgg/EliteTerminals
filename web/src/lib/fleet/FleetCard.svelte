@@ -1,6 +1,5 @@
 <script lang="ts">
   import type { FleetModule, FleetShip, ModuleGroup } from '@et/shared';
-  import ShipWireframe from './ShipWireframe.svelte';
   import { cr, short } from '../format.ts';
 
   // One ship: the front has the hologram and the numbers, the back lists everything fitted. Tap to turn it over.
@@ -15,8 +14,6 @@
   const by = (g: ModuleGroup): FleetModule[] => lo?.modules.filter((m) => m.group === g) ?? [];
   const size = (m: FleetModule) => (m.size ? `${m.size}${m.rating}` : m.rating);
   const mount = (m: FleetModule) => (m.mount ? m.mount[0].toUpperCase() : '');
-  // the weapons fitted (sizes, biggest first) for the dots on the hologram; null = the fit is not known
-  const hardpoints = $derived(lo ? lo.modules.filter((m) => m.group === 'hardpoint').map((m) => m.size).sort((a, b) => b - a) : null);
   const fuel = $derived(lo ? lo.fuelMain : 0);
   const seen = $derived(lo ? lo.at.slice(0, 10) : '');
   const place = $derived(current ? 'IN USE' : ship.station ? `${ship.system} · ${ship.station}` : ship.system || 'location unknown');
@@ -39,9 +36,21 @@
       <div class="holo">
         {#if art}
           <!-- a picture the player keeps in their own art folder: it replaces the drawn wireframe -->
-          <img class="art" src="/api/fleet/art/{ship.type.toLowerCase()}.png" alt="{ship.label} hologram" draggable="false" />
+          <div class="artbox" style="--src: url(/api/fleet/art/{ship.type.toLowerCase()}.png)">
+            <img class="art" src="/api/fleet/art/{ship.type.toLowerCase()}.png" alt="{ship.label} hologram" draggable="false" />
+            <!-- scan: a bright band sweeping down the ship, drawn only where the picture has lines -->
+            <span class="scan" aria-hidden="true"></span>
+            <span class="beam" aria-hidden="true"></span>
+          </div>
         {:else}
-          <ShipWireframe type={ship.type} hardpoints={hardpoints} />
+          <!-- no picture for this ship yet: a terminal that says so -->
+          <div class="noscan" role="img" aria-label="Scan not available for {ship.label}">
+            <i class="c tl"></i><i class="c tr"></i><i class="c bl"></i><i class="c br"></i>
+            <p class="l1">&gt; HULL SCAN</p>
+            <p class="l2">SCAN NOT AVAILABLE</p>
+            <p class="l3">&gt; NO HOLOGRAM ON FILE<span class="cur">_</span></p>
+            <span class="sweep" aria-hidden="true"></span>
+          </div>
         {/if}
       </div>
       <dl class="stats">
@@ -110,8 +119,33 @@
   .name { font-size: 15px; font-weight: 800; letter-spacing: 0.04em; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-transform: uppercase; }
   .ident { flex: none; font-size: 11px; color: var(--dim); letter-spacing: 0.08em; }
   .holo { flex: 1; min-height: 0; padding: 2px 8px; }
-  .art { width: 100%; height: 100%; object-fit: contain; display: block; filter: drop-shadow(0 0 6px color-mix(in srgb, var(--telemetry) 45%, transparent)); animation: bob 6s ease-in-out infinite alternate; }
-  @keyframes bob { from { transform: translateY(-3px) rotate(-0.6deg); } to { transform: translateY(3px) rotate(0.6deg); } }
+  .artbox { position: relative; width: 100%; height: 100%; overflow: hidden; }
+  .art { width: 100%; height: 100%; object-fit: contain; display: block; filter: brightness(1.3) drop-shadow(0 0 6px color-mix(in srgb, var(--telemetry) 60%, transparent)); }
+  /* both layers share one gradient (a thin band in the middle of a tall strip) that slides down; the strip is mostly empty, so the scan rests between passes */
+  .scan, .beam {
+    position: absolute; inset: 0; pointer-events: none; background-size: 100% 300%; background-repeat: no-repeat;
+    background-image: linear-gradient(to bottom, transparent 0%, transparent 44%, color-mix(in srgb, var(--hud-hi) 55%, transparent) 49%, #fff 50%, color-mix(in srgb, var(--hud-hi) 55%, transparent) 51%, transparent 56%, transparent 100%);
+    animation: scan 5s linear infinite;
+  }
+  .scan { -webkit-mask: var(--src) center / contain no-repeat; mask: var(--src) center / contain no-repeat; filter: drop-shadow(0 0 4px var(--hud-hi)); }
+  .beam { opacity: 0.25; background-image: linear-gradient(to bottom, transparent 0%, transparent 49.6%, var(--hud-hi) 50%, transparent 50.4%, transparent 100%); }
+  .noscan {
+    position: relative; width: 100%; height: 100%; box-sizing: border-box; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    border: 1px dashed color-mix(in srgb, var(--telemetry) 30%, transparent); font-family: inherit; letter-spacing: 0.14em;
+    background: repeating-linear-gradient(to bottom, transparent 0 3px, color-mix(in srgb, var(--telemetry) 5%, transparent) 3px 4px);
+  }
+  .noscan p { margin: 0; font-size: 11px; color: color-mix(in srgb, var(--telemetry) 65%, transparent); }
+  .noscan .l2 { font-size: 15px; font-weight: 800; color: var(--hud-hi); text-shadow: 0 0 8px color-mix(in srgb, var(--hud-hi) 55%, transparent); animation: flick 3.2s steps(1) infinite; }
+  .noscan .l3 { color: var(--dim); }
+  .cur { animation: blink 1s steps(1) infinite; }
+  .c { position: absolute; width: 14px; height: 14px; border: 0 solid var(--telemetry); opacity: 0.55; }
+  .tl { top: 6px; left: 6px; border-width: 1px 0 0 1px; } .tr { top: 6px; right: 6px; border-width: 1px 1px 0 0; }
+  .bl { bottom: 6px; left: 6px; border-width: 0 0 1px 1px; } .br { bottom: 6px; right: 6px; border-width: 0 1px 1px 0; }
+  .sweep { position: absolute; left: 0; right: 0; height: 2px; background: var(--telemetry); opacity: 0.18; box-shadow: 0 0 8px var(--telemetry); animation: sweepy 4s linear infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  @keyframes flick { 0%, 92%, 96% { opacity: 1; } 94%, 98% { opacity: 0.55; } }
+  @keyframes sweepy { from { top: -4%; } to { top: 104%; } }
+  @keyframes scan { from { background-position: 0 100%; } to { background-position: 0 0; } }
   .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px 6px; margin: 0; }
   .stats div { padding: 3px 5px; background: var(--rail); border: 1px solid var(--rule); min-width: 0; }
   dt { font-size: var(--fs-2xs); letter-spacing: 0.1em; color: var(--dim); }
@@ -132,5 +166,5 @@
   .lb small { margin-left: 5px; color: var(--dim); font-size: 9px; }
   .eng { flex: none; max-width: 48%; color: var(--ok); font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .empty { font-size: 12px; color: var(--muted); line-height: 1.5; margin: 8px 0; }
-  @media (prefers-reduced-motion: reduce) { .turn { transition: none; } .art { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .turn { transition: none; } .scan, .beam, .sweep { animation: none; display: none; } .cur, .noscan .l2 { animation: none; } }
 </style>
